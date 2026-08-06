@@ -343,6 +343,17 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     this.charts = {};
   }
 
+  // Pads single-point data so Chart.js draws a real line instead of a floating dot
+  padSinglePoint(labels: any[], ...dataArrays: any[][]): { labels: any[], dataArrays: any[][] } {
+    if (labels.length === 1) {
+      return {
+        labels: ['', ...labels, ''],
+        dataArrays: dataArrays.map(d => [d[0], d[0], d[0]])
+      };
+    }
+    return { labels, dataArrays };
+  }
+
   // --- SUMMARY CHARTS ---
   renderSummaryCharts() {
     if (!this.summaryData) return;
@@ -474,13 +485,17 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const renderLine = (id: string, labels: any[], data: any[], color: string, label: string, onClickHandler?: (e: any, elements: any[], chart: any) => void) => {
       const ctx = document.getElementById(id) as HTMLCanvasElement;
       if (!ctx) return;
+      // Pad single-point to force line rendering
+      const padded = this.padSinglePoint(labels, data);
+      const paddedLabels = padded.labels;
+      const paddedData = padded.dataArrays[0];
       this.charts[id] = new Chart(ctx, {
         type: 'line',
         data: {
-          labels,
+          labels: paddedLabels,
           datasets: [{ 
             label, 
-            data, 
+            data: paddedData, 
             borderColor: color,
             backgroundColor: (context: any) => {
               const canvasCtx = context.chart.ctx;
@@ -493,7 +508,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
             pointBackgroundColor: '#ffffff',
             pointBorderColor: color,
             pointBorderWidth: 2,
-            pointRadius: 4,
+            pointRadius: (ctx: any) => ctx.dataIndex === 0 || ctx.dataIndex === paddedLabels.length - 1 ? (paddedLabels[0] === '' ? 0 : 4) : 4,
             pointHoverRadius: 6
           }]
         },
@@ -501,8 +516,15 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           responsive: true, 
           maintainAspectRatio: false, 
           animation: { duration: 800, easing: 'easeOutQuart' },
-          scales: { x: { offset: labels.length === 1 } },
-          onClick: onClickHandler ? (e, elements, chart) => onClickHandler(e, elements, chart) : undefined,
+          scales: { x: { offset: paddedLabels.length <= 3 } },
+          onClick: onClickHandler ? (e, elements, chart) => {
+            // Remap index back to original if padded
+            if (!elements || !elements.length) return;
+            let idx = elements[0].index;
+            if (paddedLabels[0] === '') idx = idx - 1; // offset for ghost
+            const fakeMeta = { ...elements[0], index: idx };
+            onClickHandler(e, [fakeMeta], chart);
+          } : undefined,
           onHover: onClickHandler ? (e, elements) => {
             if (e.native && e.native.target) {
               (e.native.target as HTMLElement).style.cursor = elements.length ? 'pointer' : 'default';
@@ -513,11 +535,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       });
     };
 
-    const monthlyLabels = (this.revenuesData.monthly || []).map((d: any) => d.month);
-    renderLine('revMonthlyChart', monthlyLabels, (this.revenuesData.monthly || []).map((d: any) => d.revenue), '#f59e0b', 'Monthly Revenue', (e, elements, chart) => {
+    const rawMonthlyLabels = (this.revenuesData.monthly || []).map((d: any) => d.month);
+    const rawMonthlyData = (this.revenuesData.monthly || []).map((d: any) => d.revenue);
+    const monthlyLabels = rawMonthlyLabels; // Keep original for drill-down index mapping
+    renderLine('revMonthlyChart', monthlyLabels, rawMonthlyData, '#f59e0b', 'Monthly Revenue', (e, elements, chart) => {
       if (!elements || !elements.length) return;
       const index = elements[0].index;
       const monthStr = monthlyLabels[index]; // e.g. "Mar-2026"
+      if (!monthStr || monthStr === '') return; // ghost point
       this.selectedDrillDownMonth = monthStr;
       
       const [mon, yy] = monthStr.split('-');
@@ -585,22 +610,20 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
     let trendData = this.clientsData.trends;
     let labels = Object.keys(trendData);
-    
-    if (this.currentRange === 'past6Months' || this.currentRange === 'past12Months') {
-      const agg = this.aggregateToMonthly(this.clientsData.trends);
-      trendData = agg.aggregated;
-      labels = agg.labels;
-    }
+    // Note: backend always returns already-monthly trend data (e.g. "Jan-2026"),
+    // so no re-aggregation is needed regardless of the selected range.
 
     const ctxBreakdown = document.getElementById('clientBreakdownChart') as HTMLCanvasElement;
     if (ctxBreakdown && this.clientsData.monthly_breakdown) {
       const breakdownData = this.clientsData.monthly_breakdown;
-      const bLabels = Object.keys(breakdownData);
-      
-      const newClients = bLabels.map(l => breakdownData[l]?.new || 0);
-      const repeatClients = bLabels.map(l => breakdownData[l]?.repeat || 0);
-      const memberInvoices = bLabels.map(l => breakdownData[l]?.member || 0);
-      const nonMemberInvoices = bLabels.map(l => breakdownData[l]?.non_member || 0);
+      const rawBLabels = Object.keys(breakdownData);
+      const rawNew = rawBLabels.map(l => breakdownData[l]?.new || 0);
+      const rawRepeat = rawBLabels.map(l => breakdownData[l]?.repeat || 0);
+      const rawMember = rawBLabels.map(l => breakdownData[l]?.member || 0);
+      const rawNonMember = rawBLabels.map(l => breakdownData[l]?.non_member || 0);
+
+      const { labels: bLabels, dataArrays: bDataArrays } = this.padSinglePoint(rawBLabels, rawNew, rawRepeat, rawMember, rawNonMember);
+      const [newClients, repeatClients, memberInvoices, nonMemberInvoices] = bDataArrays;
 
       this.charts['breakdown'] = new Chart(ctxBreakdown, {
         type: 'line',
@@ -613,7 +636,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
               borderColor: '#0ea5e9', 
               backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#0ea5e966'); grad.addColorStop(1, '#0ea5e900'); return grad; },
               fill: true,
-              pointBackgroundColor: '#ffffff'
+              pointBackgroundColor: '#ffffff',
+              pointRadius: (ctx: any) => bLabels[0] === '' && (ctx.dataIndex === 0 || ctx.dataIndex === bLabels.length - 1) ? 0 : 4
             },
             { 
               label: 'Repeat Clients', 
@@ -621,7 +645,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
               borderColor: '#6366f1', 
               backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#6366f166'); grad.addColorStop(1, '#6366f100'); return grad; },
               fill: true,
-              pointBackgroundColor: '#ffffff'
+              pointBackgroundColor: '#ffffff',
+              pointRadius: (ctx: any) => bLabels[0] === '' && (ctx.dataIndex === 0 || ctx.dataIndex === bLabels.length - 1) ? 0 : 4
             },
             { 
               label: 'Members Invoices', 
@@ -629,7 +654,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
               borderColor: '#10b981', 
               backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#10b98166'); grad.addColorStop(1, '#10b98100'); return grad; },
               fill: true,
-              pointBackgroundColor: '#ffffff'
+              pointBackgroundColor: '#ffffff',
+              pointRadius: (ctx: any) => bLabels[0] === '' && (ctx.dataIndex === 0 || ctx.dataIndex === bLabels.length - 1) ? 0 : 4
             },
             { 
               label: 'Non members Invoices', 
@@ -637,7 +663,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
               borderColor: '#f97316', 
               backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#f9731666'); grad.addColorStop(1, '#f9731600'); return grad; },
               fill: true,
-              pointBackgroundColor: '#ffffff'
+              pointBackgroundColor: '#ffffff',
+              pointRadius: (ctx: any) => bLabels[0] === '' && (ctx.dataIndex === 0 || ctx.dataIndex === bLabels.length - 1) ? 0 : 4
             }
           ]
         },
@@ -647,11 +674,15 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           animation: { duration: 800, easing: 'easeOutQuart' },
           plugins: { legend: { display: true, position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } } },
           layout: { padding: { top: 30 } },
-          scales: { x: { offset: bLabels.length === 1 } },
+          scales: { x: { offset: bLabels.length <= 3 } },
           onClick: (e: any, elements: any[], chart: any) => {
             if (!elements || elements.length === 0) return;
             const index = elements[0].index;
-            const monthStr = bLabels[index]; // e.g. "Mar-2026"
+            const rawBLabels = Object.keys(this.clientsData.monthly_breakdown);
+            // Adjust index if padded
+            const adjustedIndex = bLabels[0] === '' ? index - 1 : index;
+            const monthStr = rawBLabels[adjustedIndex];
+            if (!monthStr) return;
             this.selectedClientDrillDownMonth = monthStr;
             
             const [mon, yy] = monthStr.split('-');
@@ -673,18 +704,22 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     const renderCombo = (id: string, prop: string, color: string) => {
       const ctx = document.getElementById(id) as HTMLCanvasElement;
       if (!ctx) return;
-      const newCounts = labels.map(l => trendData[l]?.[prop]?.new || 0);
-      const repeatCounts = labels.map(l => trendData[l]?.[prop]?.repeat || 0);
-      const avg = labels.map(l => {
+      const rawNewCounts = labels.map(l => trendData[l]?.[prop]?.new || 0);
+      const rawRepeatCounts = labels.map(l => trendData[l]?.[prop]?.repeat || 0);
+      const rawAvg = labels.map(l => {
         const c = trendData[l]?.[prop]?.count || 0;
         const r = trendData[l]?.[prop]?.revenue || 0;
         return c > 0 ? parseFloat((r / c).toFixed(2)) : 0;
       });
 
+      const { labels: paddedLabels, dataArrays } = this.padSinglePoint(labels, rawNewCounts, rawRepeatCounts, rawAvg);
+      const [newCounts, repeatCounts, avg] = dataArrays;
+      const ghostFirst = paddedLabels[0] === '';
+
       this.charts[id] = new Chart(ctx, {
         type: 'line',
         data: {
-          labels,
+          labels: paddedLabels,
           datasets: [
             { 
               type: 'line', 
@@ -694,6 +729,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
               backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#0ea5e966'); grad.addColorStop(1, '#0ea5e900'); return grad; },
               fill: true,
               pointBackgroundColor: '#ffffff',
+              pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === paddedLabels.length - 1) ? 0 : 4,
               yAxisID: 'y' 
             } as any,
             { 
@@ -704,6 +740,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
               backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#6366f166'); grad.addColorStop(1, '#6366f100'); return grad; },
               fill: true,
               pointBackgroundColor: '#ffffff',
+              pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === paddedLabels.length - 1) ? 0 : 4,
               yAxisID: 'y' 
             } as any,
             { 
@@ -712,6 +749,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
               data: avg, 
               borderColor: '#10b981', 
               pointBackgroundColor: '#ffffff', 
+              pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === paddedLabels.length - 1) ? 0 : 4,
               yAxisID: 'y1' 
             } as any
           ]
@@ -721,7 +759,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           plugins: { legend: { display: true, position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } } },
           layout: { padding: { top: 30 } },
           scales: {
-            x: { offset: labels.length === 1 },
+            x: { offset: paddedLabels.length <= 3 },
             y: { type: 'linear', position: 'left', title: { display: true, text: 'Clients', color: '#0ea5e9' } },
             y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Average Spend', color: '#10b981' } }
           }
@@ -744,8 +782,6 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         const weeklyOrder: string[] = [];
         
         dailyData.forEach((d: any) => {
-          // Parse '%d-%m-%Y' or '%Y-%m-%d'
-          // We will update backend to return '%Y-%m-%d' to match JS easily
           const date = new Date(d.day);
           if (isNaN(date.getTime())) return;
           
@@ -765,8 +801,11 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         dailyTitle = 'Weekly Client Footfall';
       }
 
-      const dLabels = dailyData.map((d: any) => d.day);
-      const dCounts = dailyData.map((d: any) => d.count);
+      const rawDLabels = dailyData.map((d: any) => d.day);
+      const rawDCounts = dailyData.map((d: any) => d.count);
+      const { labels: dLabels, dataArrays: dArrays } = this.padSinglePoint(rawDLabels, rawDCounts);
+      const dCounts = dArrays[0];
+      const ghostFirst = dLabels[0] === '';
       
       this.charts['clientDaily'] = new Chart(ctxDaily, {
         type: 'line',
@@ -778,7 +817,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
             borderColor: '#3b82f6',
             backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#3b82f666'); grad.addColorStop(1, '#3b82f600'); return grad; },
             fill: true,
-            pointBackgroundColor: '#ffffff'
+            pointBackgroundColor: '#ffffff',
+            pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === dLabels.length - 1) ? 0 : 4
           }]
         },
         options: { 
@@ -787,7 +827,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           animation: { duration: 800, easing: 'easeOutQuart' },
           plugins: { legend: { display: false } },
           layout: { padding: { top: 30 } },
-          scales: { x: { offset: dLabels.length === 1 } }
+          scales: { x: { offset: dLabels.length <= 3 } }
         },
         plugins: [dataLabelsPlugin]
       });
@@ -800,12 +840,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     
     let currentFinanceData = this.financeData;
     let months = Object.keys(currentFinanceData);
-
-    if (this.currentRange === 'past6Months' || this.currentRange === 'past12Months') {
-      const agg = this.aggregateToMonthly(this.financeData);
-      currentFinanceData = agg.aggregated;
-      months = agg.labels;
-    }
+    // Note: backend already returns monthly-keyed data (e.g. "Jan-2026"),
+    // so no re-aggregation is needed regardless of the selected range.
 
     const makeFinBarLine = (id: string, labels: string[], dataKey: string, barColor: string) => {
       try {
@@ -816,13 +852,17 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         grad.addColorStop(0, barColor + 'ff');
         grad.addColorStop(1, barColor + '00');
 
-        const revData = labels.map(m => currentFinanceData[m]?.[dataKey]?.revenue || 0);
-        const countData = labels.map(m => currentFinanceData[m]?.[dataKey]?.count || 0);
+        const rawRevData = labels.map(m => currentFinanceData[m]?.[dataKey]?.revenue || 0);
+        const rawCountData = labels.map(m => currentFinanceData[m]?.[dataKey]?.count || 0);
+
+        const { labels: paddedLabels, dataArrays } = this.padSinglePoint(labels, rawRevData, rawCountData);
+        const [revData, countData] = dataArrays;
+        const ghostFirst = paddedLabels[0] === '';
 
         this.charts[id] = new Chart(el, {
           type: 'line',
           data: {
-            labels: labels,
+            labels: paddedLabels,
             datasets: [
               {
                 type: 'line' as any,
@@ -833,6 +873,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
                 fill: true,
                 pointBackgroundColor: '#ffffff',
                 pointBorderColor: barColor,
+                pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === paddedLabels.length - 1) ? 0 : 4,
                 yAxisID: 'y'
               },
               {
@@ -844,7 +885,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
                 pointBackgroundColor: '#60a5fa',
                 pointBorderColor: '#ffffff',
                 pointBorderWidth: 2,
-                pointRadius: 4,
+                pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === paddedLabels.length - 1) ? 0 : 4,
                 borderWidth: 2,
                 yAxisID: 'y1'
               }
@@ -856,7 +897,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
             plugins: { legend: { display: false } },
             scales: {
               x: {
-                offset: labels.length === 1,
+                offset: paddedLabels.length <= 3,
                 grid: { display: false },
                 ticks: { color: '#6b7280', font: { size: 10 } }
               },
@@ -883,7 +924,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
                 }
               }
             }
-          }
+          },
+          plugins: [dataLabelsPlugin]
         });
       } catch (e) { console.error('Error rendering', id, e); }
     };
@@ -901,8 +943,11 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.staffData) return;
     const ctxMonth = document.getElementById('staffThisMonthChart') as HTMLCanvasElement;
     if (ctxMonth) {
-      const labels = (this.staffData.table || []).map((s: any) => s.name).slice(0, 10);
-      const data = (this.staffData.table || []).map((s: any) => s.revenue || 0).slice(0, 10);
+      const rawLabels = (this.staffData.table || []).map((s: any) => s.name).slice(0, 10);
+      const rawData = (this.staffData.table || []).map((s: any) => s.revenue || 0).slice(0, 10);
+      const { labels, dataArrays } = this.padSinglePoint(rawLabels, rawData);
+      const [data] = dataArrays;
+      const ghostFirst = labels[0] === '';
       this.charts['staffMonth'] = new Chart(ctxMonth, {
         type: 'line',
         data: { labels, datasets: [{ 
@@ -918,21 +963,25 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           },
           fill: true,
           pointBackgroundColor: '#ffffff',
-          pointBorderColor: '#8b5cf6'
+          pointBorderColor: '#8b5cf6',
+          pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === labels.length - 1) ? 0 : 4
         }] },
-        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: labels.length === 1 } } }, plugins: [dataLabelsPlugin]
+        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: labels.length <= 3 } } }, plugins: [dataLabelsPlugin]
       });
     }
 
     const ctx6 = document.getElementById('staffSixMonthsChart') as HTMLCanvasElement;
     if (ctx6) {
-      const labels = (this.staffData.trends || []).map((t: any) => t.month);
-      const data = (this.staffData.trends || []).map((t: any) => t.revenue || 0);
+      const rawLabels6 = (this.staffData.trends || []).map((t: any) => t.month);
+      const rawData6 = (this.staffData.trends || []).map((t: any) => t.revenue || 0);
+      const { labels: labels6, dataArrays: dataArrays6 } = this.padSinglePoint(rawLabels6, rawData6);
+      const [data6] = dataArrays6;
+      const ghostFirst6 = labels6[0] === '';
       this.charts['staff6'] = new Chart(ctx6, {
         type: 'line',
-        data: { labels, datasets: [{ 
+        data: { labels: labels6, datasets: [{ 
           label: 'Total Staff Revenue', 
-          data, 
+          data: data6, 
           borderColor: '#10b981',
           backgroundColor: (context: any) => {
             const canvasCtx = context.chart.ctx;
@@ -944,9 +993,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
           tension: 0.4, 
           fill: true,
           pointBackgroundColor: '#ffffff',
-          pointBorderColor: '#10b981'
+          pointBorderColor: '#10b981',
+          pointRadius: (ctx: any) => ghostFirst6 && (ctx.dataIndex === 0 || ctx.dataIndex === labels6.length - 1) ? 0 : 4
         }] },
-        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: labels.length === 1 } } }, plugins: [dataLabelsPlugin]
+        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: labels6.length <= 3 } } }, plugins: [dataLabelsPlugin]
       });
     }
   }
@@ -960,26 +1010,48 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       const labels = topServices.map((s: any) => s.name);
       const data = topServices.map((s: any) => s.revenue);
       this.charts['svcCat'] = new Chart(ctxSvc, {
-        type: 'line',
+        type: 'bar',
         data: {
           labels,
           datasets: [{ 
             label: 'Revenue', 
             data, 
-            borderColor: '#0ea5e9',
             backgroundColor: (context: any) => {
               const canvasCtx = context.chart.ctx;
-              const grad = canvasCtx.createLinearGradient(0, 0, 0, 300);
-              grad.addColorStop(0, '#0ea5e966');
-              grad.addColorStop(1, '#0ea5e900');
+              const grad = canvasCtx.createLinearGradient(300, 0, 0, 0); // horizontal gradient
+              grad.addColorStop(0, '#0ea5e9');
+              grad.addColorStop(1, '#38bdf8aa');
               return grad;
             },
-            fill: true,
-            pointBackgroundColor: '#ffffff',
-            pointBorderColor: '#0ea5e9'
+            borderColor: '#0284c7',
+            borderWidth: 1,
+            borderRadius: 6,
+            borderSkipped: false,
+            barPercentage: 0.55,
+            categoryPercentage: 0.75
           }]
         },
-        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: labels.length === 1 } } }, plugins: [dataLabelsPlugin]
+        options: { 
+          indexAxis: 'y' as any,
+          responsive: true, 
+          maintainAspectRatio: false, 
+          animation: { duration: 800, easing: 'easeOutQuart' },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx: any) => ` ₹${Number(ctx.raw).toLocaleString('en-IN')}` } }
+          },
+          scales: { 
+            x: { 
+              ticks: { callback: (v: any) => v >= 1000 ? (v/1000).toFixed(0)+'k' : v, font: { size: 10 } },
+              grid: { color: 'rgba(0,0,0,0.04)' }
+            },
+            y: { 
+              ticks: { font: { size: 11 }, color: '#374151' },
+              grid: { display: false }
+            }
+          }
+        }, 
+        plugins: [dataLabelsPlugin]
       });
     }
 
@@ -990,26 +1062,48 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       const labels = topProducts.map((p: any) => p.name);
       const data = topProducts.map((p: any) => p.revenue);
       this.charts['prodCat'] = new Chart(ctxProd, {
-        type: 'line',
+        type: 'bar',
         data: {
           labels,
           datasets: [{ 
             label: 'Revenue', 
             data, 
-            borderColor: '#10b981',
             backgroundColor: (context: any) => {
               const canvasCtx = context.chart.ctx;
-              const grad = canvasCtx.createLinearGradient(0, 0, 0, 300);
-              grad.addColorStop(0, '#10b98166');
-              grad.addColorStop(1, '#10b98100');
+              const grad = canvasCtx.createLinearGradient(300, 0, 0, 0); // horizontal gradient
+              grad.addColorStop(0, '#10b981');
+              grad.addColorStop(1, '#34d399aa');
               return grad;
             },
-            fill: true,
-            pointBackgroundColor: '#ffffff',
-            pointBorderColor: '#10b981'
+            borderColor: '#059669',
+            borderWidth: 1,
+            borderRadius: 6,
+            borderSkipped: false,
+            barPercentage: 0.55,
+            categoryPercentage: 0.75
           }]
         },
-        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' } }, plugins: [dataLabelsPlugin]
+        options: { 
+          indexAxis: 'y' as any,
+          responsive: true, 
+          maintainAspectRatio: false, 
+          animation: { duration: 800, easing: 'easeOutQuart' },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (ctx: any) => ` ₹${Number(ctx.raw).toLocaleString('en-IN')}` } }
+          },
+          scales: { 
+            x: { 
+              ticks: { callback: (v: any) => v >= 1000 ? (v/1000).toFixed(0)+'k' : v, font: { size: 10 } },
+              grid: { color: 'rgba(0,0,0,0.04)' }
+            },
+            y: { 
+              ticks: { font: { size: 11 }, color: '#374151' },
+              grid: { display: false }
+            }
+          }
+        }, 
+        plugins: [dataLabelsPlugin]
       });
     }
   }

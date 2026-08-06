@@ -326,7 +326,6 @@ def dashboard_revenues(request):
     }
     monthly_data = []
     curr_m = six_months_ago
-    curr_m = six_months_ago
     target_end_m = trend_end.replace(day=1)
     months_keys = []
     while curr_m.replace(day=1) <= target_end_m:
@@ -685,7 +684,7 @@ def dashboard_staff(request):
     six_months_ago = trend_start
 
 
-    logs = ServiceLog.objects.filter(invoice__status__in=['paid', 'partial'], date__gte=six_months_ago.date(), date__lte=trend_end.date() + timedelta(days=1)).select_related('staff', 'invoice', 'invoice__client')
+    logs = ServiceLog.objects.filter(invoice__status__in=['paid', 'partial'], date__gte=six_months_ago.date(), date__lte=trend_end.date()).select_related('staff', 'invoice', 'invoice__client')
     # ServiceLog has no direct 'center' FK — scope via staff__center
     user = request.user
     role = getattr(user, 'role', None)
