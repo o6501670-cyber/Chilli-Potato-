@@ -1032,3 +1032,242 @@
   flex: 1;
   min-height: 250px;
 }
+
+/* ============================================================
+   ENTRANCE ANIMATIONS
+============================================================ */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.93); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* KPI tiles animate in with staggered delay */
+.kpi-strip .kpi-tile {
+  animation: fadeSlideUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.kpi-strip .kpi-tile:nth-child(1) { animation-delay: 0.04s; }
+.kpi-strip .kpi-tile:nth-child(2) { animation-delay: 0.10s; }
+.kpi-strip .kpi-tile:nth-child(3) { animation-delay: 0.16s; }
+.kpi-strip .kpi-tile:nth-child(4) { animation-delay: 0.22s; }
+.kpi-strip .kpi-tile:nth-child(5) { animation-delay: 0.28s; }
+.kpi-strip .kpi-tile:nth-child(6) { animation-delay: 0.34s; }
+
+/* KPI values animate */
+.kpi-tile-amount,
+.kpi-tile-val {
+  animation: countUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.2s;
+}
+
+/* Cards animate in */
+.card {
+  animation: fadeSlideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Stagger bento grid cards */
+.bento-grid .card:nth-child(1) { animation-delay: 0.05s; }
+.bento-grid .card:nth-child(2) { animation-delay: 0.10s; }
+.bento-grid .card:nth-child(3) { animation-delay: 0.15s; }
+.bento-grid .card:nth-child(4) { animation-delay: 0.20s; }
+.bento-grid .card:nth-child(5) { animation-delay: 0.25s; }
+.bento-grid .card:nth-child(6) { animation-delay: 0.30s; }
+
+/* Stat chips */
+.stat-chip {
+  animation: scaleIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stat-strip .stat-chip:nth-child(1) { animation-delay: 0.05s; }
+.stat-strip .stat-chip:nth-child(2) { animation-delay: 0.12s; }
+.stat-strip .stat-chip:nth-child(3) { animation-delay: 0.19s; }
+
+/* List rows stagger in */
+.list-row {
+  animation: fadeSlideUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.scrollable-list .list-row:nth-child(1)  { animation-delay: 0.05s; }
+.scrollable-list .list-row:nth-child(2)  { animation-delay: 0.09s; }
+.scrollable-list .list-row:nth-child(3)  { animation-delay: 0.13s; }
+.scrollable-list .list-row:nth-child(4)  { animation-delay: 0.17s; }
+.scrollable-list .list-row:nth-child(5)  { animation-delay: 0.21s; }
+.scrollable-list .list-row:nth-child(6)  { animation-delay: 0.25s; }
+.scrollable-list .list-row:nth-child(7)  { animation-delay: 0.29s; }
+.scrollable-list .list-row:nth-child(8)  { animation-delay: 0.33s; }
+
+/* Table rows */
+.data-table tbody tr {
+  animation: fadeIn 0.3s ease both;
+}
+.data-table tbody tr:nth-child(1) { animation-delay: 0.08s; }
+.data-table tbody tr:nth-child(2) { animation-delay: 0.14s; }
+.data-table tbody tr:nth-child(3) { animation-delay: 0.20s; }
+.data-table tbody tr:nth-child(4) { animation-delay: 0.26s; }
+.data-table tbody tr:nth-child(5) { animation-delay: 0.32s; }
+
+
+/* ============================================================
+   SKELETON LOADING
+============================================================ */
+@keyframes skeletonShimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 800px 100%;
+  animation: skeletonShimmer 1.6s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.skeleton-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.skeleton-tile {
+  height: 90px;
+  border-radius: 14px;
+}
+
+.skeleton-row {
+  height: 14px;
+  margin: 8px 0;
+  border-radius: 6px;
+}
+
+.skeleton-chart {
+  height: 300px;
+  border-radius: 16px;
+  margin-bottom: 14px;
+}
+
+/* ============================================================
+   CENTRE BADGE IN CARD HEADER
+============================================================ */
+.centre-context-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin-left: auto;
+}
+
+/* ============================================================
+   ENHANCED CARD HOVER
+============================================================ */
+.card {
+  transition: box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.card:hover {
+  box-shadow: 0 8px 28px rgba(0,0,0,0.09);
+  transform: translateY(-1px);
+}
+
+/* Chart cards don't lift since charts are inside */
+.chart-card:hover {
+  transform: none;
+}
+
+/* ============================================================
+   ENHANCED LOADER
+============================================================ */
+.loader-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 0;
+  color: #9ca3af;
+  font-weight: 500;
+  animation: fadeIn 0.3s ease;
+}
+
+.loader-shimmer {
+  width: 180px;
+  height: 5px;
+  background: linear-gradient(90deg, #e11d48 0%, #fb923c 40%, #f59e0b 60%, #e11d48 100%);
+  border-radius: 50px;
+  animation: shimmer 1.4s ease-in-out infinite;
+  background-size: 300% 100%;
+}
+
+/* ============================================================
+   IMPROVED LIST BAR ANIMATION
+============================================================ */
+.list-bar {
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ============================================================
+   PILL TAG — for clickable months
+============================================================ */
+.drill-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.drill-pill i { font-size: 9px; }
+
+/* ============================================================
+   ENHANCED DATA TABLE
+============================================================ */
+.data-table {
+  transition: opacity 0.3s ease;
+}
+
+.data-table tbody tr:hover {
+  background: #f9fafb;
+  transition: background 0.15s ease;
+}
+
+/* Rank number badge in table */
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.rank-badge.gold   { background: #fef3c7; color: #92400e; }
+.rank-badge.silver { background: #f3f4f6; color: #6b7280; }
+.rank-badge.bronze { background: #fef2e5; color: #9a3412; }

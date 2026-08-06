@@ -40,7 +40,21 @@
   <!-- ===== LOADER ===== -->
   <div class="loader-bar" *ngIf="isLoading">
     <div class="loader-shimmer"></div>
-    <span>Loading data…</span>
+    <span>Fetching data for <strong>{{ selectedCenter ? (centers | json)?.split('"name":"')[1]?.split('"')[0] || 'centre' : 'all centres' }}</strong>…</span>
+  </div>
+
+  <!-- Skeleton while loading -->
+  <div *ngIf="isLoading">
+    <div class="skeleton-kpi-strip">
+      <div class="skeleton skeleton-tile"></div>
+      <div class="skeleton skeleton-tile"></div>
+      <div class="skeleton skeleton-tile"></div>
+      <div class="skeleton skeleton-tile"></div>
+      <div class="skeleton skeleton-tile"></div>
+      <div class="skeleton skeleton-tile"></div>
+    </div>
+    <div class="skeleton skeleton-chart"></div>
+    <div class="skeleton skeleton-chart" style="height:220px"></div>
   </div>
 
   <!-- ================================================================
@@ -48,47 +62,41 @@
   ================================================================ -->
   <div *ngIf="activeTab === 'summary' && !isLoading && summaryData">
 
-    <!-- KPI hero strip -->
-    <div class="kpi-strip">
-      <div class="kpi-tile kpi-dark">
-        <div class="kpi-tile-label">Revenue</div>
-        <div class="kpi-tile-amount">{{ summaryData.revenue | currency:'INR':'symbol':'1.0-0' }}</div>
-        <div class="kpi-tile-sub">
-          <span class="pill-sm pill-red"><i class="fa-solid fa-bullseye"></i> Target {{ summaryData.target |
-            currency:'INR':'symbol':'1.0-0' }}</span>
-        </div>
-      </div>
-      <div class="kpi-tile">
-        <div class="kpi-tile-label">New Clients</div>
-        <div class="kpi-tile-val blue">{{ summaryData.new_clients }}</div>
-        <div class="kpi-tile-sub"><i class="fa-solid fa-user-plus" style="color:#3b82f6;font-size:11px"></i> Joined this
-          period</div>
-      </div>
-      <div class="kpi-tile">
-        <div class="kpi-tile-label">Repeat Clients</div>
-        <div class="kpi-tile-val green">{{ summaryData.repeat_clients }}</div>
-        <div class="kpi-tile-sub"><i class="fa-solid fa-rotate-right" style="color:#10b981;font-size:11px"></i> Loyal
-          regulars</div>
-      </div>
-      <div class="kpi-tile">
-        <div class="kpi-tile-label">Total Clients</div>
-        <div class="kpi-tile-val">{{ summaryData.total_clients }}</div>
-        <div class="kpi-tile-sub"><i class="fa-solid fa-users" style="color:#6b7280;font-size:11px"></i> Invoiced period
-        </div>
-      </div>
-      <div class="kpi-tile">
-        <div class="kpi-tile-label">Avg Spend</div>
-        <div class="kpi-tile-val">{{ summaryData.avg_spend.all | currency:'INR':'symbol':'1.0-0' }}</div>
-        <div class="kpi-tile-sub"><i class="fa-solid fa-receipt" style="color:#6b7280;font-size:11px"></i> Per client
-        </div>
-      </div>
-      <div class="kpi-tile kpi-red-outline">
-        <div class="kpi-tile-label">Stock Value</div>
-        <div class="kpi-tile-val red">{{ summaryData.inventory.amount | currency:'INR':'symbol':'1.0-0' }}</div>
-        <div class="kpi-tile-sub"><i class="fa-solid fa-box" style="color:#e11d48;font-size:11px"></i> {{
-          summaryData.inventory.count }} items</div>
+  <!-- KPI hero strip -->
+  <div class="kpi-strip">
+    <div class="kpi-tile kpi-dark">
+      <div class="kpi-tile-label">Total Revenue</div>
+      <div class="kpi-tile-amount">{{ summaryData.revenue | currency:'INR':'symbol':'1.0-0' }}</div>
+      <div class="kpi-tile-sub">
+        <span class="pill-sm pill-red"><i class="fa-solid fa-bullseye"></i> Target {{ summaryData.target | currency:'INR':'symbol':'1.0-0' }}</span>
       </div>
     </div>
+    <div class="kpi-tile">
+      <div class="kpi-tile-label">New Clients</div>
+      <div class="kpi-tile-val blue">{{ summaryData.new_clients }}</div>
+      <div class="kpi-tile-sub"><i class="fa-solid fa-user-plus" style="color:#3b82f6;font-size:11px"></i> Joined this period</div>
+    </div>
+    <div class="kpi-tile">
+      <div class="kpi-tile-label">Repeat Clients</div>
+      <div class="kpi-tile-val green">{{ summaryData.repeat_clients }}</div>
+      <div class="kpi-tile-sub"><i class="fa-solid fa-rotate-right" style="color:#10b981;font-size:11px"></i> Loyal regulars</div>
+    </div>
+    <div class="kpi-tile">
+      <div class="kpi-tile-label">Total Clients</div>
+      <div class="kpi-tile-val">{{ summaryData.total_clients }}</div>
+      <div class="kpi-tile-sub"><i class="fa-solid fa-users" style="color:#6b7280;font-size:11px"></i> Invoiced this period</div>
+    </div>
+    <div class="kpi-tile">
+      <div class="kpi-tile-label">Avg Spend / Client</div>
+      <div class="kpi-tile-val">{{ summaryData.avg_spend.all | currency:'INR':'symbol':'1.0-0' }}</div>
+      <div class="kpi-tile-sub"><i class="fa-solid fa-receipt" style="color:#6b7280;font-size:11px"></i> Per unique client</div>
+    </div>
+    <div class="kpi-tile kpi-red-outline">
+      <div class="kpi-tile-label">Stock Value</div>
+      <div class="kpi-tile-val red">{{ summaryData.inventory.amount | currency:'INR':'symbol':'1.0-0' }}</div>
+      <div class="kpi-tile-sub"><i class="fa-solid fa-box" style="color:#e11d48;font-size:11px"></i> {{ summaryData.inventory.count }} items in stock</div>
+    </div>
+  </div>
 
 
     <!-- Main body: Bento Grid -->
@@ -115,19 +123,19 @@
       <div class="card bento-span-2" style="height: 350px; display: flex; flex-direction: column; margin-bottom: 0;">
         <div class="card-head">
           <span class="card-title">Top Products</span>
-          <span class="card-badge">This period</span>
+          <span class="card-badge">By volume this period</span>
         </div>
         <div class="scrollable-list" style="flex: 1;">
-          <div *ngFor="let p of summaryData?.top_products | slice:0:20" class="list-row">
+          <div *ngFor="let p of summaryData?.top_products | slice:0:20; let i = index" class="list-row">
+            <span class="rank-badge" [class.gold]="i===0" [class.silver]="i===1" [class.bronze]="i===2">{{i+1}}</span>
             <div class="list-icon"><i class="fa-solid fa-box-open"></i></div>
             <div class="list-body">
-              <span class="list-name">{{ $any(p).name | slice:0:20 }}</span>
+              <span class="list-name">{{ $any(p).name | slice:0:22 }}</span>
               <div class="list-bar-wrap">
-                <div class="list-bar"
-                  [style.width]="(($any(p).count / (summaryData?.top_products[0]?.count || 1)) * 100) + '%'"></div>
+                <div class="list-bar" [style.width]="(($any(p).count / (summaryData?.top_products[0]?.count || 1)) * 100) + '%'"></div>
               </div>
             </div>
-            <span class="list-val">{{ $any(p).count }}</span>
+            <span class="list-val">{{ $any(p).count }} sold</span>
           </div>
           <div *ngIf="!summaryData?.top_products?.length" class="empty-msg">No product data yet</div>
         </div>
@@ -169,17 +177,16 @@
       <div class="card bento-span-1" style="height: 280px; display: flex; flex-direction: column; margin-bottom: 0;">
         <div class="card-head">
           <span class="card-title">Top Services</span>
-          <span class="card-badge">This period</span>
+          <span class="card-badge">By volume this period</span>
         </div>
         <div class="scrollable-list" style="flex: 1;">
-          <div *ngFor="let s of summaryData?.top_services | slice:0:20" class="list-row">
+          <div *ngFor="let s of summaryData?.top_services | slice:0:20; let i = index" class="list-row">
+            <span class="rank-badge" [class.gold]="i===0" [class.silver]="i===1" [class.bronze]="i===2">{{i+1}}</span>
             <div class="list-icon svc"><i class="fa-solid fa-scissors"></i></div>
             <div class="list-body">
               <span class="list-name">{{ $any(s).name | slice:0:20 }}</span>
               <div class="list-bar-wrap">
-                <div class="list-bar pink"
-                  [style.width]="(($any(s).count / ($any(summaryData?.top_services)[0]?.count || 1)) * 100) + '%'">
-                </div>
+                <div class="list-bar pink" [style.width]="(($any(s).count / ($any(summaryData?.top_services)[0]?.count || 1)) * 100) + '%'"></div>
               </div>
             </div>
             <span class="list-val">{{ $any(s).count }}</span>
@@ -191,10 +198,11 @@
       <div class="card bento-span-1" style="height: 280px; display: flex; flex-direction: column; margin-bottom: 0;">
         <div class="card-head">
           <span class="card-title">Top Staff</span>
-          <span class="card-badge">This period</span>
+          <span class="card-badge">By revenue this period</span>
         </div>
         <div class="scrollable-list" style="flex: 1;">
-          <div *ngFor="let staff of summaryData?.top_staff | slice:0:20" class="list-row">
+          <div *ngFor="let staff of summaryData?.top_staff | slice:0:20; let i = index" class="list-row">
+            <span class="rank-badge" [class.gold]="i===0" [class.silver]="i===1" [class.bronze]="i===2">{{i+1}}</span>
             <div class="list-icon" style="background:#e0e7ff;color:#4f46e5"><i class="fa-solid fa-user"></i></div>
             <div class="list-body">
               <span class="list-name" style="font-weight:600">{{ $any(staff).name }}</span>
@@ -254,33 +262,42 @@
       <div class="stat-strip" *ngIf="revenuesData.monthly?.length">
         <div class="stat-chip">
           <span class="stat-chip-label">Total Revenue</span>
-          <span class="stat-chip-val">{{ getTotal(revenuesData.monthly, 'revenue') | currency:'INR':'symbol':'1.0-0'
-            }}</span>
+          <span class="stat-chip-val">{{ getTotal(revenuesData.monthly, 'revenue') | currency:'INR':'symbol':'1.0-0' }}</span>
         </div>
         <div class="stat-chip">
           <span class="stat-chip-label">Best Month</span>
-          <span class="stat-chip-val">{{ getBest(revenuesData.monthly, 'revenue')?.month }}</span>
+          <span class="stat-chip-val">{{ getBest(revenuesData.monthly, 'revenue') }}</span>
         </div>
         <div class="stat-chip">
           <span class="stat-chip-label">Daily Avg</span>
-          <span class="stat-chip-val">{{ getAvg(revenuesData.daily, 'revenue') | currency:'INR':'symbol':'1.0-0'
-            }}</span>
+          <span class="stat-chip-val">{{ getAvg(revenuesData.daily, 'revenue') | currency:'INR':'symbol':'1.0-0' }}</span>
+        </div>
+        <div class="stat-chip" *ngIf="selectedDrillDownMonth">
+          <span class="stat-chip-label">Viewing Month</span>
+          <span class="stat-chip-val" style="color:#f59e0b">📅 {{ selectedDrillDownMonth }}</span>
+        </div>
+        <div class="stat-chip" *ngIf="selectedDrillDownDay">
+          <span class="stat-chip-label">Viewing Day</span>
+          <span class="stat-chip-val" style="color:#10b981">📆 {{ selectedDrillDownDay }}</span>
         </div>
       </div>
       <div class="card chart-card" style="margin-bottom: 14px;">
         <div class="card-head">
-          <span class="card-title">Monthly Revenue</span>
+          <span class="card-title">Monthly Revenue Trend</span>
+          <span style="font-size:10px;color:#9ca3af;margin-left:6px">💡 Click a month to drill down</span>
           <span class="card-badge">Selected Period</span>
         </div>
         <div class="chart-wrap" style="height: 350px;"><canvas id="revMonthlyChart"></canvas></div>
       </div>
       <div class="card chart-card" style="margin-bottom: 14px;">
         <div class="card-head">
-          <span class="card-title">{{ selectedDrillDownMonth ? 'Daily Revenue (' + selectedDrillDownMonth + ')' : (currentRange === 'past6Months' || currentRange === 'past12Months' ? 'Weekly Revenue' : 'Daily Revenue') }}</span>
+          <span class="card-title">{{ selectedDrillDownMonth ? 'Daily Revenue — ' + selectedDrillDownMonth : (currentRange === 'past6Months' || currentRange === 'past12Months' ? 'Weekly Revenue' : 'Daily Revenue') }}</span>
           <div style="display: flex; gap: 8px; align-items: center;">
+            <span *ngIf="selectedDrillDownMonth" class="drill-pill"><i class="fa-solid fa-arrow-pointer"></i> {{ selectedDrillDownMonth }}</span>
             <button *ngIf="selectedDrillDownMonth" (click)="resetDrillDownMonth()" style="background: #f3f4f6; color: #4b5563; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-              <i class="fa-solid fa-xmark"></i> Clear Month
+              <i class="fa-solid fa-xmark"></i> Clear
             </button>
+            <span *ngIf="!selectedDrillDownMonth" style="font-size:10px;color:#9ca3af">💡 Click a day to see hourly</span>
             <span class="card-badge">This period</span>
           </div>
         </div>
@@ -288,12 +305,13 @@
       </div>
       <div class="card chart-card" style="margin-top:14px">
         <div class="card-head">
-          <span class="card-title">{{ selectedDrillDownDay ? 'Hourly Revenue (' + selectedDrillDownDay + ')' : 'Hourly Revenue' }}</span>
+          <span class="card-title">{{ selectedDrillDownDay ? 'Hourly Revenue — ' + selectedDrillDownDay : 'Hourly Revenue (All Day)' }}</span>
           <div style="display: flex; gap: 8px; align-items: center;">
+            <span *ngIf="selectedDrillDownDay" class="drill-pill"><i class="fa-solid fa-clock"></i> {{ selectedDrillDownDay }}</span>
             <button *ngIf="selectedDrillDownDay" (click)="resetDrillDownDay()" style="background: #f3f4f6; color: #4b5563; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-              <i class="fa-solid fa-xmark"></i> Clear Day
+              <i class="fa-solid fa-xmark"></i> Clear
             </button>
-            <span class="card-badge">End date</span>
+            <span class="card-badge">24h view</span>
           </div>
         </div>
         <div class="chart-wrap" style="height: 350px;"><canvas id="revHourlyChart"></canvas></div>
@@ -432,63 +450,83 @@
   <div *ngIf="activeTab === 'services_products' && !isLoading">
 
     <div *ngIf="servicesProductsData; else noSPData">
-      <div style="display: flex; flex-direction: column; gap: 24px;">
-        <div class="card">
-          <div class="card-head"><span class="card-title">Service Category Sales</span></div>
+      <div class="two-col-grid">
+
+        <!-- Services Card -->
+        <div class="card" style="display:flex; flex-direction:column;">
+          <div class="card-head">
+            <span class="card-title"><i class="fa-solid fa-scissors" style="color:#0ea5e9;margin-right:6px"></i>Service Category Sales</span>
+            <span class="card-badge">By revenue · {{ servicesProductsData.services?.length || 0 }} categories</span>
+          </div>
           <div *ngIf="servicesProductsData.services?.length; else noSvc">
-            <div class="chart-wrap" style="height:280px"><canvas id="serviceCategoryChart"></canvas></div>
-            <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-top: 14px;">
+            <div class="chart-wrap" [style.height]="(servicesProductsData.services?.length * 42 + 40) + 'px'" style="min-height:180px; max-height:520px">
+              <canvas id="serviceCategoryChart"></canvas>
+            </div>
+            <div style="max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-top: 14px;">
               <table class="data-table" style="margin-top:0">
                 <thead>
                   <tr>
+                    <th style="position: sticky; top: 0; background: var(--surface); z-index: 1;">#</th>
                     <th style="position: sticky; top: 0; background: var(--surface); z-index: 1;">Category</th>
                     <th style="position: sticky; top: 0; background: var(--surface); z-index: 1;">Count</th>
                     <th style="position: sticky; top: 0; background: var(--surface); z-index: 1;">Revenue</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr *ngFor="let s of servicesProductsData.services">
-                    <td>{{ s.name }}</td>
+                  <tr *ngFor="let s of servicesProductsData.services; let i = index">
+                    <td><span class="rank-badge" [class.gold]="i===0" [class.silver]="i===1" [class.bronze]="i===2">{{i+1}}</span></td>
+                    <td style="font-weight:500">{{ s.name }}</td>
                     <td>{{ s.count }}</td>
-                    <td>{{ s.revenue | currency:'INR':'symbol':'1.0-0' }}</td>
+                    <td style="color:#0ea5e9; font-weight:600">{{ s.revenue | currency:'INR':'symbol':'1.0-0' }}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
           <ng-template #noSvc>
-            <div class="empty-msg">No service sales in this period</div>
+            <div class="empty-msg" style="padding:40px 0"><i class="fa-solid fa-scissors" style="font-size:28px;color:#e5e7eb;margin-bottom:10px;display:block"></i>No service sales in this period</div>
           </ng-template>
         </div>
-        <div class="card">
-          <div class="card-head"><span class="card-title">Product Category Sales</span></div>
+
+        <!-- Products Card -->
+        <div class="card" style="display:flex; flex-direction:column;">
+          <div class="card-head">
+            <span class="card-title"><i class="fa-solid fa-box-open" style="color:#10b981;margin-right:6px"></i>Product Category Sales</span>
+            <span class="card-badge">By revenue · {{ servicesProductsData.products?.length || 0 }} categories</span>
+          </div>
           <div *ngIf="servicesProductsData.products?.length; else noProd">
-            <div class="chart-wrap" style="height:280px"><canvas id="productCategoryChart"></canvas></div>
-            <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-top: 14px;">
+            <div class="chart-wrap" [style.height]="(servicesProductsData.products?.length * 42 + 40) + 'px'" style="min-height:180px; max-height:520px">
+              <canvas id="productCategoryChart"></canvas>
+            </div>
+            <div style="max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-top: 14px;">
               <table class="data-table" style="margin-top:0">
                 <thead>
                   <tr>
+                    <th style="position: sticky; top: 0; background: var(--surface); z-index: 1;">#</th>
                     <th style="position: sticky; top: 0; background: var(--surface); z-index: 1;">Category</th>
                     <th style="position: sticky; top: 0; background: var(--surface); z-index: 1;">Count</th>
                     <th style="position: sticky; top: 0; background: var(--surface); z-index: 1;">Revenue</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr *ngFor="let p of servicesProductsData.products">
-                    <td>{{ p.name }}</td>
+                  <tr *ngFor="let p of servicesProductsData.products; let i = index">
+                    <td><span class="rank-badge" [class.gold]="i===0" [class.silver]="i===1" [class.bronze]="i===2">{{i+1}}</span></td>
+                    <td style="font-weight:500">{{ p.name }}</td>
                     <td>{{ p.count }}</td>
-                    <td>{{ p.revenue | currency:'INR':'symbol':'1.0-0' }}</td>
+                    <td style="color:#10b981; font-weight:600">{{ p.revenue | currency:'INR':'symbol':'1.0-0' }}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
           <ng-template #noProd>
-            <div class="empty-msg">No product sales in this period</div>
+            <div class="empty-msg" style="padding:40px 0"><i class="fa-solid fa-box-open" style="font-size:28px;color:#e5e7eb;margin-bottom:10px;display:block"></i>No product sales in this period</div>
           </ng-template>
         </div>
+
       </div>
     </div>
+
     <ng-template #noSPData>
       <div class="empty-state">No data available.</div>
     </ng-template>
@@ -498,13 +536,12 @@
        TAB: STAFF
   ================================================================ -->
   <div *ngIf="activeTab === 'staff' && !isLoading">
-
     <div *ngIf="staffData; else noStaffData">
       <div class="two-col-grid">
         <div class="card chart-card">
           <div class="card-head">
-            <span class="card-title">Staff Revenue – This Period</span>
-            <span class="card-badge">Top 10</span>
+            <span class="card-title">Staff Revenue — This Period</span>
+            <span class="card-badge">Top 10 performers</span>
           </div>
           <div *ngIf="staffData.table?.length; else noStaffChart">
             <div class="chart-wrap"><canvas id="staffThisMonthChart"></canvas></div>
@@ -514,7 +551,7 @@
           </ng-template>
         </div>
         <div class="card chart-card">
-          <div class="card-head"><span class="card-title">6-Month Revenue Trend</span></div>
+          <div class="card-head"><span class="card-title">Revenue Trend — Last 6 Months</span></div>
           <div *ngIf="staffData.trends?.length; else noTrend">
             <div class="chart-wrap"><canvas id="staffSixMonthsChart"></canvas></div>
           </div>
@@ -524,19 +561,21 @@
         </div>
       </div>
       <div class="card" style="margin-top:14px" *ngIf="staffData.table?.length">
-        <div class="card-head"><span class="card-title">Staff Performance</span></div>
+        <div class="card-head"><span class="card-title">Staff Performance Detail</span><span class="card-badge">Sorted by revenue</span></div>
         <table class="data-table">
           <thead>
             <tr>
+              <th>#</th>
               <th>Staff Member</th>
-              <th>Revenue</th>
-              <th>Clients</th>
+              <th>Revenue Generated</th>
+              <th>Clients Served</th>
               <th>Avg / Client</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let s of staffData.table">
-              <td>{{ s.name }}</td>
+            <tr *ngFor="let s of staffData.table; let i = index">
+              <td><span class="rank-badge" [class.gold]="i===0" [class.silver]="i===1" [class.bronze]="i===2">{{i+1}}</span></td>
+              <td style="font-weight:600">{{ s.name }}</td>
               <td>{{ s.revenue | currency:'INR':'symbol':'1.0-0' }}</td>
               <td>{{ s.clients }}</td>
               <td>{{ s.avg | currency:'INR':'symbol':'1.0-0' }}</td>
@@ -550,4 +589,4 @@
     </ng-template>
   </div>
 
-</div>
+</div>
