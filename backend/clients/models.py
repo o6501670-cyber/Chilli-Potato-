@@ -4,7 +4,10 @@ from django.db import models
 class Client(models.Model):
     center = models.ForeignKey('salon_admin.Center', null=True, blank=True, on_delete=models.SET_NULL)
     phone = models.CharField(max_length=20, unique=True)
-    app_pin = models.CharField(max_length=10, blank=True, null=True)
+    # Stores a Django password hash after the first successful app login.
+    # Keep enough room for modern hash formats; existing plaintext PINs are
+    # migrated lazily when the client logs in.
+    app_pin = models.CharField(max_length=128, blank=True, null=True)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
@@ -78,6 +81,10 @@ class Client(models.Model):
 class ClientMembership(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='memberships')
     membership = models.ForeignKey('marketing.Membership', on_delete=models.CASCADE)
+    source_invoice = models.ForeignKey(
+        'billing.Invoice', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='provisioned_memberships'
+    )
     start_date = models.DateField(auto_now_add=True)
     expiry_date = models.DateField()
     is_active = models.BooleanField(default=True)
@@ -89,6 +96,10 @@ class ClientMembership(models.Model):
 
 class ClientPackage(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='packages')
+    source_invoice = models.ForeignKey(
+        'billing.Invoice', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='provisioned_packages'
+    )
     # FIXED: null=True allows custom packages that have no pre-defined Package object
     package = models.ForeignKey('marketing.Package', on_delete=models.CASCADE, null=True, blank=True)
     services_remaining = models.JSONField(default=dict, help_text="Maps service_id to remaining quantity")
@@ -104,6 +115,10 @@ class ClientPackage(models.Model):
 
 class ClientValueCard(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='value_cards')
+    source_invoice = models.ForeignKey(
+        'billing.Invoice', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='provisioned_value_cards'
+    )
     value_card = models.ForeignKey('marketing.ValueCard', on_delete=models.CASCADE)
     balance = models.DecimalField(max_digits=10, decimal_places=2)
     start_date = models.DateField(auto_now_add=True)
@@ -113,3 +128,23 @@ class ClientValueCard(models.Model):
 
     def __str__(self):
         return f"{self.client.first_name} - {self.value_card.title}"
+
+
+class PackageRedemption(models.Model):
+    """Immutable allocation ledger for package-service redemptions."""
+    invoice = models.ForeignKey(
+        'billing.Invoice', on_delete=models.PROTECT,
+        related_name='package_redemptions'
+    )
+    package = models.ForeignKey(ClientPackage, on_delete=models.PROTECT, related_name='redemptions')
+    service_id = models.PositiveIntegerField()
+    quantity = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['invoice', 'service_id'], name='pkg_red_invoice_service_idx'),
+        ]
+
+    def __str__(self):
+        return f"Invoice {self.invoice_id}: package {self.package_id} service {self.service_id} x {self.quantity}"

@@ -1,7 +1,10 @@
 from rest_framework import serializers
-from .models import Invoice, InvoiceItem, AdvancePayment, Payment, BillChangeLog
+from .models import Invoice, InvoiceItem, AdvancePayment, Payment, BillChangeLog, InvoiceRefund
 from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
 from staff.models import StaffMember
+from marketing.models import Promotion
+from clients.models import ClientMembership
 from decimal import Decimal
 
 
@@ -15,6 +18,7 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
         model = InvoiceItem
         fields = ('id', 'content_type', 'object_id', 'description', 'unit_price', 'discount', 'quantity',
                   'tax_percentage', 'tax_amount', 'total_price', 'staff', 'staff_members')
+        read_only_fields = ('tax_amount', 'total_price')
 
     def to_internal_value(self, data):
         if isinstance(data, dict):
@@ -65,11 +69,14 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         ct_label = validated_data.pop('content_type', None)
         if ct_label:
-            try:
-                app_label, model = ct_label.split('.')
-                validated_data['content_type'] = ContentType.objects.get(app_label=app_label, model=model)
-            except Exception:
+            if ct_label == 'advance':
                 validated_data['content_type'] = None
+            else:
+                try:
+                    app_label, model = ct_label.split('.', 1)
+                    validated_data['content_type'] = ContentType.objects.get(app_label=app_label, model=model)
+                except (ValueError, ContentType.DoesNotExist):
+                    raise serializers.ValidationError({'content_type': 'Unknown invoice item type.'})
         staff_members_data = validated_data.pop('staff_members', [])
         item = InvoiceItem.objects.create(**validated_data)
         if staff_members_data:
@@ -89,11 +96,18 @@ class PaymentSerializer(serializers.ModelSerializer):
 class InvoiceSerializer(serializers.ModelSerializer):
     items = InvoiceItemSerializer(many=True)
     payments = PaymentSerializer(many=True, required=False)
+    promotion = serializers.PrimaryKeyRelatedField(
+        queryset=Promotion.objects.all(), required=False, allow_null=True,
+    )
+    membership = serializers.PrimaryKeyRelatedField(
+        queryset=ClientMembership.objects.all(), required=False, allow_null=True,
+    )
+    idempotency_key = serializers.CharField(required=False, allow_blank=False, write_only=True)
 
     class Meta:
         model = Invoice
         fields = (
-            'id', 'client', 'center', 'staff', 'appointment',
+            'id', 'client', 'center', 'staff', 'appointment', 'promotion', 'membership', 'idempotency_key',
             'subtotal', 'discount', 'cgst', 'sgst', 'rounding',
             'total_amount', 'paid_amount', 'tip_amount', 'status', 'notes',
             'created_at', 'items', 'payments'
@@ -101,18 +115,36 @@ class InvoiceSerializer(serializers.ModelSerializer):
         read_only_fields = ('created_at',)
 
     def validate(self, data):
+        if self.instance and self.instance.finalized_at:
+            immutable_fields = {
+                'client', 'center', 'staff', 'appointment', 'subtotal',
+                'discount', 'cgst', 'sgst', 'rounding', 'total_amount',
+                'paid_amount', 'tip_amount', 'status', 'items', 'payments',
+            }
+            if immutable_fields.intersection(data.keys()):
+                raise serializers.ValidationError(
+                    'A finalized invoice cannot be edited. Use the payment/refund actions.'
+                )
+
         center = data.get('center')
         if not center and self.instance:
             center = self.instance.center
         
-        # Cross-check: if client is being set, they should belong to this center
+        # A client and invoice must belong to the same centre. The previous
+        # implementation only logged a warning, which allowed cross-centre
+        # financial records and leaked customer history between locations.
         client = data.get('client')
-        if client and center and client.center and client.center != center:
-            import logging
-            logging.getLogger(__name__).warning(
-                f'[Billing] Client {client.id} center ({client.center_id}) does not match '
-                f'invoice center ({center.id}). Allowing but flagging.'
-            )
+        if client and center and client.center and client.center_id != center.id:
+            raise serializers.ValidationError({
+                'client': 'Client does not belong to the selected center.'
+            })
+
+        membership = data.get('membership')
+        if membership:
+            if not client or membership.client_id != client.id or not membership.is_active:
+                raise serializers.ValidationError({'membership': 'Membership is not active or does not belong to this client.'})
+            if center and membership.client.center_id and membership.client.center_id != center.id:
+                raise serializers.ValidationError({'membership': 'Membership does not belong to this center.'})
 
         for item in data.get('items', []):
             staff = item.get('staff')
@@ -127,21 +159,55 @@ class InvoiceSerializer(serializers.ModelSerializer):
             if ct_label and isinstance(ct_label, str) and ct_label.startswith('inventory'):
                 obj_id = item.get('object_id')
                 if obj_id:
+                    from inventory.models import Product
                     try:
-                        from inventory.models import Product
                         prod = Product.objects.get(pk=obj_id)
-                        if prod.center != center:
-                            raise serializers.ValidationError("Product does not belong to this center.")
-                    except Exception:
-                        pass
+                    except Product.DoesNotExist:
+                        raise serializers.ValidationError('Product does not exist.')
+                    if center and prod.center_id != center.id:
+                        raise serializers.ValidationError('Product does not belong to this center.')
+
+            # Validate every generic item object against the invoice center, not
+            # only inventory products.
+            if ct_label and obj_id and center and ct_label != 'advance':
+                try:
+                    app_label, model_name = ct_label.split('.', 1)
+                    content_type = ContentType.objects.get(app_label=app_label, model=model_name)
+                    content_object = content_type.get_object_for_this_type(pk=obj_id)
+                except Exception:
+                    raise serializers.ValidationError('Invoice item does not exist.')
+                object_center_id = getattr(content_object, 'center_id', None)
+                if object_center_id and object_center_id != center.id:
+                    raise serializers.ValidationError('Invoice item does not belong to this center.')
+                if getattr(content_object, 'level', None) == 'Center':
+                    if not content_object.centers.filter(pk=center.id).exists():
+                        raise serializers.ValidationError('Service is not assigned to this center.')
         
         # Validate advance and value card payments against actual balances
         payments = data.get('payments', [])
         from decimal import Decimal
+        total_payment_amount = Decimal('0')
         for p in payments:
-            if Decimal(str(p.get('amount', 0))) <= 0:
+            payment_amount = Decimal(str(p.get('amount', 0)))
+            if payment_amount <= 0:
                 raise serializers.ValidationError("Payment amounts must be greater than zero.")
-        
+            total_payment_amount += payment_amount
+
+        declared_total = Decimal(str(data.get('total_amount', getattr(self.instance, 'total_amount', 0))))
+        if payments and total_payment_amount > declared_total + Decimal('0.01'):
+            raise serializers.ValidationError('Payment total cannot exceed the invoice total.')
+        status_value = data.get('status', getattr(self.instance, 'status', 'draft'))
+        if status_value in ('paid', 'partial'):
+            effective_payment_total = total_payment_amount
+            if not payments and self.instance:
+                effective_payment_total = sum(
+                    (payment.amount for payment in self.instance.payments.all()), Decimal('0')
+                )
+            if effective_payment_total <= 0:
+                raise serializers.ValidationError('A paid or partial invoice must have at least one payment.')
+            if status_value == 'paid' and effective_payment_total < declared_total - Decimal('0.01'):
+                raise serializers.ValidationError('A paid invoice must be fully paid.')
+
         if payments and client:
             from decimal import Decimal
             
@@ -288,6 +354,10 @@ class InvoiceSerializer(serializers.ModelSerializer):
         """Normalise nested staff objects at invoice and item level."""
         try:
             if isinstance(data, dict):
+                if 'promotion' not in data and data.get('promo_id'):
+                    data['promotion'] = data.get('promo_id')
+                if 'membership' not in data and data.get('membership_id'):
+                    data['membership'] = data.get('membership_id')
                 if 'staff' in data and isinstance(data.get('staff'), dict) and 'id' in data.get('staff'):
                     data['staff'] = data['staff']['id']
                 items = data.get('items')
@@ -299,6 +369,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             pass
         return super().to_internal_value(data)
 
+    @transaction.atomic
     def create(self, validated_data):
         items_data = validated_data.pop('items', [])
         payments_data = validated_data.pop('payments', [])
@@ -326,6 +397,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         invoice.save()
         return invoice
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
         payments_data = validated_data.pop('payments', None)
@@ -349,11 +421,14 @@ class InvoiceSerializer(serializers.ModelSerializer):
                 # Need to resolve content_type like the create method does
                 ct_label = item_data.pop('content_type', None)
                 if ct_label and isinstance(ct_label, str):
-                    try:
-                        app_label, model = ct_label.split('.')
-                        item_data['content_type'] = ContentType.objects.get(app_label=app_label, model=model)
-                    except Exception:
+                    if ct_label == 'advance':
                         item_data['content_type'] = None
+                    else:
+                        try:
+                            app_label, model = ct_label.split('.', 1)
+                            item_data['content_type'] = ContentType.objects.get(app_label=app_label, model=model)
+                        except (ValueError, ContentType.DoesNotExist):
+                            raise serializers.ValidationError({'content_type': 'Unknown invoice item type.'})
                 
                 staff_members = item_data.pop('staff_members', None)
                 
@@ -431,6 +506,13 @@ class InvoiceSerializer(serializers.ModelSerializer):
             ]
 
         return repr_data
+
+
+class InvoiceRefundSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InvoiceRefund
+        fields = '__all__'
+        read_only_fields = ('created_by', 'created_at')
 
 
 class AdvancePaymentSerializer(serializers.ModelSerializer):

@@ -25,6 +25,7 @@ python-dotenv==1.0.1
 
 # Utilities
 requests==2.32.3
+user-agents==2.2.0
 
 # Cache (Redis — required for 20K+ daily traffic, shared across Gunicorn workers)
 # Set REDIS_URL=redis://localhost:6379/0 in production .env to activate

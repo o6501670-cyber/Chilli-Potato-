@@ -228,8 +228,8 @@
             <i class="fa fa-money-bill"></i> Change Payment
           </button>
           <button class="btn btn-outline-danger mr-2" (click)="confirmAction('cancel')"
-            [disabled]="selectedInvoice.status === 'cancelled' || selectedInvoice.status === 'refunded'">
-            <i class="fa fa-times-circle"></i> Cancel Invoice
+            [disabled]="selectedInvoice.status !== 'draft'">
+            <i class="fa fa-times-circle"></i> Cancel Draft
           </button>
           <button class="btn btn-outline-warning mr-2" (click)="confirmAction('refund')"
             [disabled]="selectedInvoice.status === 'cancelled' || selectedInvoice.status === 'refunded'">
@@ -241,8 +241,8 @@
         <div class="confirmation-panel mt-3" *ngIf="actionConfirmType">
 
           <div *ngIf="actionConfirmType === 'cancel'" class="confirm-content text-danger">
-            <h5><i class="fa fa-exclamation-triangle"></i> Cancel Invoice</h5>
-            <p>Are you sure you want to completely cancel this invoice? This action cannot be easily undone.</p>
+            <h5><i class="fa fa-exclamation-triangle"></i> Cancel Draft</h5>
+            <p>Are you sure you want to cancel this unfinalized draft? Finalized invoices must be refunded instead.</p>
           </div>
 
           <div *ngIf="actionConfirmType === 'refund'" class="confirm-content text-warning">

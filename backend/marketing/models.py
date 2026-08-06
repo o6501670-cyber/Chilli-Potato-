@@ -47,6 +47,10 @@ class Promotion(models.Model):
 
 class PromotionUsage(models.Model):
     promotion = models.ForeignKey(Promotion, on_delete=models.CASCADE, related_name='usages')
+    invoice = models.ForeignKey(
+        'billing.Invoice', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='promotion_usages'
+    )
     center = models.ForeignKey(Center, on_delete=models.CASCADE)
     client = models.ForeignKey('clients.Client', on_delete=models.CASCADE, null=True, blank=True, related_name='promo_usages')
     date = models.DateField(auto_now_add=True)

@@ -14,9 +14,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.contenttypes.models import ContentType
 from billing.models import InvoiceItem
+from accounts.access import has_global_access, can_access_center
+from accounts.permissions import RoleActionPermission
 
 class MarketingBaseViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -90,14 +92,22 @@ class MarketingBaseViewSet(viewsets.ModelViewSet):
             serializer.save(**kwargs)
 
     def get_object(self):
-        """
-        Override to use the unfiltered base queryset when performing update/delete actions.
-        This prevents 404 when trying to activate an item that is currently inactive
-        (since inactive items are filtered out of the default queryset).
-        """
+        """Fetch inactive records for toggles without bypassing centre scope."""
         if self.action in ('update', 'partial_update', 'destroy', 'toggle_status'):
-            # Use the raw model queryset, bypassing is_active / expired filters
-            queryset = self.get_serializer_class().Meta.model.objects.all()
+            model = self.get_serializer_class().Meta.model
+            queryset = model.objects.all()
+            user = self.request.user
+            if not has_global_access(user):
+                if user.centers.exists():
+                    center_filter = Q(center__in=user.centers.all())
+                elif getattr(user, 'center', None):
+                    center_filter = Q(center=user.center)
+                else:
+                    return get_object_or_404(queryset.none(), pk=self.kwargs['pk'])
+                if hasattr(model, 'level'):
+                    queryset = queryset.filter(center_filter | Q(level='Organisation'))
+                else:
+                    queryset = queryset.filter(center_filter)
             obj = get_object_or_404(queryset, pk=self.kwargs['pk'])
             self.check_object_permissions(self.request, obj)
             return obj
@@ -131,7 +141,11 @@ class MarketingBaseViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['patch'], url_path='toggle-status')
     def toggle_status(self, request, pk=None):
         """Dedicated endpoint to toggle is_active. Always fetches by PK, bypassing active/expired filters."""
-        obj = self.get_object()  # uses our overridden get_object which bypasses filters
+        obj = self.get_object()
+        if hasattr(obj, 'level') and obj.level == 'Organisation' and not has_global_access(request.user):
+            raise PermissionDenied('Only owners or all-centre managers can change organisation-wide items.')
+        if getattr(obj, 'center_id', None) and not can_access_center(request.user, obj.center_id):
+            raise PermissionDenied('You do not have access to this center.')
         obj.is_active = not obj.is_active
         obj.save(update_fields=['is_active'])
         return Response({'id': obj.id, 'is_active': obj.is_active})
@@ -152,11 +166,28 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
         from clients.models import Client
         import datetime
 
-        # Get clients based on center
-        if center_id and str(center_id).lower() != 'all':
-            clients = Client.objects.filter(center_id=center_id)
+        # Campaign recipients must stay inside the caller's centre scope and
+        # inactive/DND clients must never be sent a campaign.
+        if str(center_id).lower() == 'all' or not center_id:
+            if not has_global_access(request.user):
+                if request.user.centers.exists():
+                    clients = Client.objects.filter(center__in=request.user.centers.all())
+                elif getattr(request.user, 'center', None):
+                    clients = Client.objects.filter(center=request.user.center)
+                else:
+                    return Response({'error': 'User is not assigned to a center.'}, status=status.HTTP_403_FORBIDDEN)
+            else:
+                clients = Client.objects.all()
         else:
-            clients = Client.objects.all()
+            try:
+                selected_center = Center.objects.get(pk=int(center_id))
+            except (TypeError, ValueError, Center.DoesNotExist):
+                return Response({'error': 'Invalid center_id'}, status=status.HTTP_400_BAD_REQUEST)
+            if not can_access_center(request.user, selected_center):
+                raise PermissionDenied('You do not have access to this center.')
+            clients = Client.objects.filter(center=selected_center)
+
+        clients = clients.filter(is_active=True).exclude(dnd_status__iexact='ON DND')
 
         if not clients.exists():
             return Response({'error': 'No clients found in the selected center'}, status=status.HTTP_404_NOT_FOUND)
@@ -210,6 +241,13 @@ class PromotionViewSet(MarketingBaseViewSet):
         promotions = self.get_queryset()
         
         usage_qs = PromotionUsage.objects.filter(promotion__in=promotions)
+        if not has_global_access(request.user):
+            if request.user.centers.exists():
+                usage_qs = usage_qs.filter(center__in=request.user.centers.all())
+            elif getattr(request.user, 'center', None):
+                usage_qs = usage_qs.filter(center=request.user.center)
+            else:
+                usage_qs = usage_qs.none()
         if start_date:
             usage_qs = usage_qs.filter(date__gte=start_date)
         if end_date:
@@ -260,10 +298,19 @@ class PromotionViewSet(MarketingBaseViewSet):
         packages = Package.objects.all().select_related('center')
         cards = ValueCard.objects.all().select_related('center')
         
-        if user.role != 'owner' and not user.is_superuser:
-            memberships = memberships.filter(Q(level='Organisation') | Q(center=user.center))
-            packages = packages.filter(Q(level='Organisation') | Q(center=user.center))
-            cards = cards.filter(Q(level='Organisation') | Q(center=user.center))
+        if not has_global_access(user):
+            if user.centers.exists():
+                memberships = memberships.filter(Q(level='Organisation') | Q(center__in=user.centers.all()))
+                packages = packages.filter(Q(level='Organisation') | Q(center__in=user.centers.all()))
+                cards = cards.filter(Q(level='Organisation') | Q(center__in=user.centers.all()))
+            elif getattr(user, 'center', None):
+                memberships = memberships.filter(Q(level='Organisation') | Q(center=user.center))
+                packages = packages.filter(Q(level='Organisation') | Q(center=user.center))
+                cards = cards.filter(Q(level='Organisation') | Q(center=user.center))
+            else:
+                memberships = memberships.none()
+                packages = packages.none()
+                cards = cards.none()
         else:
             if center_id and center_id != 'null':
                 memberships = memberships.filter(Q(level='Organisation') | Q(center_id=center_id))
@@ -305,7 +352,7 @@ class PromotionViewSet(MarketingBaseViewSet):
             }
 
         for c in cards:
-            key = f"value card_{c.id}"
+            key = f"value_card_{c.id}"
             data_map[key] = {
                 'id': key,
                 'name': c.title,
@@ -320,9 +367,16 @@ class PromotionViewSet(MarketingBaseViewSet):
             }
 
         items = InvoiceItem.objects.filter(
-            invoice__status__in=['paid', 'partial', 'Paid', 'Partial', 'completed', 'Completed', 'draft', 'Draft'],
+            invoice__status__in=['paid', 'partial'],
             content_type__in=[mem_ct, pkg_ct, card_ct]
         )
+        if not has_global_access(user):
+            if user.centers.exists():
+                items = items.filter(invoice__center__in=user.centers.all())
+            elif getattr(user, 'center', None):
+                items = items.filter(invoice__center=user.center)
+            else:
+                items = items.none()
         
         if start_date:
             items = items.filter(invoice__created_at__date__gte=start_date)

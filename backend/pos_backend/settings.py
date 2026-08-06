@@ -28,10 +28,17 @@ if not DEBUG and SECRET_KEY == _INSECURE_KEY:
         "when DEBUG=False. Do not use the default insecure key in production."
     )
 
-ALLOWED_HOSTS = os.environ.get(
-    'DJANGO_ALLOWED_HOSTS',
-    '38.45.94.56,localhost,127.0.0.1'
-).split(',')
+# Development servers are commonly accessed through a generated preview host;
+# keep host validation strict in production but allow any host in DEBUG mode.
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = [
+        host.strip() for host in os.environ.get(
+            'DJANGO_ALLOWED_HOSTS',
+            '38.45.94.56'
+        ).split(',') if host.strip()
+    ]
 
 # ─── Installed Apps ────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
@@ -62,13 +69,14 @@ INSTALLED_APPS = [
 ]
 
 # ─── REST Framework ────────────────────────────────────────────────────────────
+API_TOKEN_MAX_AGE_DAYS = int(os.environ.get('API_TOKEN_MAX_AGE_DAYS', '30'))
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'accounts.authentication.ExpiringTokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'accounts.permissions.RoleActionPermission',
     ],
     'DEFAULT_PAGINATION_CLASS': 'pos_backend.pagination.OptionalPagination',
     'DEFAULT_THROTTLE_CLASSES': [
@@ -76,7 +84,8 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '200/hour',       # bumped from 100/day — more realistic for walk-in usage
+        'anon': '200/hour',       # general anonymous API usage
+        'app_login': '10/hour',  # protects 4-10 digit app PINs from brute force
         'user': '10000/hour',     # 10K/hour per user (handles staff with many API calls)
     },
     # Return proper 401 instead of 403 for unauthenticated requests
@@ -165,6 +174,11 @@ if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
+    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
+    SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_REFERRER_POLICY = 'same-origin'
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -190,21 +204,35 @@ TEMPLATES = [
 WSGI_APPLICATION = 'pos_backend.wsgi.application'
 
 # ─── Database ─────────────────────────────────────────────────────────────────
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DB_NAME', 'pos'),
-        'USER': os.environ.get('DB_USER', 'root'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'root'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '3306'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
-        'CONN_MAX_AGE': 60,  # Persistent connections — faster queries
+# Local development can run without a MySQL server. Production still defaults to
+# MySQL when DEBUG=False; deployments should set DB_ENGINE explicitly.
+_db_engine = os.environ.get('DB_ENGINE') or (
+    'django.db.backends.sqlite3' if DEBUG else 'django.db.backends.mysql'
+)
+
+if _db_engine == 'django.db.backends.sqlite3':
+    DATABASES = {
+        'default': {
+            'ENGINE': _db_engine,
+            'NAME': os.environ.get('DB_NAME') or os.path.join(BASE_DIR, 'db.sqlite3'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': _db_engine,
+            'NAME': os.environ.get('DB_NAME', 'pos'),
+            'USER': os.environ.get('DB_USER', 'root'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', 'root'),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('DB_PORT', '3306'),
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+            'CONN_MAX_AGE': 60,  # Persistent connections — faster queries
+        }
+    }
 
 # ─── Password Validation ──────────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [

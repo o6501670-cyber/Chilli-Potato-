@@ -7,36 +7,47 @@ from django.db.models import Sum
 import datetime
 from .models import Vendor, Product, PurchaseOrder, ProductLot, StockTransaction
 from .serializers import VendorSerializer, ProductSerializer, PurchaseOrderSerializer, ProductLotSerializer, StockTransactionSerializer
+from accounts.access import can_access_center, has_global_access
+from accounts.permissions import RoleActionPermission
 
 class InventoryBaseViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
+
+    def _filter_by_center(self, queryset, center_ids):
+        """Apply centre scope to models that own or inherit a centre."""
+        field = 'center_id' if any(f.name == 'center' for f in queryset.model._meta.get_fields()) else 'product__center_id'
+        if center_ids is None:
+            return queryset
+        return queryset.filter(**{f'{field}__in': center_ids})
 
     def get_queryset(self):
         user = self.request.user
         queryset = super().get_queryset()
-        
-        # If user is a superuser, or has the "Owner" role, allow passing center_id parameter
-        is_owner = user.is_superuser or (user.role and user.role.name.lower() == 'owner')
         center_id = self.request.query_params.get('center_id')
+        allowed_ids = None if has_global_access(user) else {
+            int(value) for value in (
+                list(user.centers.values_list('id', flat=True)) +
+                ([user.center_id] if getattr(user, 'center_id', None) else [])
+            )
+        }
 
-        if is_owner:
-            if center_id:
-                return queryset.filter(center_id=center_id)
-            return queryset
-        else:
-            # Regular staff only see items for their assigned centers
-            if user.centers.exists():
-                return queryset.filter(center__in=user.centers.all())
-            elif user.center:
-                return queryset.filter(center=user.center)
-            return queryset.none()
+        if allowed_ids is not None:
+            queryset = self._filter_by_center(queryset, allowed_ids)
+
+        if center_id and str(center_id).lower() != 'null':
+            try:
+                requested_id = int(center_id)
+            except (TypeError, ValueError):
+                return queryset.none()
+            if allowed_ids is not None and requested_id not in allowed_ids:
+                return queryset.none()
+            field = 'center_id' if any(f.name == 'center' for f in queryset.model._meta.get_fields()) else 'product__center_id'
+            queryset = queryset.filter(**{field: requested_id})
+        return queryset
 
     def perform_create(self, serializer):
         user = self.request.user
-        is_owner = user.is_superuser or (user.role and user.role.name.lower() == 'owner')
-        
-        # For non-owners, automatically force the center to their own center
-        if not is_owner:
+        if not has_global_access(user):
             if user.centers.exists():
                 serializer.save(center=user.centers.first())
             elif user.center:
@@ -136,17 +147,31 @@ class VendorViewSet(InventoryBaseViewSet):
             user = request.user
             from salon_admin.models import Center
             center_id_param = request.data.get('center_id') or request.query_params.get('center_id')
+            allowed_ids = None if has_global_access(user) else {
+                int(value) for value in (
+                    list(user.centers.values_list('id', flat=True)) +
+                    ([user.center_id] if getattr(user, 'center_id', None) else [])
+                )
+            }
             if center_id_param and str(center_id_param).lower() != 'null':
                 try:
-                    all_centers = [Center.objects.get(id=int(center_id_param))]
+                    requested_id = int(center_id_param)
+                except (TypeError, ValueError):
+                    return Response({'error': 'Invalid center_id'}, status=400)
+                if allowed_ids is not None and requested_id not in allowed_ids:
+                    raise PermissionDenied('You do not have access to this center.')
+                try:
+                    all_centers = [Center.objects.get(id=requested_id)]
                 except Center.DoesNotExist:
-                    all_centers = list(Center.objects.all())
+                    return Response({'error': 'Center not found'}, status=404)
             else:
-                all_centers = list(Center.objects.all())
-                
+                if allowed_ids is None:
+                    all_centers = list(Center.objects.all())
+                else:
+                    all_centers = list(Center.objects.filter(id__in=allowed_ids))
+
             if not all_centers:
-                new_center = Center.objects.create(center_name="Main Center")
-                all_centers = [new_center]
+                return Response({'error': 'No center assigned to user'}, status=400)
 
             created_count = 0
             updated_count = 0
@@ -221,17 +246,20 @@ class VendorViewSet(InventoryBaseViewSet):
                 result['warnings'] = errors[:20]
             return Response(result)
 
-        except Exception as e:
-            import traceback
-            return Response({'error': str(e), 'detail': traceback.format_exc()}, status=400)
+        except Exception:
+            logger.exception('Inventory bulk upload failed')
+            return Response({'error': 'Inventory upload failed. Check the file and try again.'}, status=400)
 
 class ProductViewSet(InventoryBaseViewSet):
     queryset = Product.objects.all().select_related('center').prefetch_related('lots')
     serializer_class = ProductSerializer
 
     def perform_update(self, serializer):
-        instance = serializer.save()
         update_all = self.request.query_params.get('update_all_centers', 'false').lower() == 'true'
+        if update_all and not has_global_access(self.request.user):
+            raise PermissionDenied('Only owners or all-centre managers can update all centres.')
+
+        instance = serializer.save()
         if update_all:
             match_kwargs = {}
             if instance.product_code:
@@ -293,22 +321,35 @@ class ProductViewSet(InventoryBaseViewSet):
             records = df.to_dict('records')
 
             user = request.user
-            is_owner = user.is_superuser or (user.role and user.role.name.lower() == 'owner')
 
             from salon_admin.models import Center
             center_id_param = request.data.get('center_id') or request.query_params.get('center_id')
+            allowed_ids = None if has_global_access(user) else {
+                int(value) for value in (
+                    list(user.centers.values_list('id', flat=True)) +
+                    ([user.center_id] if getattr(user, 'center_id', None) else [])
+                )
+            }
             if center_id_param and str(center_id_param).lower() != 'null':
                 try:
-                    all_centers = [Center.objects.get(id=int(center_id_param))]
+                    requested_id = int(center_id_param)
+                except (TypeError, ValueError):
+                    return Response({'error': 'Invalid center_id'}, status=400)
+                if allowed_ids is not None and requested_id not in allowed_ids:
+                    raise PermissionDenied('You do not have access to this center.')
+                try:
+                    all_centers = [Center.objects.get(id=requested_id)]
                 except Center.DoesNotExist:
-                    all_centers = list(Center.objects.all())
+                    return Response({'error': 'Center not found'}, status=404)
             else:
-                # Evaluate immediately to a list — avoids lazy-queryset reads inside atomic() causing deadlocks
-                all_centers = list(Center.objects.all())
-                
+                # Evaluate immediately to a list — avoids lazy-queryset reads inside atomic().
+                all_centers = (
+                    list(Center.objects.all()) if allowed_ids is None
+                    else list(Center.objects.filter(id__in=allowed_ids))
+                )
+
             if not all_centers:
-                new_center = Center.objects.create(center_name="Main Center")
-                all_centers = [new_center]
+                return Response({'error': 'No center assigned to user'}, status=400)
 
             # Helper to safely parse numeric values
             def safe_float(val, default=0.0):
@@ -450,9 +491,9 @@ class ProductViewSet(InventoryBaseViewSet):
                 result['warnings'] = errors[:20]  # Return first 20 warnings
             return Response(result)
 
-        except Exception as e:
-            import traceback
-            return Response({'error': str(e), 'detail': traceback.format_exc()}, status=400)
+        except Exception:
+            logger.exception('Inventory bulk upload failed')
+            return Response({'error': 'Inventory upload failed. Check the file and try again.'}, status=400)
 
     @action(detail=False, methods=['get'])
     def bulk_upload_template(self, request):
@@ -521,30 +562,47 @@ class ProductViewSet(InventoryBaseViewSet):
     def checkout(self, request):
         from django.db import transaction
         items = request.data.get('items', [])
+        if not isinstance(items, list) or not items:
+            return Response({'error': 'At least one item is required.'}, status=400)
+
         user = request.user
-        # Find user center
-        center = user.center if user.center else (user.centers.first() if user.centers.exists() else None)
-        if not center and not user.is_superuser:
-            return Response({"error": "No center assigned to user"}, status=400)
-            
-        # if superuser, get center from request data or use first center
-        if user.is_superuser or (user.role and user.role.name == 'Owner'):
-            center_id = request.data.get('center_id')
-            if center_id:
-                from salon_admin.models import Center
-                center = Center.objects.get(id=center_id)
-        
+        from salon_admin.models import Center
+        center_id = request.data.get('center_id')
+        if center_id:
+            try:
+                center = Center.objects.get(pk=int(center_id))
+            except (TypeError, ValueError, Center.DoesNotExist):
+                return Response({'error': 'Invalid center_id'}, status=400)
+            if not can_access_center(user, center):
+                raise PermissionDenied('You do not have access to this center.')
+        elif has_global_access(user):
+            return Response({'error': 'center_id is required for organisation-wide users.'}, status=400)
+        elif getattr(user, 'center', None):
+            center = user.center
+        elif user.centers.count() == 1:
+            center = user.centers.first()
+        else:
+            return Response({'error': 'Select one of your assigned centers.'}, status=400)
+
         created_transactions = []
         with transaction.atomic():
             for item in items:
-                # Lock row to prevent race conditions during concurrent checkouts
-                product = Product.objects.select_for_update().get(id=item['product_id'])
-                
+                # Lock row to prevent races during concurrent checkouts.
+                try:
+                    product_id = int(item.get('product_id'))
+                    qty = int(item.get('quantity'))
+                except (TypeError, ValueError):
+                    return Response({'error': 'Each item needs a valid product_id and integer quantity.'}, status=400)
+                if qty <= 0:
+                    return Response({'error': 'Checkout quantity must be greater than zero.'}, status=400)
+                try:
+                    product = Product.objects.select_for_update().get(id=product_id)
+                except Product.DoesNotExist:
+                    return Response({'error': 'Product not found.'}, status=404)
+
                 if product.center != center:
                     return Response({"error": f"Product {product.name} does not belong to the selected center."}, status=400)
-                    
-                qty = int(item['quantity'])
-                
+
                 if qty > product.current_stock:
                     return Response({"error": f"Cannot checkout {qty} of {product.name}. Only {product.current_stock} in stock!"}, status=400)
                 
@@ -566,24 +624,47 @@ class ProductViewSet(InventoryBaseViewSet):
     def audit(self, request):
         from django.db import transaction
         items = request.data.get('items', [])
+        if not isinstance(items, list) or not items:
+            return Response({'error': 'At least one item is required.'}, status=400)
+
         user = request.user
-        center = user.center if user.center else (user.centers.first() if user.centers.exists() else None)
-        if user.is_superuser or (user.role and user.role.name == 'Owner'):
-            center_id = request.data.get('center_id')
-            if center_id:
-                from salon_admin.models import Center
-                center = Center.objects.get(id=center_id)
-        
+        from salon_admin.models import Center
+        center_id = request.data.get('center_id')
+        if center_id:
+            try:
+                center = Center.objects.get(pk=int(center_id))
+            except (TypeError, ValueError, Center.DoesNotExist):
+                return Response({'error': 'Invalid center_id'}, status=400)
+            if not can_access_center(user, center):
+                raise PermissionDenied('You do not have access to this center.')
+        elif has_global_access(user):
+            return Response({'error': 'center_id is required for organisation-wide users.'}, status=400)
+        elif getattr(user, 'center', None):
+            center = user.center
+        elif user.centers.count() == 1:
+            center = user.centers.first()
+        else:
+            return Response({'error': 'Select one of your assigned centers.'}, status=400)
+
         audits = []
         with transaction.atomic():
             for item in items:
-                # Lock row to prevent race conditions during concurrent audits/checkouts
-                product = Product.objects.select_for_update().get(id=item['product_id'])
-                
+                # Lock row to prevent races during concurrent audits/checkouts.
+                try:
+                    product_id = int(item.get('product_id'))
+                    physical_qty = int(item.get('quantity'))
+                except (TypeError, ValueError):
+                    return Response({'error': 'Each audit item needs a valid product_id and integer quantity.'}, status=400)
+                if physical_qty < 0:
+                    return Response({'error': 'Audited stock cannot be negative.'}, status=400)
+                try:
+                    product = Product.objects.select_for_update().get(id=product_id)
+                except Product.DoesNotExist:
+                    return Response({'error': 'Product not found.'}, status=404)
+
                 if product.center != center:
                     return Response({"error": f"Product {product.name} does not belong to the selected center."}, status=400)
-                    
-                physical_qty = int(item['quantity'])
+
                 diff = physical_qty - product.current_stock
                 
                 if diff != 0:
@@ -655,7 +736,7 @@ class ProductViewSet(InventoryBaseViewSet):
 class ProductLotViewSet(InventoryBaseViewSet):
     queryset = ProductLot.objects.order_by('-id')
     serializer_class = ProductLotSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def perform_create(self, serializer):
         product_id = self.request.data.get('product')
@@ -689,15 +770,30 @@ class PurchaseOrderViewSet(InventoryBaseViewSet):
             return Response({"error": "Cannot delete a delivered purchase order. Please refund or create a manual adjustment instead."}, status=400)
         return super().destroy(request, *args, **kwargs)
 
-class StockTransactionViewSet(InventoryBaseViewSet):
+class StockTransactionViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [RoleActionPermission]
     queryset = StockTransaction.objects.all().select_related('product', 'product__center', 'center').order_by('-created_at')
     serializer_class = StockTransactionSerializer
 
+    def get_queryset(self):
+        user = self.request.user
+        queryset = super().get_queryset()
+        if has_global_access(user):
+            center_id = self.request.query_params.get('center_id')
+            return queryset.filter(center_id=center_id) if center_id else queryset
+        allowed = set(user.centers.values_list('id', flat=True))
+        if getattr(user, 'center_id', None):
+            allowed.add(user.center_id)
+        return queryset.filter(center_id__in=allowed)
+
 from rest_framework.views import APIView
 from django.db.models import F
+import logging
+
+logger = logging.getLogger(__name__)
 
 class LowStockAlertView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get(self, request):
         center_id = request.query_params.get('center_id')

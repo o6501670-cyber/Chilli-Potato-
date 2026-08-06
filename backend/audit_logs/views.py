@@ -1,5 +1,6 @@
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
+from accounts.permissions import RoleActionPermission
 from .models import SystemLog
 from .serializers import SystemLogSerializer
 
@@ -12,7 +13,7 @@ class StandardResultsSetPagination(PageNumberPagination):
 
 class SystemLogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SystemLogSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.SearchFilter]
     search_fields = ['user_name', 'user_email', 'path', 'human_description', 'ip_address', 'center_name']

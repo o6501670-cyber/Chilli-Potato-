@@ -5,10 +5,14 @@ Authentication flow:
   1. POST /clients/api/app/login/  → returns client data + auth_token
   2. All subsequent requests send: Header: X-Client-Token: <token>
 """
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework import permissions, status
+from accounts.throttles import AppLoginRateThrottle
 from rest_framework.response import Response
 from django.core import signing as _signing
+from django.contrib.auth.hashers import check_password, make_password
+from django.utils.crypto import constant_time_compare
+import hashlib
 from .models import Client
 
 
@@ -16,18 +20,33 @@ from .models import Client
 # Token Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _pin_digest(value):
+    return hashlib.sha256((value or '').encode('utf-8')).hexdigest()
+
+
+def _client_pin_matches(client, pin):
+    stored = client.app_pin or ''
+    if stored.startswith(('pbkdf2_', 'argon2', 'bcrypt', 'scrypt')):
+        return check_password(pin, stored)
+    return constant_time_compare(stored, str(pin or ''))
+
+
 def _generate_client_token(client):
-    """Generate a signed 30-day token for the client app."""
+    """Generate a signed, password-bound token for the client app."""
     return _signing.dumps(
-        {'client_id': client.id, 'pin_hash': str(hash(client.app_pin or ''))},
+        {'client_id': client.id, 'pin_digest': _pin_digest(client.app_pin)},
         salt='client-app-token'
     )
 
+
 def _verify_client_token(token):
-    """Validate a client token. Returns Client or None."""
+    """Validate a client token and invalidate it when the PIN changes."""
     try:
         data = _signing.loads(token, salt='client-app-token', max_age=86400 * 30)
-        return Client.objects.get(id=data['client_id'])
+        client = Client.objects.get(id=data['client_id'], is_active=True)
+        if not constant_time_compare(data.get('pin_digest', ''), _pin_digest(client.app_pin)):
+            return None
+        return client
     except Exception:
         return None
 
@@ -45,6 +64,7 @@ def _get_authenticated_client(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([AppLoginRateThrottle])
 def client_app_login(request):
     """Client login. Returns client data + auth_token for subsequent requests."""
     phone = request.data.get('phone')
@@ -54,19 +74,23 @@ def client_app_login(request):
         return Response({'error': 'Phone is required'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        client = Client.objects.get(phone=phone)
+        client = Client.objects.get(phone=phone, is_active=True)
     except Client.DoesNotExist:
         return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    if not pin:
+        return Response({'error': 'PIN is required'}, status=status.HTTP_400_BAD_REQUEST)
+
     if not client.app_pin:
-        # First login — set PIN
-        if pin:
-            client.app_pin = pin
-            client.save(update_fields=['app_pin'])
-        else:
-            return Response({'error': 'PIN required to set your initial PIN'}, status=status.HTTP_400_BAD_REQUEST)
-    elif client.app_pin != pin:
+        # First login — store a password hash, never the raw PIN.
+        client.app_pin = make_password(str(pin))
+        client.save(update_fields=['app_pin'])
+    elif not _client_pin_matches(client, pin):
         return Response({'error': 'Invalid PIN'}, status=status.HTTP_401_UNAUTHORIZED)
+    elif not client.app_pin.startswith(('pbkdf2_', 'argon2', 'bcrypt', 'scrypt')):
+        # Migrate legacy plaintext PINs after a successful login.
+        client.app_pin = make_password(str(pin))
+        client.save(update_fields=['app_pin'])
 
     return Response({
         'id': client.id,
@@ -77,7 +101,6 @@ def client_app_login(request):
         'email': client.email,
         'gender': client.gender,
         'dnd_status': client.dnd_status,
-        'pin': client.app_pin,
         'auth_token': _generate_client_token(client),
     })
 
@@ -140,6 +163,7 @@ def client_app_data(request):
     upcoming_appts = (
         Appointment.objects
         .filter(client=client, status='Scheduled')
+        .select_related('center')
         .order_by('date', 'start_time')
     )
     appt_data = [
@@ -206,7 +230,9 @@ def client_app_update_profile(request):
         client.dnd_status = dnd_status
         updated_fields.append('dnd_status')
     if pin is not None:
-        client.app_pin = pin
+        if not str(pin).strip():
+            return Response({'error': 'PIN cannot be empty.'}, status=status.HTTP_400_BAD_REQUEST)
+        client.app_pin = make_password(str(pin))
         updated_fields.append('app_pin')
 
     if updated_fields:

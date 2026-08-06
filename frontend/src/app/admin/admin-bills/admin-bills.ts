@@ -145,7 +145,7 @@ export class AdminBillsComponent implements OnInit {
         error: (err: any) => {
           this.isLoading = false;
           console.error(err);
-          alert('Failed to cancel invoice.');
+          alert(err?.error?.detail || err?.error?.error || 'Failed to cancel invoice.');
         }
       });
     } else if (this.actionConfirmType === 'refund') {
@@ -158,7 +158,7 @@ export class AdminBillsComponent implements OnInit {
         error: (err: any) => {
           this.isLoading = false;
           console.error(err);
-          alert('Failed to refund invoice.');
+          alert(err?.error?.detail || err?.error?.error || 'Failed to refund invoice.');
         }
       });
     }

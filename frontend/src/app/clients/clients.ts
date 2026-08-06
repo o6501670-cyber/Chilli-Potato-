@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -13,8 +13,12 @@ import { LocationSelectorComponent } from '../components/location-selector/locat
   templateUrl: './clients.html',
   styleUrls: ['./clients.css']
 })
-export class ClientsComponent implements OnInit {
+export class ClientsComponent implements OnInit, OnDestroy {
   apiService = inject(ApiService);
+  private readonly storageHandler = (event: StorageEvent) => {
+    if (event.key === 'clients_updated') this.loadClients();
+  };
+  private readonly clientsUpdatedHandler = () => this.loadClients();
   csvService = inject(CsvService);
   cdr = inject(ChangeDetectorRef);
 
@@ -59,11 +63,15 @@ export class ClientsComponent implements OnInit {
 
     this.loadCenters();
     // listen for clients update from other components/tabs
-    window.addEventListener('storage', (e: StorageEvent) => {
-      if (e.key === 'clients_updated') this.loadClients();
-    });
+    window.addEventListener('storage', this.storageHandler);
     // in-page event for same SPA
-    window.addEventListener('clients_updated', () => { this.loadClients(); });
+    window.addEventListener('clients_updated', this.clientsUpdatedHandler);
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('storage', this.storageHandler);
+    window.removeEventListener('clients_updated', this.clientsUpdatedHandler);
+    if (this.searchTimeout) clearTimeout(this.searchTimeout);
   }
 
   loadCenters() {

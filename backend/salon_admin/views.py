@@ -2,8 +2,30 @@ from rest_framework import viewsets
 from django.db.models import Count
 from .models import Center, Role
 from .serializers import CenterSerializer, RoleSerializer
+from accounts.access import has_action_permission, has_global_access
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+from accounts.permissions import RoleActionPermission
+
 class CenterViewSet(viewsets.ModelViewSet):
     serializer_class = CenterSerializer
+    permission_classes = [RoleActionPermission]
+
+    def _require_write(self, action):
+        if not has_action_permission(self.request.user, 'admin', 'centers', action):
+            raise PermissionDenied('You do not have permission to modify centers.')
+
+    def perform_create(self, serializer):
+        self._require_write('create')
+        serializer.save()
+
+    def perform_update(self, serializer):
+        self._require_write('update')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._require_write('delete')
+        instance.delete()
 
     def get_queryset(self):
         user = self.request.user
@@ -39,6 +61,28 @@ class CenterViewSet(viewsets.ModelViewSet):
 class RoleViewSet(viewsets.ModelViewSet):
     queryset = Role.objects.annotate(users_count=Count('customuser', distinct=True)).all()
     serializer_class = RoleSerializer
+    permission_classes = [RoleActionPermission]
+
+    def get_queryset(self):
+        if not has_action_permission(self.request.user, 'admin', 'roles', 'read'):
+            return self.queryset.none()
+        return self.queryset
+
+    def _require_write(self, action):
+        if not has_action_permission(self.request.user, 'admin', 'roles', action):
+            raise PermissionDenied('You do not have permission to modify roles.')
+
+    def perform_create(self, serializer):
+        self._require_write('create')
+        serializer.save()
+
+    def perform_update(self, serializer):
+        self._require_write('update')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._require_write('delete')
+        instance.delete()
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -50,7 +94,7 @@ from clients.models import Client
 from datetime import datetime, timedelta
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([RoleActionPermission])
 def dashboard_view(request):
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
@@ -182,7 +226,7 @@ def dashboard_view(request):
 #  BULK IMPORT CENTRES FROM EXCEL
 # ─────────────────────────────────────────────────────────
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([RoleActionPermission])
 def bulk_import_centers(request):
     import io
     try:
@@ -334,7 +378,7 @@ def bulk_import_centers(request):
     })
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([RoleActionPermission])
 def bulk_import_template(request):
     import io
     try:

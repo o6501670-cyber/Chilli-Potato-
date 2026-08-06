@@ -142,6 +142,7 @@ export class BillingComponent implements OnInit {
 
   currentInvoiceId: number | null = null;
   currentInvoiceStatus: string = 'draft';
+  private idempotencyKey: string | null = null;
 
   promotions: any[] = [];
 
@@ -1921,7 +1922,12 @@ export class BillingComponent implements OnInit {
       // Do not close the modal here; let the user see the "SAVING..." state until the API returns
     }
 
+    if (!this.currentInvoiceId && !this.idempotencyKey) {
+      this.idempotencyKey = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
+    }
+
     const payload: any = {
+      ...(this.currentInvoiceId ? {} : { idempotency_key: this.idempotencyKey }),
 
       client: this.client.is_anonymous ? null : this.client.id,
 
@@ -2027,6 +2033,7 @@ export class BillingComponent implements OnInit {
       const advanceItem = this.cart.find(it => it.content_type === 'advance');
 
       const finish = () => {
+        this.idempotencyKey = null;
         if (!onHold) {
           this.completedInvoiceData = invoice;
           this.showSuccessModal = true;
@@ -2054,6 +2061,7 @@ export class BillingComponent implements OnInit {
       if (!onHold && advanceItem) {
         this.apiService.post('billing/advances/', {
           client: this.client.id,
+          invoice: invoice?.id || null,
           amount: advanceItem.unit_price * advanceItem.quantity,
           notes: advanceItem.description || 'Advance Payment'
         }).subscribe({

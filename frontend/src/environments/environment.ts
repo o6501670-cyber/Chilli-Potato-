@@ -1,4 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://127.0.0.1:8000'
+  // Browser requests stay same-origin; Angular's dev server proxies these
+  // paths to Django so the app also works inside a remote preview.
+  apiUrl: ''
 };

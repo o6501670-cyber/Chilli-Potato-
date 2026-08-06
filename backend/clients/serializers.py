@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.contrib.auth.hashers import make_password
 from .models import Client, ClientMembership, ClientPackage, ClientValueCard
 from salon_admin.models import Center
 from marketing.serializers import MembershipSerializer, PackageSerializer, ValueCardSerializer
@@ -31,18 +32,33 @@ class ClientValueCardSerializer(serializers.ModelSerializer):
 
 class ClientSerializer(serializers.ModelSerializer):
     center = serializers.PrimaryKeyRelatedField(queryset=Center.objects.all(), allow_null=True, required=False)
+    app_pin = serializers.CharField(write_only=True, required=False, allow_blank=True)
     center_detail = serializers.SerializerMethodField()
     active_memberships = serializers.SerializerMethodField()
     active_packages = serializers.SerializerMethodField()
     active_value_cards = serializers.SerializerMethodField()
-    # advance_balance uses the model property — it is computed per-client on read.
-    # For list views with many clients, prefer annotating at queryset level.
-    advance_balance = serializers.FloatField(read_only=True)
-    cashback_balance = serializers.FloatField(read_only=True)
+    # List views annotate these balances in one query. The model-property
+    # fallback keeps detail serialization compatible with older callers.
+    advance_balance = serializers.SerializerMethodField()
+    cashback_balance = serializers.SerializerMethodField()
 
     class Meta:
         model = Client
         fields = '__all__'
+
+    def create(self, validated_data):
+        pin = validated_data.get('app_pin')
+        if pin:
+            validated_data['app_pin'] = make_password(str(pin))
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        pin = validated_data.get('app_pin')
+        if pin:
+            validated_data['app_pin'] = make_password(str(pin))
+        elif pin == '':
+            validated_data.pop('app_pin', None)
+        return super().update(instance, validated_data)
 
     def to_internal_value(self, data):
         # Convert frontend empty strings to Python None to prevent DRF validation crashes
@@ -51,6 +67,14 @@ class ClientSerializer(serializers.ModelSerializer):
             if field in data and data[field] == '':
                 data[field] = None
         return super().to_internal_value(data)
+
+    def get_advance_balance(self, obj):
+        value = getattr(obj, 'advance_balance_annotated', None)
+        return float(value if value is not None else obj.advance_balance)
+
+    def get_cashback_balance(self, obj):
+        value = getattr(obj, 'cashback_balance_annotated', None)
+        return float(value if value is not None else obj.cashback_balance)
 
     def get_center_detail(self, obj):
         if obj.center:

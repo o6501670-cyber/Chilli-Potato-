@@ -78,15 +78,15 @@
       </div>
       <div class="kpi-tile">
         <div class="kpi-tile-label">Avg Spend</div>
-        <div class="kpi-tile-val">{{ summaryData.avg_spend.all | currency:'INR':'symbol':'1.0-0' }}</div>
+        <div class="kpi-tile-val">{{ summaryData?.avg_spend?.all | currency:'INR':'symbol':'1.0-0' }}</div>
         <div class="kpi-tile-sub"><i class="fa-solid fa-receipt" style="color:#6b7280;font-size:11px"></i> Per client
         </div>
       </div>
       <div class="kpi-tile kpi-red-outline">
         <div class="kpi-tile-label">Stock Value</div>
-        <div class="kpi-tile-val red">{{ summaryData.inventory.amount | currency:'INR':'symbol':'1.0-0' }}</div>
+        <div class="kpi-tile-val red">{{ summaryData?.inventory?.amount | currency:'INR':'symbol':'1.0-0' }}</div>
         <div class="kpi-tile-sub"><i class="fa-solid fa-box" style="color:#e11d48;font-size:11px"></i> {{
-          summaryData.inventory.count }} items</div>
+          summaryData?.inventory?.count }} items</div>
       </div>
     </div>
 

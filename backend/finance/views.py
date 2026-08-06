@@ -4,8 +4,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from .models import PettyCashEntry, DailyClosing, IncentiveConfig, Shift, IncentiveRule
 from .serializers import PettyCashEntrySerializer, DailyClosingSerializer, IncentiveConfigSerializer, ShiftSerializer, IncentiveRuleSerializer
-from billing.models import Invoice, Payment, InvoiceItem, AdvancePayment
+from billing.models import Invoice, Payment, InvoiceItem, AdvancePayment, InvoiceRefund
 from inventory.models import PurchaseOrder, PurchaseOrderItem
+from django.db import transaction
 from django.db.models import Sum, Count, Q
 from django.contrib.contenttypes.models import ContentType
 from datetime import datetime
@@ -13,6 +14,8 @@ import datetime as dt_module
 from collections import defaultdict
 import calendar
 import logging
+from django.utils import timezone
+from accounts.permissions import RoleActionPermission
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,8 @@ def _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('
             qs = qs.filter(center__in=user.centers.all())
         elif hasattr(user, 'center') and user.center:
             qs = qs.filter(center=user.center)
+        else:
+            qs = qs.none()
             
     if center_id:
         qs = qs.filter(center_id=center_id)
@@ -124,7 +129,7 @@ def _compute_payment_breakdown(invoices):
 class PettyCashEntryViewSet(viewsets.ModelViewSet):
     queryset = PettyCashEntry.objects.all().select_related('user', 'center').order_by('-date', '-id')
     serializer_class = PettyCashEntrySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -174,7 +179,7 @@ class PettyCashEntryViewSet(viewsets.ModelViewSet):
 class DailyClosingViewSet(viewsets.ModelViewSet):
     queryset = DailyClosing.objects.all().select_related('user', 'center').order_by('-date', '-id')
     serializer_class = DailyClosingSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -277,7 +282,7 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
 class ShiftViewSet(viewsets.ModelViewSet):
     queryset = Shift.objects.all().select_related('opened_by', 'closed_by').order_by('-opened_at')
     serializer_class = ShiftSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -315,32 +320,44 @@ class ShiftViewSet(viewsets.ModelViewSet):
                 elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create shifts for this center.")
-        serializer.save(opened_by=self.request.user, status='Open')
+        center = serializer.validated_data.get('center')
+        with transaction.atomic():
+            from salon_admin.models import Center
+            Center.objects.select_for_update().get(pk=center.pk)
+            if Shift.objects.filter(center=center, status='Open').exists():
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({'center': 'This center already has an open shift.'})
+            serializer.save(opened_by=self.request.user, status='Open')
 
     from rest_framework.decorators import action
     @action(detail=True, methods=['post'])
     def close_shift(self, request, pk=None):
-        from django.utils import timezone
-        shift = self.get_object()
-        if shift.status == 'Closed':
-            return Response({'error': 'Shift already closed'}, status=400)
-        
-        actual_cash = request.data.get('actual_cash', 0)
-        expected_cash = request.data.get('expected_cash', 0)
-        shift.expected_cash = float(expected_cash)
-        shift.actual_cash = float(actual_cash)
-        shift.variance = float(actual_cash) - float(expected_cash)
-        shift.status = 'Closed'
-        shift.closed_by = request.user
-        shift.closed_at = dt_module.datetime.now()
-        shift.save()
+        self.get_object()
+        try:
+            actual_cash = Decimal(str(request.data.get('actual_cash', 0)))
+            expected_cash = Decimal(str(request.data.get('expected_cash', 0)))
+        except Exception:
+            return Response({'error': 'Cash values must be numeric.'}, status=400)
+        if actual_cash < 0 or expected_cash < 0:
+            return Response({'error': 'Cash values cannot be negative.'}, status=400)
+        with transaction.atomic():
+            shift = Shift.objects.select_for_update().get(pk=pk)
+            if shift.status == 'Closed':
+                return Response({'error': 'Shift already closed'}, status=400)
+            shift.expected_cash = expected_cash
+            shift.actual_cash = actual_cash
+            shift.variance = actual_cash - expected_cash
+            shift.status = 'Closed'
+            shift.closed_by = request.user
+            shift.closed_at = timezone.now()
+            shift.save(update_fields=['expected_cash', 'actual_cash', 'variance', 'status', 'closed_by', 'closed_at'])
         return Response(ShiftSerializer(shift).data)
 
 
 class IncentiveRuleViewSet(viewsets.ModelViewSet):
     queryset = IncentiveRule.objects.all().select_related('center').order_by('-created_at')
     serializer_class = IncentiveRuleSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -418,7 +435,7 @@ class IncentiveRuleViewSet(viewsets.ModelViewSet):
 class IncentiveConfigViewSet(viewsets.ModelViewSet):
     queryset = IncentiveConfig.objects.all().prefetch_related('tiers')
     serializer_class = IncentiveConfigSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -457,7 +474,7 @@ class IncentiveConfigViewSet(viewsets.ModelViewSet):
 
 
 class RegisterSummaryView(views.APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get(self, request):
         center_id = request.query_params.get('center_id')
@@ -498,9 +515,12 @@ class RegisterSummaryView(views.APIView):
         advances_total = float(adv_qs.aggregate(t=Sum('amount'))['t'] or 0)
         advance_redemptions = abs(float(adv_used_qs.aggregate(t=Sum('amount'))['t'] or 0))
 
-        # Refunds (cancelled invoices) - these are excluded from sales_collection so they shouldn't be subtracted again.
-        cancelled_qs = _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('cancelled', 'refunded'))
-        refunds_total = float(cancelled_qs.aggregate(t=Sum('total_amount'))['t'] or 0)
+        # Refunds are ledger transactions, not the face value of every
+        # cancelled/refunded invoice.
+        refunded_qs = _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('refunded',))
+        refunds_total = float(
+            InvoiceRefund.objects.filter(invoice__in=refunded_qs).aggregate(t=Sum('amount'))['t'] or 0
+        )
 
         # Tax totals
         total_cgst = float(invoices.aggregate(t=Sum('cgst'))['t'] or 0)
@@ -591,7 +611,7 @@ class RegisterSummaryView(views.APIView):
 
 
 class MonthlySalesView(views.APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get(self, request):
         from django.db.models.functions import ExtractYear, ExtractMonth
@@ -707,16 +727,16 @@ class MonthlySalesView(views.APIView):
         )
         liab_used_dict = {(row['year'], row['month_num']): row for row in liab_monthly}
 
-        # Refunds (cancelled invoices)
-        cancelled_qs = _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('cancelled', 'refunded'))
-        cancelled_monthly = (
-            cancelled_qs
+        # Refunds come from the refund ledger and are grouped by refund date.
+        refunded_qs = _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('refunded',))
+        refund_monthly = (
+            InvoiceRefund.objects.filter(invoice__in=refunded_qs)
             .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
             .values('year', 'month_num')
-            .annotate(refunds=Sum('total_amount'))
+            .annotate(refunds=Sum('amount'))
             .order_by('year', 'month_num')
         )
-        refunds_dict = {(r['year'], r['month_num']): float(r['refunds'] or 0) for r in cancelled_monthly}
+        refunds_dict = {(r['year'], r['month_num']): float(r['refunds'] or 0) for r in refund_monthly}
 
         # Build result
         result = []
@@ -739,10 +759,11 @@ class MonthlySalesView(views.APIView):
             liab_used = float(liab_used_dict.get(month_key, {}).get('liab_used') or 0)
             
             total_redemptions = adv_used + liab_used
+            refunds = float(refunds_dict.get(month_key, 0))
 
             total_tax = float(row['total_cgst'] or 0) + float(row['total_sgst'] or 0)
             total_discount = float(row['total_discount'] or 0)
-            total = (services + products + memberships + packages + value_cards + other + adv - total_redemptions) - total_discount
+            total = (services + products + memberships + packages + value_cards + other + adv - total_redemptions) - total_discount - refunds
 
             result.append({
                 'month': month_str,
@@ -756,7 +777,7 @@ class MonthlySalesView(views.APIView):
                 'advances': round(adv, 2),
                 'change_to_advance': 0,
                 'payment_redemptions': round(-total_redemptions, 2),
-                'refunds': 0,
+                'refunds': round(-refunds, 2),
                 'other': round(other, 2),
                 'discounts': round(-total_discount, 2),
                 'collection_before_tax': round(total, 2),
@@ -769,15 +790,18 @@ class MonthlySalesView(views.APIView):
 
 
 class DetailedRevenuesView(views.APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get(self, request):
         center_id = request.query_params.get('center_id')
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
-        # FIXED: pagination support replaces hard-coded 200-record limit
-        page = int(request.query_params.get('page', 1))
-        page_size = min(int(request.query_params.get('page_size', 100)), 500)
+        # Pagination is bounded and validated so malformed URLs cannot cause a 500.
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(max(1, int(request.query_params.get('page_size', 100))), 500)
+        except ValueError:
+            return Response({'detail': 'page and page_size must be integers.'}, status=400)
         offset = (page - 1) * page_size
 
         invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
@@ -905,7 +929,7 @@ import openpyxl
 from django.http import HttpResponse
 
 class ExportFinanceView(views.APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get(self, request):
         center_id = request.query_params.get('center_id')
@@ -943,50 +967,52 @@ class ExportFinanceView(views.APIView):
 
 
 class RefundsView(views.APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get(self, request):
         center_id = request.query_params.get('center_id')
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
-        # FIXED: pagination replaces hard-coded 100-record limit
-        page = int(request.query_params.get('page', 1))
-        page_size = min(int(request.query_params.get('page_size', 100)), 500)
-        offset = (page - 1) * page_size
-
-        cancelled = _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('cancelled', 'refunded'))
-        cancelled = cancelled.select_related('client', 'center', 'staff').order_by('-created_at')
-
-        total_count = cancelled.count()
-        cancelled_page = cancelled[offset: offset + page_size]
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+            page_size = min(max(1, int(request.query_params.get('page_size', 100))), 500)
+        except ValueError:
+            return Response({'detail': 'page and page_size must be integers.'}, status=400)
 
         from django.db.models import Sum as DbSum
-        # FIXED: Aggregate total across ALL cancelled invoices, not just the current page
-        all_refunds_total = cancelled.aggregate(total=DbSum('total_amount'))['total'] or 0
+        refunded = _get_filtered_invoices(
+            request, center_id, start_date, end_date, statuses=('refunded',)
+        ).select_related('client', 'center', 'staff').annotate(
+            refunded_total=DbSum('refunds__amount')
+        ).order_by('-created_at')
+        total_count = refunded.count()
+        all_refunds_total = refunded.aggregate(total=DbSum('refunds__amount'))['total'] or 0
+        page_rows = refunded[(page - 1) * page_size: page * page_size]
 
         result = []
-        for inv in cancelled_page:
-            client_name = ''
-            if inv.client:
-                client_name = f"{inv.client.first_name} {inv.client.last_name or ''}".strip()
-
-            billed_by = ''
-            if inv.staff:
-                billed_by = f"{inv.staff.first_name} {inv.staff.last_name or ''}".strip()
-
+        for inv in page_rows:
+            client_name = (
+                f'{inv.client.first_name} {inv.client.last_name or ""}'.strip()
+                if inv.client else ''
+            )
+            billed_by = (
+                f'{inv.staff.first_name} {inv.staff.last_name or ""}'.strip()
+                if inv.staff else ''
+            )
             result.append({
                 'id': inv.id,
-                'bill_no': f"{inv.center.id if inv.center else '0'}-{inv.created_at.strftime('%d%m%y')}-{inv.id}",
+                'bill_no': f'{inv.center.id if inv.center else "0"}-{inv.created_at.strftime("%d%m%y")}-{inv.id}',
                 'date_time': inv.created_at.strftime('%d-%b-%Y, %H:%M'),
                 'client': client_name,
                 'billed_by': billed_by,
                 'total_amount': float(inv.total_amount),
+                'refunded_amount': float(inv.refunded_total or 0),
                 'status': inv.status,
             })
 
         return Response({
             'refunds': result,
-            'total_refunded': float(all_refunds_total),  # FIXED: all pages total, not current page
+            'total_refunded': float(all_refunds_total),
             'count': total_count,
             'page': page,
             'page_size': page_size,
@@ -995,7 +1021,7 @@ class RefundsView(views.APIView):
 
 
 class ProcurementReportView(views.APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get(self, request):
         center_id = request.query_params.get('center_id')
@@ -1039,7 +1065,9 @@ class ProcurementReportView(views.APIView):
 
             # Tax from PO items
             for item in po.items.all():
-                tax_amt = float(item.rate) * float(item.quantity) * float(item.tax_percent) / 100
+                base = float(item.rate) * float(item.quantity)
+                discounted_base = base * (1 - float(item.discount_percent or 0) / 100)
+                tax_amt = discounted_base * float(item.tax_percent or 0) / 100
                 vendor_map[vk]['tax_total'] += tax_amt
 
         result = []
@@ -1062,7 +1090,7 @@ class ProcurementReportView(views.APIView):
 
 
 class TaxReportView(views.APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get(self, request):
         center_id = request.GET.get('center_id')
@@ -1104,7 +1132,7 @@ class TaxReportView(views.APIView):
         })
 
 class ServiceDrilldownView(views.APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get(self, request):
         center_id = request.GET.get('center_id')
@@ -1135,7 +1163,7 @@ class ServiceDrilldownView(views.APIView):
         return Response(results)
 
 class StaffPerformanceReportView(views.APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get(self, request):
         center_id = request.GET.get('center_id')
@@ -1165,7 +1193,7 @@ class StaffPerformanceReportView(views.APIView):
         return Response(results)
 
 class ManagerDiscountsAuditView(views.APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get(self, request):
         center_id = request.GET.get('center_id')
@@ -1206,7 +1234,7 @@ class StaffIncentiveCalculationView(views.APIView):
       - Membership & Package sales
       - Exact itemized attribution and totals
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get(self, request):
         from django.db.models import Q
