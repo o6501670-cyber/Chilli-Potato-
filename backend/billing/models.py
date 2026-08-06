@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
+from decimal import Decimal, ROUND_HALF_UP
 
 
 class Invoice(models.Model):
@@ -20,6 +21,8 @@ class Invoice(models.Model):
     center = models.ForeignKey('salon_admin.Center', on_delete=models.SET_NULL, null=True, blank=True, related_name='invoices')
     staff = models.ForeignKey('staff.StaffMember', null=True, blank=True, on_delete=models.SET_NULL)
     appointment = models.ForeignKey('appointments.Appointment', null=True, blank=True, on_delete=models.SET_NULL, related_name='invoices')
+    promotion = models.ForeignKey('marketing.Promotion', null=True, blank=True, on_delete=models.SET_NULL, related_name='invoices')
+    membership = models.ForeignKey('clients.ClientMembership', null=True, blank=True, on_delete=models.SET_NULL, related_name='invoices')
 
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -33,6 +36,10 @@ class Invoice(models.Model):
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # Set exactly once when stock/perks/service logs have been committed.
+    # This makes retries of a completed payment side-effect free.
+    finalized_at = models.DateTimeField(null=True, blank=True)
+    idempotency_key = models.CharField(max_length=100, unique=True, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         if self.total_amount < 0:
@@ -86,6 +93,32 @@ class Payment(models.Model):
         ]
 
 
+class InvoiceRefund(models.Model):
+    REFUND_METHOD_CHOICES = (
+        ('Cash', 'Cash'),
+        ('Original', 'Original Payment Method'),
+        ('UPI', 'UPI'),
+        ('Card', 'Card'),
+        ('Other', 'Other'),
+    )
+
+    invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, related_name='refunds')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    refund_method = models.CharField(max_length=30, choices=REFUND_METHOD_CHOICES, default='Original')
+    reference = models.CharField(max_length=255, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['invoice', 'created_at'], name='refund_invoice_date_idx'),
+        ]
+
+    def __str__(self):
+        return f"Refund {self.id} - Invoice {self.invoice_id} ({self.amount})"
+
+
 class InvoiceItem(models.Model):
     invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='items')
 
@@ -100,25 +133,33 @@ class InvoiceItem(models.Model):
     quantity = models.PositiveIntegerField(default=1)
     tax_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)  # From service/product master
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)   # Pre-tax amount × tax_percentage / 100
-    # total_price is stored as sent from frontend; save() guards against negative values
+    # total_price is a stored, tax-exclusive snapshot used by reports. It must
+    # always be derived from the immutable sale inputs, never trusted from the UI.
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     staff = models.ForeignKey('staff.StaffMember', null=True, blank=True, on_delete=models.SET_NULL)
     staff_members = models.ManyToManyField('staff.StaffMember', related_name='invoice_items_multi', blank=True)
 
     def save(self, *args, **kwargs):
-        # Redemption items are intentionally ₹0 and must stay ₹0 for correct reporting.
-        # Guard: treat as redemption if EITHER unit_price is 0 AND description signals redeem,
-        # OR if total_price was explicitly set to 0 with a zero unit_price (e.g. complimentary service).
-        is_redemption = (
-            (self.unit_price == 0 or self.unit_price is None) and
-            bool(self.description and '🎁 [Redeem]' in self.description)
+        # Package redemptions are intentionally ₹0. Every other line total is
+        # recalculated on every save so forged/stale total_price values cannot
+        # corrupt invoices or reports.
+        is_redemption = bool(self.description and '🎁 [Redeem]' in self.description)
+        if is_redemption:
+            self.total_price = Decimal('0.00')
+        else:
+            calculated = (
+                (self.unit_price or Decimal('0')) * (self.quantity or 0)
+                - (self.discount or Decimal('0'))
+            )
+            self.total_price = max(Decimal('0'), calculated).quantize(
+                Decimal('0.01'), rounding=ROUND_HALF_UP
+            )
+
+        tax_base = self.total_price
+        tax_rate = self.tax_percentage or Decimal('0')
+        self.tax_amount = (tax_base * tax_rate / Decimal('100')).quantize(
+            Decimal('0.01'), rounding=ROUND_HALF_UP
         )
-        if not is_redemption:
-            calculated = ((self.unit_price or 0) * (self.quantity or 1)) - (self.discount or 0)
-            if self.total_price == 0 and calculated != 0:
-                self.total_price = calculated
-        if self.total_price < 0:
-            self.total_price = 0
         super().save(*args, **kwargs)
 
     def __str__(self):

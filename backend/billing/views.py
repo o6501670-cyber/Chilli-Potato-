@@ -1,26 +1,28 @@
 from rest_framework import viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db import transaction
-from django.db.models import F
+from django.db import transaction, IntegrityError
+from django.db.models import F, Sum
 from django.utils import timezone
 from decimal import Decimal
-from .models import Invoice, InvoiceItem, AdvancePayment, BillChangeLog, Payment
-from .serializers import InvoiceSerializer, InvoiceItemSerializer, AdvancePaymentSerializer, BillChangeLogSerializer
+from .models import Invoice, InvoiceItem, AdvancePayment, BillChangeLog, Payment, InvoiceRefund
+from .serializers import InvoiceSerializer, InvoiceItemSerializer, AdvancePaymentSerializer, BillChangeLogSerializer, InvoiceRefundSerializer
 from rest_framework import status
 from staff.models import ServiceLog
 import datetime
 from datetime import timedelta
 import logging
 from .services import finalize_invoice
+from accounts.permissions import RoleActionPermission
 
 logger = logging.getLogger(__name__)
 
 
 class InvoiceViewSet(viewsets.ModelViewSet):
     serializer_class = InvoiceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def list(self, request, *args, **kwargs):
         from rest_framework.response import Response
@@ -36,7 +38,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Invoice.objects.select_related(
-            'client', 'center', 'staff'
+            'client', 'center', 'staff', 'promotion', 'membership'
         ).prefetch_related(
             'items__content_type',
             'items__content_object',
@@ -53,6 +55,8 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(center__in=user.centers.all())
             elif hasattr(user, 'center') and user.center:
                 qs = qs.filter(center=user.center)
+            else:
+                qs = qs.none()
 
         client_id = self.request.query_params.get('client_id')
         if client_id:
@@ -107,212 +111,286 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def pay(self, request, pk=None):
-        """Record a payment against an invoice atomically."""
-        invoice = self.get_object()
-        old_status_for_pay = invoice.status
-        amount = request.data.get('amount')
-        payment_method = request.data.get('payment_method', 'Cash')
-        value_card_id = request.data.get('value_card_id')  # optional
+        """Record one payment with balance and tender validation.
 
+        The payment row, wallet debit, value-card debit, invoice status and
+        paid amount must succeed or fail together. This endpoint is also the
+        concurrency boundary for two registers trying to pay the same bill.
+        """
+        self.get_object()  # enforce the caller's centre scope before locking
+        amount = request.data.get('amount')
+        payment_method = str(request.data.get('payment_method', 'Cash')).strip()
+        value_card_id = request.data.get('value_card_id')
+
+        valid_methods = {choice[0] for choice in Payment.PAYMENT_METHOD_CHOICES}
+        if payment_method not in valid_methods:
+            return Response({'detail': 'Unsupported payment method.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            amt = Decimal(str(amount))
-            if amt <= 0:
-                raise ValueError('Must be positive')
+            amt = Decimal(str(amount)).quantize(Decimal('0.01'))
         except Exception:
             return Response({'detail': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
+        if amt <= 0:
+            return Response({'detail': 'Payment amount must be greater than zero.'}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
-            # Lock the row to prevent race condition
-            invoice = Invoice.objects.select_for_update().get(pk=pk)
+            invoice = Invoice.objects.select_for_update().select_related('client').get(pk=pk)
+            if invoice.status in ('cancelled', 'refunded'):
+                return Response(
+                    {'detail': f'Cannot pay an invoice that is already {invoice.status}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-            # Advance balance check INSIDE the lock to prevent over-drawing under concurrent requests
-            if payment_method and ('advance' in payment_method.lower() or 'wallet' in payment_method.lower()):
-                if invoice.client:
-                    invoice.client.refresh_from_db(fields=['advance_balance'] if hasattr(invoice.client, 'advance_balance') else [])
-                    advance_balance = invoice.client.advance_balance
-                    if advance_balance < float(amt):
-                        amt = Decimal(str(min(float(amt), max(0, advance_balance))))
-                        if amt <= 0:
-                            return Response(
-                                {'detail': f'Insufficient advance balance. Available: ₹{advance_balance:.2f}'},
-                                status=status.HTTP_400_BAD_REQUEST
-                            )
+            outstanding = max(Decimal('0'), invoice.total_amount - invoice.paid_amount)
+            if amt > outstanding + Decimal('0.01'):
+                return Response(
+                    {'detail': f'Payment exceeds the outstanding balance of ₹{outstanding:.2f}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-            # Create Payment record
+            client = None
+            if invoice.client_id:
+                from clients.models import Client
+                client = Client.objects.select_for_update().get(pk=invoice.client_id)
+
+            pm = payment_method.lower()
+            if ('advance' in pm or ("wallet" in pm and pm != 'cashback wallet')):
+                if not client:
+                    return Response({'detail': 'A client is required for advance payments.'}, status=400)
+                balance = AdvancePayment.objects.filter(client_id=client.id).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+                if balance < amt:
+                    return Response(
+                        {'detail': f'Insufficient advance balance. Available: ₹{balance:.2f}'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            elif pm == 'cashback wallet':
+                if not client:
+                    return Response({'detail': 'A client is required for cashback payments.'}, status=400)
+                from billing.models import CashbackTransaction
+                balance = CashbackTransaction.objects.filter(client_id=client.id).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+                if balance < amt:
+                    return Response(
+                        {'detail': f'Insufficient cashback balance. Available: ₹{balance:.2f}'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            elif pm == 'value card':
+                if not client or not value_card_id:
+                    return Response({'detail': 'A client and value_card_id are required for value-card payments.'}, status=400)
+                from clients.models import ClientValueCard
+                try:
+                    value_card = ClientValueCard.objects.select_for_update().get(
+                        pk=int(value_card_id),
+                        client_id=client.id,
+                        is_active=True,
+                        expiry_date__gte=timezone.now().date(),
+                    )
+                except (TypeError, ValueError, ClientValueCard.DoesNotExist):
+                    return Response({'detail': 'Value card not found, expired, or not owned by this client.'}, status=400)
+                if value_card.balance < amt:
+                    return Response(
+                        {'detail': f'Insufficient value-card balance. Available: ₹{value_card.balance:.2f}'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            else:
+                value_card = None
+
             Payment.objects.create(
                 invoice=invoice,
                 amount=amt,
                 payment_method=payment_method,
-                value_card_id=value_card_id
+                value_card_id=int(value_card_id) if value_card_id and pm == 'value card' else None,
             )
 
-            # Atomic increment — use F() to avoid read-modify-write race
-            Invoice.objects.filter(pk=invoice.pk).update(paid_amount=F('paid_amount') + amt)
-            invoice.refresh_from_db()
+            if 'advance' in pm or ("wallet" in pm and pm != 'cashback wallet'):
+                AdvancePayment.objects.create(
+                    client=client,
+                    invoice=invoice,
+                    amount=-amt,
+                    notes=f'Used for Invoice #{invoice.id}',
+                )
+            elif pm == 'cashback wallet':
+                from billing.models import CashbackTransaction
+                CashbackTransaction.objects.create(
+                    client=client,
+                    invoice=invoice,
+                    amount=-amt,
+                    notes=f'Used for Invoice #{invoice.id}',
+                )
+            elif pm == 'value card':
+                value_card.balance -= amt
+                if value_card.balance <= 0:
+                    value_card.balance = Decimal('0')
+                    value_card.is_active = False
+                value_card.save(update_fields=['balance', 'is_active'])
 
-            # Determine new status — total_amount already includes rounding
-            if invoice.paid_amount >= invoice.total_amount - Decimal('0.01'):
-                Invoice.objects.filter(pk=invoice.pk).update(status='paid')
-            else:
-                Invoice.objects.filter(pk=invoice.pk).update(status='partial')
+            old_status = invoice.status
+            invoice.paid_amount += amt
+            invoice.status = 'paid' if invoice.paid_amount >= invoice.total_amount - Decimal('0.01') else 'partial'
+            invoice.save(update_fields=['paid_amount', 'status', 'updated_at'])
 
-            invoice.refresh_from_db()
-
-            # Handle advance deduction / value card deduction for this payment
-            try:
-                pm = payment_method.lower()
-                if 'advance' in pm or 'wallet' in pm:
-                    AdvancePayment.objects.create(
-                        client=invoice.client,
-                        invoice=invoice,
-                        amount=-amt,
-                        notes=f"Used for Invoice #{invoice.id}"
-                    )
-                if 'value card' in pm and value_card_id:
-                    from clients.models import ClientValueCard
-                    client_vc = ClientValueCard.objects.select_for_update().get(id=value_card_id)
-                    client_vc.balance = max(Decimal('0'), client_vc.balance - amt)
-                    if client_vc.balance <= 0:
-                        client_vc.is_active = False
-                    client_vc.save()
-            except Exception as ex:
-                logger.error(f"[Billing pay] Error handling deduction: {ex}", exc_info=True)
-
-            # If this is the first payment that pushes a draft invoice to paid/partial,
-            # run finalize_invoice with skip_payment_deductions=True since we just handled
-            # the deductions above. This triggers stock, perks, and service logs.
-            if old_status_for_pay == 'draft' and invoice.status in ('paid', 'partial'):
-                try:
-                    finalize_invoice(invoice, None, {}, skip_payment_deductions=True)
-                except Exception as fe:
-                    logger.error(f"[Billing pay] finalize_invoice error: {fe}", exc_info=True)
+            if old_status == 'draft' and invoice.status in ('paid', 'partial'):
+                # The invoice already contains its line items. Wallet/card
+                # debits were handled above, so finalization must not debit them again.
+                finalize_invoice(
+                    invoice,
+                    None,
+                    {
+                        'promo_id': invoice.promotion_id,
+                        'membership_id': invoice.membership_id,
+                    },
+                    skip_payment_deductions=True,
+                )
 
         return Response(InvoiceSerializer(invoice).data)
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None, new_status='cancelled'):
-        invoice = self.get_object()
-        if invoice.status in ('cancelled', 'refunded'):
-            return Response({'detail': f'Already {invoice.status}'}, status=400)
-
+        """Cancel an unfinalized draft. Paid bills must use the refund action."""
+        self.get_object()
         with transaction.atomic():
-            invoice.status = new_status
-            invoice.save()
-
-            user = request.user if request.user and request.user.is_authenticated else None
+            invoice = Invoice.objects.select_for_update().select_related('center').get(pk=pk)
+            if invoice.status in ('cancelled', 'refunded'):
+                return Response({'detail': f'Already {invoice.status}'}, status=400)
+            if invoice.status != 'draft':
+                return Response(
+                    {'detail': 'Paid or partial invoices cannot be cancelled; create a refund instead.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            invoice.status = 'cancelled'
+            invoice.save(update_fields=['status', 'updated_at'])
             BillChangeLog.objects.create(
                 invoice=invoice,
                 center=invoice.center,
-                user=user,
-                action='Cancel Bill' if new_status == 'cancelled' else 'Refund Bill'
+                user=request.user if request.user.is_authenticated else None,
+                action='Cancel Bill',
+                notes='Draft invoice cancelled before finalization.',
             )
-
-            # Revert inventory stock — batch by content_type to avoid N+1 on content_object
-            inventory_items = [
-                item for item in invoice.items.select_related('content_type').all()
-                if item.content_type and item.content_type.app_label == 'inventory'
-            ]
-            if inventory_items:
-                from inventory.models import Product, StockTransaction
-                product_ids = [item.object_id for item in inventory_items]
-                products_map = {p.pk: p for p in Product.objects.filter(pk__in=product_ids)}
-                for item in inventory_items:
-                    product = products_map.get(item.object_id)
-                    if product and hasattr(product, 'current_stock'):
-                        try:
-                            type(product).objects.filter(pk=product.pk).update(
-                                current_stock=F('current_stock') + int(item.quantity)
-                            )
-                            StockTransaction.objects.create(
-                                product=product,
-                                center=invoice.center or (invoice.client.center if invoice.client else None),
-                                transaction_type='REFUND',
-                                quantity_change=int(item.quantity),
-                                notes=f"Refunded from Invoice #{invoice.id}",
-                            )
-                        except Exception as e:
-                            logger.error(f"[Billing Cancel] Error reverting stock: {e}", exc_info=True)
-
-            # FIXED: Do not delete ServiceLogs — they are business/payroll records.
-            # Mark them as cancelled instead by updating the invoice status (already done above).
-            # The invoice FK on ServiceLog will show status='cancelled' via the related invoice.
-
-            # Delete negative AdvancePayment rows (redemptions) tied to this invoice
-            AdvancePayment.objects.filter(invoice=invoice, amount__lt=0).delete()
-
-            # Delete negative CashbackTransaction rows (redemptions) tied to this invoice
-            from billing.models import CashbackTransaction
-            CashbackTransaction.objects.filter(invoice=invoice, amount__lt=0).delete()
-
-            # Restore Package Redemptions and De-Provision Purchased Perks
-            if invoice.client:
-                from clients.models import ClientPackage, ClientMembership, ClientValueCard
-                for item in invoice.items.all():
-                    # 1. Restore Redeemed Package Services
-                    if float(item.unit_price) == 0 and item.description and '🎁 [Redeem]' in item.description:
-                        if item.content_type and item.content_type.app_label == 'services':
-                            svc_id_str = str(item.object_id)
-                            cps = ClientPackage.objects.filter(client=invoice.client).order_by('-expiry_date')
-                            qty_to_restore = int(item.quantity)
-                            
-                            # Add back to the first package that contains the service ID
-                            for cp in cps:
-                                if svc_id_str in cp.services_remaining:
-                                    cp.services_remaining[svc_id_str] += qty_to_restore
-                                    cp.is_active = True # Re-activate in case it was marked exhausted
-                                    cp.save()
-                                    break
-                    
-                    # 2. De-provision Purchased Perks
-                    if item.content_type and item.content_type.app_label == 'marketing':
-                        try:
-                            m_model = item.content_type.model
-                            if m_model == 'membership' and item.content_object:
-                                cm = ClientMembership.objects.filter(
-                                    client=invoice.client, membership_id=item.content_object.id
-                                ).order_by('-created_at').first()
-                                if cm: cm.delete() # Or set is_active = False
-                            elif m_model == 'package':
-                                cp = ClientPackage.objects.filter(
-                                    client=invoice.client, package_id=item.content_object.id if item.content_object else None
-                                ).order_by('-created_at').first()
-                                if cp: cp.delete()
-                            elif m_model == 'valuecard' and item.content_object:
-                                cvc = ClientValueCard.objects.filter(
-                                    client=invoice.client, value_card_id=item.content_object.id
-                                ).order_by('-created_at').first()
-                                if cvc: cvc.delete()
-                        except Exception as ex:
-                            logger.error(f"[Billing Cancel] Error de-provisioning perk: {ex}", exc_info=True)
-
-            # Reverse Value Card deductions
-            for payment in invoice.payments.all():
-                pm = payment.payment_method.lower()
-                if 'value card' in pm and payment.value_card_id:
-                    try:
-                        from clients.models import ClientValueCard
-                        client_vc = ClientValueCard.objects.select_for_update().get(id=payment.value_card_id)
-                        client_vc.balance += payment.amount
-                        client_vc.is_active = True
-                        client_vc.save()
-                    except Exception as e:
-                        logger.error(f"[Billing Cancel] Error reverting Value Card: {e}", exc_info=True)
-
         return Response(InvoiceSerializer(invoice).data)
 
     @action(detail=True, methods=['post'])
     def refund(self, request, pk=None):
-        """Delegate to cancel action which handles all reversals atomically."""
-        return self.cancel(request, pk=pk, new_status='refunded')
+        """Issue one complete refund and reverse every finalized side effect."""
+        self.get_object()
+        refund_methods = {choice[0] for choice in InvoiceRefund.REFUND_METHOD_CHOICES}
+        refund_method = str(request.data.get('refund_method', 'Original')).strip()
+        if refund_method not in refund_methods:
+            return Response({'detail': 'Unsupported refund method.'}, status=400)
+
+        with transaction.atomic():
+            invoice = Invoice.objects.select_for_update().select_related('client', 'center').get(pk=pk)
+            if invoice.status not in ('paid', 'partial'):
+                return Response({'detail': 'Only paid or partial invoices can be refunded.'}, status=400)
+            refunded_total = invoice.refunds.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            remaining = invoice.paid_amount - refunded_total
+            if remaining <= 0:
+                return Response({'detail': 'Invoice has already been fully refunded.'}, status=400)
+
+            requested = request.data.get('amount', remaining)
+            try:
+                amount = Decimal(str(requested)).quantize(Decimal('0.01'))
+            except Exception:
+                return Response({'detail': 'Invalid refund amount.'}, status=400)
+            # Partial refunds need tender allocation and proportional perk
+            # reversal. Refuse them rather than silently corrupting wallets.
+            if amount != remaining:
+                return Response(
+                    {'detail': f'Only a full refund of ₹{remaining:.2f} is currently supported.'},
+                    status=400,
+                )
+
+            InvoiceRefund.objects.create(
+                invoice=invoice,
+                amount=amount,
+                refund_method=refund_method,
+                reference=request.data.get('reference'),
+                notes=request.data.get('notes'),
+                created_by=request.user if request.user.is_authenticated else None,
+            )
+
+            from inventory.models import Product, StockTransaction
+            inventory_items = invoice.items.select_related('content_type').all()
+            for item in inventory_items:
+                if not item.content_type or item.content_type.app_label != 'inventory':
+                    continue
+                product = Product.objects.select_for_update().filter(pk=item.object_id).first()
+                if not product:
+                    raise ValidationError(f'Product for invoice item {item.id} no longer exists.')
+                product.current_stock += int(item.quantity)
+                product.save(update_fields=['current_stock'])
+                StockTransaction.objects.create(
+                    product=product,
+                    center=invoice.center or (invoice.client.center if invoice.client else None),
+                    transaction_type='REFUND',
+                    quantity_change=int(item.quantity),
+                    notes=f'Refunded Invoice #{invoice.id}',
+                    created_by=request.user if request.user.is_authenticated else None,
+                )
+
+            from clients.models import ClientMembership, ClientPackage, ClientValueCard, PackageRedemption
+            # Restore package redemptions from the exact package rows allocated
+            # during finalization, not an arbitrary matching package.
+            for redemption in PackageRedemption.objects.select_for_update().filter(invoice=invoice).select_related('package'):
+                package = redemption.package
+                remaining_services = dict(package.services_remaining or {})
+                key = str(redemption.service_id)
+                remaining_services[key] = int(remaining_services.get(key, 0)) + redemption.quantity
+                package.services_remaining = remaining_services
+                package.is_active = True
+                package.save(update_fields=['services_remaining', 'is_active'])
+            PackageRedemption.objects.filter(invoice=invoice).delete()
+
+            # Remove only entitlements created by this invoice.
+            ClientMembership.objects.filter(source_invoice=invoice).delete()
+            ClientPackage.objects.filter(source_invoice=invoice).delete()
+            ClientValueCard.objects.filter(source_invoice=invoice).delete()
+
+            # Reverse tender liabilities and promotion cashback tied to this bill.
+            AdvancePayment.objects.filter(invoice=invoice).delete()
+            from billing.models import CashbackTransaction
+            CashbackTransaction.objects.filter(invoice=invoice).delete()
+            for payment in invoice.payments.all():
+                if payment.payment_method.lower() == 'value card' and payment.value_card_id and invoice.client_id:
+                    value_card = ClientValueCard.objects.select_for_update().filter(
+                        pk=payment.value_card_id, client_id=invoice.client_id
+                    ).first()
+                    if value_card:
+                        value_card.balance += payment.amount
+                        value_card.is_active = True
+                        value_card.save(update_fields=['balance', 'is_active'])
+
+            from marketing.models import PromotionUsage
+            PromotionUsage.objects.filter(invoice=invoice).delete()
+            invoice.status = 'refunded'
+            invoice.save(update_fields=['status', 'updated_at'])
+            BillChangeLog.objects.create(
+                invoice=invoice,
+                center=invoice.center,
+                user=request.user if request.user.is_authenticated else None,
+                action='Refund Bill',
+                notes=f'Full refund ₹{amount:.2f} via {refund_method}.',
+            )
+
+        return Response(InvoiceSerializer(invoice).data)
 
     @action(detail=True, methods=['post'])
     def change_payment(self, request, pk=None):
         invoice = self.get_object()
-        new_method = request.data.get('payment_method')
-        if not new_method:
-            return Response({'detail': 'payment_method required'}, status=400)
+        new_method = str(request.data.get('payment_method', '')).strip()
+        valid_methods = {choice[0] for choice in Payment.PAYMENT_METHOD_CHOICES}
+        if new_method not in valid_methods:
+            return Response({'detail': 'Unsupported payment method.'}, status=400)
+        if invoice.status in ('cancelled', 'refunded'):
+            return Response({'detail': 'Cannot change payment method on a cancelled/refunded invoice.'}, status=400)
+        existing_methods = list(invoice.payments.values_list('payment_method', flat=True))
+        liability_methods = {'advance', 'cashback wallet', 'value card'}
+        if invoice.finalized_at and any(
+            method.lower() in liability_methods or new_method.lower() in liability_methods
+            for method in existing_methods
+        ):
+            return Response(
+                {'detail': 'Finalized wallet/value-card tenders cannot be changed. Refund and reissue the bill.'},
+                status=400,
+            )
 
-        # Use queryset update to avoid N+1 save loop
         invoice.payments.all().update(payment_method=new_method)
 
         user = request.user if request.user and request.user.is_authenticated else None
@@ -329,17 +407,20 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def apply_promo(self, request, pk=None):
         invoice = self.get_object()
+        if invoice.status != 'draft' or invoice.finalized_at:
+            return Response({'error': 'Promotions can only be applied to draft invoices.'}, status=400)
         promo_id = request.data.get('promo_id')
         from marketing.promotions import apply_promotion
-        discount, error = apply_promotion(invoice, promo_id)
+        discount, error = apply_promotion(invoice, promo_id, record_usage=False)
         if error:
             return Response({'error': error}, status=400)
+        invoice.promotion_id = int(promo_id)
         invoice.discount = (invoice.discount or 0) + Decimal(str(discount))
         invoice.total_amount = max(
             Decimal('0'),
             invoice.subtotal - invoice.discount + invoice.cgst + invoice.sgst
         )
-        invoice.save()
+        invoice.save(update_fields=['promotion', 'discount', 'total_amount', 'updated_at'])
         return Response({'discount_applied': discount, 'new_total': float(invoice.total_amount)})
 
     @transaction.atomic
@@ -386,6 +467,16 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             logger.warning('[Billing] failed to prepare sanitized payload: %s', e)
             sanitized = request.data
 
+        idempotency_key = request.headers.get('Idempotency-Key') or sanitized.get('idempotency_key')
+        if idempotency_key:
+            idempotency_key = str(idempotency_key).strip()
+            if len(idempotency_key) > 100:
+                return Response({'detail': 'Idempotency-Key is too long.'}, status=400)
+            existing = self.get_queryset().filter(idempotency_key=idempotency_key).first()
+            if existing:
+                return Response(InvoiceSerializer(existing).data, status=status.HTTP_200_OK)
+            sanitized['idempotency_key'] = idempotency_key
+
         client_id = sanitized.get('client')
         if client_id:
             try:
@@ -399,10 +490,15 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=sanitized)
         try:
             serializer.is_valid(raise_exception=True)
-        except Exception:
+        except ValidationError:
             return Response({
                 'detail': 'Invoice validation failed',
                 'errors': serializer.errors,
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception('Unexpected invoice validation failure')
+            return Response({
+                'detail': 'Invoice validation failed due to an internal validation error.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
         user = request.user
@@ -417,7 +513,15 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     return Response({"detail": "You cannot create invoices for this center."}, status=403)
 
-        invoice = serializer.save()
+        try:
+            with transaction.atomic():
+                invoice = serializer.save()
+        except IntegrityError:
+            if idempotency_key:
+                existing = self.get_queryset().filter(idempotency_key=idempotency_key).first()
+                if existing:
+                    return Response(InvoiceSerializer(existing).data, status=status.HTTP_200_OK)
+            raise
 
         # PREFETCH related items to fix N+1 queries during serialization
         invoice = Invoice.objects.prefetch_related(
@@ -441,6 +545,16 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
         headers = self.get_success_headers(serializer.data)
         return Response(InvoiceSerializer(invoice).data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def destroy(self, request, *args, **kwargs):
+        invoice = self.get_object()
+        if invoice.status != 'draft' or invoice.finalized_at:
+            return Response(
+                {'detail': 'Only unfinalized draft invoices can be deleted.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        invoice.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @transaction.atomic
     def update(self, request, *args, **kwargs):
@@ -480,7 +594,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 class AdvancePaymentViewSet(viewsets.ModelViewSet):
     queryset = AdvancePayment.objects.all().select_related('client', 'invoice', 'client__center').order_by('-created_at')
     serializer_class = AdvancePaymentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def list(self, request, *args, **kwargs):
         from rest_framework.response import Response
@@ -518,6 +632,11 @@ class AdvancePaymentViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
+        amount = serializer.validated_data.get('amount')
+        if amount is None or amount <= 0:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'amount': 'Advance amount must be greater than zero.'})
+
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
         is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
@@ -537,7 +656,7 @@ class AdvancePaymentViewSet(viewsets.ModelViewSet):
 class BillChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = BillChangeLog.objects.select_related('invoice', 'center', 'user').order_by('-created_at')
     serializer_class = BillChangeLogSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         qs = super().get_queryset()

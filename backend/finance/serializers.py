@@ -4,12 +4,23 @@ from .models import PettyCashEntry, DailyClosing, IncentiveConfig, IncentiveTier
 class PettyCashEntrySerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
 
+    def validate_amount(self, value):
+        if value < 0:
+            raise serializers.ValidationError('Petty cash amount cannot be negative.')
+        return value
+
     class Meta:
         model = PettyCashEntry
         fields = '__all__'
 
 class DailyClosingSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
+
+    def validate(self, attrs):
+        for field, value in attrs.items():
+            if field not in {'user', 'center', 'date'} and value is not None and value < 0:
+                raise serializers.ValidationError({field: 'Closing values cannot be negative.'})
+        return attrs
 
     class Meta:
         model = DailyClosing

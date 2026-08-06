@@ -5,6 +5,7 @@ from clients.models import Client
 from services.models import ServiceMaster
 from rest_framework import status
 from django.utils import timezone
+from datetime import timedelta
 
 User = get_user_model()
 
@@ -96,29 +97,27 @@ class POSSystemFullFlowTest(APITestCase):
 
     def test_06_finance_flow(self):
         """Test Petty Cash"""
-        res = self.client.post('/finance/api/petty_cash/', {
+        res = self.client.post('/finance/api/petty-cash/', {
             'center': self.center.id,
             'amount': 1000,
-            'type': 'in',
-            'category': 'topup',
             'description': 'Initial Topup'
         }, format='json')
-        if res.status_code != 404:
-            self.assertIn(res.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK], f"Petty Cash Creation Failed: {res.data}")
+        self.assertIn(res.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK], f"Petty Cash Creation Failed: {res.data}")
             
     def test_07_marketing_flow(self):
         """Test Marketing Creation"""
         res = self.client.post('/marketing/api/promotions/', {
-            'title': 'Test Promo 10% Off',
+            'name': 'Test Promo 10% Off',
             'description': 'Test',
-            'promo_type': 'discount',
-            'level': 'Global',
+            'promo_type': 'Discount',
+            'level': 'Organisation',
+            'start_date': timezone.now().date().isoformat(),
+            'end_date': (timezone.now().date() + timedelta(days=30)).isoformat(),
+            'discount_type': 'Percentage',
+            'discount_value': 10,
             'is_active': True,
-            'config': {'discount_type': 'percent', 'discount_value': 10},
-            'center': self.center.id
         }, format='json')
-        if res.status_code != 404:
-            self.assertIn(res.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK], f"Promotion Creation Failed: {res.data}")
+        self.assertIn(res.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK], f"Promotion Creation Failed: {res.data}")
             
     def test_08_appointments_flow(self):
         """Test Appointment"""
@@ -128,21 +127,24 @@ class POSSystemFullFlowTest(APITestCase):
             'client_phone': '5555555555',
             'date': timezone.now().date().isoformat(),
             'start_time': '10:00',
-            'status': 'scheduled'
+            'status': 'Scheduled'
         }, format='json')
-        if res.status_code != 404:
-            self.assertIn(res.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK], f"Appointment Creation Failed: {res.data}")
+        self.assertIn(res.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK], f"Appointment Creation Failed: {res.data}")
 
     def test_09_billing_flow(self):
         """Test Billing"""
         client = Client.objects.create(first_name='Bill Client', phone='4444444444', center=self.center)
-        res = self.client.post('/billing/api/invoices/', {
+        res = self.client.post('/billing/invoices/', {
             'center': self.center.id,
             'client': client.id,
-            'status': 'unpaid',
-            'subtotal': 100,
-            'total_amount': 100,
-            'payment_status': 'unpaid'
+            'status': 'draft',
+            'subtotal': 0,
+            'discount': 0,
+            'cgst': 0,
+            'sgst': 0,
+            'rounding': 0,
+            'total_amount': 0,
+            'items': [],
+            'payments': [],
         }, format='json')
-        if res.status_code != 404:
-            self.assertIn(res.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK], f"Invoice Creation Failed: {res.data}")
+        self.assertIn(res.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK], f"Invoice Creation Failed: {res.data}")

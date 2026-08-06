@@ -5,8 +5,13 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import F, Sum
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+def _money(value):
+    return Decimal(str(value or 0)).quantize(Decimal('0.01'))
 
 
 def _provision_marketing_perks(invoice, item, request_data=None):
@@ -22,23 +27,16 @@ def _provision_marketing_perks(invoice, item, request_data=None):
         if m_model == 'membership':
             membership = item.content_object
             if not membership:
-                return
+                raise ValidationError('Membership for invoice item no longer exists.')
+            # Keep one immutable entitlement per purchase so a refund can
+            # reverse exactly the entitlement created by this invoice.
             for _ in range(int(item.quantity)):
-                existing_cm = ClientMembership.objects.filter(
+                ClientMembership.objects.create(
                     client=invoice.client,
                     membership=membership,
-                    is_active=True
-                ).order_by('-expiry_date').first()
-
-                if existing_cm and existing_cm.expiry_date >= datetime.date.today():
-                    existing_cm.expiry_date = existing_cm.expiry_date + timedelta(days=membership.expiry_days)
-                    existing_cm.save(update_fields=['expiry_date'])
-                else:
-                    ClientMembership.objects.create(
-                        client=invoice.client,
-                        membership=membership,
-                        expiry_date=datetime.date.today() + timedelta(days=membership.expiry_days)
-                    )
+                    source_invoice=invoice,
+                    expiry_date=datetime.date.today() + timedelta(days=membership.expiry_days)
+                )
 
         elif m_model == 'package':
             package = item.content_object
@@ -69,6 +67,7 @@ def _provision_marketing_perks(invoice, item, request_data=None):
                 ClientPackage.objects.create(
                     client=invoice.client,
                     package=package,
+                    source_invoice=invoice,
                     services_remaining=services_rem,
                     expiry_date=expiry
                 )
@@ -81,12 +80,14 @@ def _provision_marketing_perks(invoice, item, request_data=None):
                 ClientValueCard.objects.create(
                     client=invoice.client,
                     value_card=vcard,
+                    source_invoice=invoice,
                     balance=vcard.value,
                     expiry_date=datetime.date.today() + timedelta(days=vcard.expiry_days)
                 )
 
-    except Exception as ex:
-        logger.error(f"[Billing] Error provisioning perk: {ex}", exc_info=True)
+    except Exception:
+        logger.exception('[Billing] Error provisioning perk')
+        raise
 
 
 def _deduct_package_service(invoice, item, active_packages_map):
@@ -101,6 +102,7 @@ def _deduct_package_service(invoice, item, active_packages_map):
         return
     
     try:
+        from clients.models import PackageRedemption
         svc_id_str = str(item.content_object.id) if item.content_object else ''
         if not svc_id_str:
             return
@@ -123,24 +125,61 @@ def _deduct_package_service(invoice, item, active_packages_map):
                     if all(v <= 0 for v in cp.services_remaining.values()):
                         cp.is_active = False
                     cp.save()
+                    PackageRedemption.objects.create(
+                        invoice=invoice,
+                        package=cp,
+                        service_id=int(svc_id_str),
+                        quantity=deduct,
+                    )
                     
                     if qty_to_deduct <= 0:
                         break
-    except Exception as e:
-        logger.error(f"[Billing] Error deducting package service: {e}", exc_info=True)
+        if qty_to_deduct > 0:
+            raise ValidationError(
+                f'Insufficient package balance for service {svc_id_str}; '
+                f'{qty_to_deduct} redemption(s) could not be allocated.'
+            )
+    except Exception:
+        logger.exception('[Billing] Error deducting package service')
+        raise
 
 
+@transaction.atomic
 def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payment_deductions=False):
-    """Run all post-save finalization tasks: stock deduction, perks, logs, wallet.
-    This must only be called ONCE per invoice lifecycle transition (draft → paid/partial).
+    """Run all post-save finalization tasks exactly once.
 
-    Args:
-        skip_payment_deductions: Set True when called from the /pay/ endpoint which
-            handles its own advance/value-card deductions to prevent double-deducting.
+    The caller may safely retry a payment request: the invoice row is locked
+    and ``finalized_at`` makes an already-completed transition a no-op. Any
+    failure bubbles out so the surrounding transaction rolls back the invoice,
+    stock, wallets, perks and audit rows together.
+
+    ``skip_payment_deductions`` is used by the payment endpoint because it
+    debits the selected tender while holding the invoice lock.
     """
+    invoice = type(invoice).objects.select_for_update().get(pk=invoice.pk)
+    if invoice.finalized_at:
+        return invoice
+    if invoice.status not in ('paid', 'partial'):
+        raise ValidationError('Only paid or partial invoices can be finalized.')
     from staff.models import ServiceLog
     from billing.models import AdvancePayment
-    from inventory.models import StockTransaction
+    from inventory.models import Product, StockTransaction
+
+    # Preflight inventory before creating any logs/perks. The old code floored
+    # stock at zero, allowing a sale to succeed while silently selling more than
+    # was available.
+    inventory_items = invoice.items.select_related('content_type').all()
+    for inventory_item in inventory_items:
+        if not inventory_item.content_type or inventory_item.content_type.app_label != 'inventory':
+            continue
+        product = Product.objects.select_for_update().filter(pk=inventory_item.object_id).first()
+        if not product:
+            raise ValidationError(f'Product for invoice item {inventory_item.id} no longer exists.')
+        if int(inventory_item.quantity) > product.current_stock:
+            raise ValidationError(
+                f'Insufficient stock for {product.name}. Available: {product.current_stock}, '
+                f'requested: {inventory_item.quantity}.'
+            )
 
     # Pre-fetch active packages ONCE to avoid N+1 inside the loop
     active_packages_map = {}
@@ -154,30 +193,21 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
 
     for item in invoice.items.select_related('content_type', 'staff').prefetch_related('staff_members').all():
 
-        # 1. Deduct Inventory Stock (floor at 0) + create audit StockTransaction
-        try:
-            if item.content_type and item.content_type.app_label == 'inventory':
-                product = item.content_object
-                if product and hasattr(product, 'current_stock'):
-                    # Atomic update to avoid race condition on concurrent billing
-                    type(product).objects.filter(pk=product.pk).update(
-                        current_stock=F('current_stock') - int(item.quantity)
-                    )
-                    # Floor at 0 via a second update
-                    type(product).objects.filter(pk=product.pk, current_stock__lt=0).update(current_stock=0)
-                    # Audit trail
-                    try:
-                        StockTransaction.objects.create(
-                            product=product,
-                            center=invoice.center or (invoice.client.center if invoice.client else None),
-                            transaction_type='SALE',
-                            quantity_change=-int(item.quantity),
-                            notes=f"Sold via Invoice #{invoice.id}",
-                        )
-                    except Exception as ste:
-                        logger.warning(f"[Billing] Could not create StockTransaction: {ste}")
-        except Exception as e:
-            logger.error(f"[Billing] Error deducting stock: {e}", exc_info=True)
+        # 1. Deduct Inventory Stock and create the immutable stock audit row.
+        if item.content_type and item.content_type.app_label == 'inventory':
+            product = item.content_object
+            if not product:
+                raise ValidationError(f'Product for invoice item {item.id} no longer exists.')
+            Product.objects.filter(pk=product.pk).update(
+                current_stock=F('current_stock') - int(item.quantity)
+            )
+            StockTransaction.objects.create(
+                product=product,
+                center=invoice.center or (invoice.client.center if invoice.client else None),
+                transaction_type='SALE',
+                quantity_change=-int(item.quantity),
+                notes=f"Sold via Invoice #{invoice.id}",
+            )
 
         # 2. Deduct Package Redeemed Services
         _deduct_package_service(invoice, item, active_packages_map)
@@ -186,194 +216,180 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
         _provision_marketing_perks(invoice, item, request_data)
 
         # 4. Create Staff Service Logs
-        try:
-            staff_list = list(item.staff_members.all())
-            if item.staff and item.staff not in staff_list:
-                staff_list.append(item.staff)
+        staff_list = list(item.staff_members.all())
+        if item.staff and item.staff not in staff_list:
+            staff_list.append(item.staff)
 
-            if not staff_list:
-                continue
-
-            # ---- VALUE CARD INCENTIVE DEDUCTION ----
-            # Staff earn commission only on the real-money proportion of the invoice.
-            # If a customer paid ₹10,000 cash + ₹5,000 value card on a ₹15,000 bill:
-            #   real_paid_ratio = 10,000 / 15,000 = 0.6667
-            #   effective_price = item_price × 0.6667
-            #
-            # Compute the ratio once per invoice (cached per call).
-            if not hasattr(invoice, '_vc_incentive_ratio'):
-                total_amt = float(invoice.total_amount or 0)
-                if total_amt > 0:
-                    # Sum all value-card payments for this invoice
-                    vc_paid = float(
-                        invoice.payments.filter(
-                            payment_method__icontains='value card'
-                        ).aggregate(s=Sum('amount'))['s'] or 0
-                    )
-                    real_paid = max(0, total_amt - vc_paid)
-                    invoice._vc_incentive_ratio = real_paid / total_amt
-                else:
-                    invoice._vc_incentive_ratio = 1.0
-
-            effective_price = float(item.total_price) * invoice._vc_incentive_ratio
-            split_price = effective_price / len(staff_list)
-
-            for member in staff_list:
-                center = (
-                    invoice.center
-                    or (invoice.client.center if invoice.client and invoice.client.center else None)
-                    or member.center
-                )
-                service_name = item.description or (
-                    getattr(item.content_object, 'name', None) or str(item.content_object)
-                )
-                ct = item.content_type
-                service_type = 'Service'
-                if ct:
-                    if ct.app_label == 'inventory':
-                        service_type = 'Product'
-                    elif ct.app_label == 'marketing':
-                        m = ct.model or ''
-                        if 'membership' in m:
-                            service_type = 'Membership'
-                        elif 'package' in m:
-                            service_type = 'Package'
-                        else:
-                            service_type = 'Product'
-
-                ServiceLog.objects.create(
-                    invoice=invoice,
-                    staff=member,
-                    center=center,
-                    client_name=invoice.client.full_name if invoice.client else '',
-                    service_name=service_name,
-                    service_type=service_type,
-                    price=split_price,
-                    # Use the invoice's actual date/time — not today() —
-                    # so backdated or corrected bills land in the right payroll period.
-                    date=invoice.created_at.date() if invoice.created_at else datetime.date.today(),
-                    time=invoice.created_at.time() if invoice.created_at else datetime.datetime.now().time()
-                )
-        except Exception as e:
-            logger.error(f"[Billing] Error creating ServiceLog: {e}", exc_info=True)
+        if not staff_list:
             continue
+
+        # ---- VALUE CARD INCENTIVE DEDUCTION ----
+        # Staff earn commission only on the real-money proportion of the invoice.
+        # If a customer paid ₹10,000 cash + ₹5,000 value card on a ₹15,000 bill:
+        #   real_paid_ratio = 10,000 / 15,000 = 0.6667
+        #   effective_price = item_price × 0.6667
+        #
+        # Compute the ratio once per invoice (cached per call).
+        if not hasattr(invoice, '_vc_incentive_ratio'):
+            total_amt = float(invoice.total_amount or 0)
+            if total_amt > 0:
+                # Sum all value-card payments for this invoice
+                vc_paid = float(
+                    invoice.payments.filter(
+                        payment_method__icontains='value card'
+                    ).aggregate(s=Sum('amount'))['s'] or 0
+                )
+                real_paid = max(0, total_amt - vc_paid)
+                invoice._vc_incentive_ratio = real_paid / total_amt
+            else:
+                invoice._vc_incentive_ratio = 1.0
+
+        effective_price = float(item.total_price) * invoice._vc_incentive_ratio
+        split_price = effective_price / len(staff_list)
+
+        for member in staff_list:
+            center = (
+                invoice.center
+                or (invoice.client.center if invoice.client and invoice.client.center else None)
+                or member.center
+            )
+            service_name = item.description or (
+                getattr(item.content_object, 'name', None) or str(item.content_object)
+            )
+            ct = item.content_type
+            service_type = 'Service'
+            if ct:
+                if ct.app_label == 'inventory':
+                    service_type = 'Product'
+                elif ct.app_label == 'marketing':
+                    m = ct.model or ''
+                    if 'membership' in m:
+                        service_type = 'Membership'
+                    elif 'package' in m:
+                        service_type = 'Package'
+                    else:
+                        service_type = 'Product'
+
+            ServiceLog.objects.create(
+                invoice=invoice,
+                staff=member,
+                center=center,
+                client_name=invoice.client.full_name if invoice.client else '',
+                service_name=service_name,
+                service_type=service_type,
+                price=split_price,
+                # Use the invoice's actual date/time — not today() —
+                # so backdated or corrected bills land in the right payroll period.
+                date=invoice.created_at.date() if invoice.created_at else datetime.date.today(),
+                time=invoice.created_at.time() if invoice.created_at else datetime.datetime.now().time()
+            )
 
 
     # 5. Auto-complete Appointment
-    try:
-        final_appointment_id = appointment_id or invoice.appointment_id
-        if final_appointment_id and invoice.status in ('paid', 'partial'):
-            from appointments.models import Appointment
-            Appointment.objects.filter(id=final_appointment_id).update(status='Completed')
-    except Exception as e:
-        logger.error(f"[Billing] Error auto-completing appointment: {e}", exc_info=True)
+    final_appointment_id = appointment_id or invoice.appointment_id
+    if final_appointment_id and invoice.status in ('paid', 'partial'):
+        from appointments.models import Appointment
+        updated = Appointment.objects.filter(id=final_appointment_id).update(status='Completed')
+        if not updated:
+            raise ValidationError('The linked appointment no longer exists.')
 
     # 6. Handle Advance/Wallet deductions and Value Card deductions.
-    # GUARD: skip_payment_deductions=True when called from the /pay/ endpoint, which
-    # handles its own deductions. Prevents double-deducting wallet/value cards.
+    # The payment endpoint passes skip_payment_deductions=True because it has
+    # already performed these locked operations.
     if not skip_payment_deductions:
-        try:
-            for payment in invoice.payments.all():
-                pm = payment.payment_method.lower()
+        from clients.models import Client, ClientValueCard
+        from billing.models import CashbackTransaction
+        for payment in invoice.payments.all():
+            pm = payment.payment_method.lower()
+            if pm == 'cashback wallet':
+                if not invoice.client_id:
+                    raise ValidationError('A client is required for cashback payments.')
+                locked_client = Client.objects.select_for_update().get(pk=invoice.client_id)
+                balance = CashbackTransaction.objects.filter(client_id=locked_client.id).aggregate(
+                    total=Sum('amount')
+                )['total'] or Decimal('0')
+                if balance < payment.amount:
+                    raise ValidationError(
+                        f'Insufficient cashback balance. Available: ₹{balance:.2f}.'
+                    )
+                CashbackTransaction.objects.create(
+                    client=locked_client,
+                    invoice=invoice,
+                    amount=-payment.amount,
+                    notes=f'Used for Invoice #{invoice.id}',
+                )
+            elif 'advance' in pm or ('wallet' in pm and pm != 'cashback wallet'):
+                if not invoice.client_id:
+                    raise ValidationError('A client is required for advance payments.')
+                locked_client = Client.objects.select_for_update().get(pk=invoice.client_id)
+                balance = AdvancePayment.objects.filter(client_id=locked_client.id).aggregate(
+                    total=Sum('amount')
+                )['total'] or Decimal('0')
+                if balance < payment.amount:
+                    raise ValidationError(
+                        f'Insufficient advance balance. Available: ₹{balance:.2f}.'
+                    )
+                AdvancePayment.objects.create(
+                    client=locked_client,
+                    invoice=invoice,
+                    amount=-payment.amount,
+                    notes=f'Used for Invoice #{invoice.id}',
+                )
+            elif 'value card' in pm:
+                if not invoice.client_id or not payment.value_card_id:
+                    raise ValidationError('A client and value card are required for value-card payments.')
+                try:
+                    client_vc = ClientValueCard.objects.select_for_update().get(
+                        pk=payment.value_card_id,
+                        client_id=invoice.client_id,
+                        is_active=True,
+                        expiry_date__gte=datetime.date.today(),
+                    )
+                except ClientValueCard.DoesNotExist:
+                    raise ValidationError('Value card not found, expired, or not owned by this client.')
+                if client_vc.balance < payment.amount:
+                    raise ValidationError(
+                        f'Insufficient value-card balance. Available: ₹{client_vc.balance:.2f}.'
+                    )
+                client_vc.balance -= payment.amount
+                if client_vc.balance <= 0:
+                    client_vc.balance = Decimal('0')
+                    client_vc.is_active = False
+                client_vc.save(update_fields=['balance', 'is_active'])
 
-                # Cashback Wallet — create a negative CashbackTransaction row (debit from balance)
-                if pm == 'cashback wallet':
-                    from clients.models import Client
-                    locked_client = Client.objects.select_for_update().get(id=invoice.client.id)
-                    cashback_bal = locked_client.cashback_balance
-
-                    if float(payment.amount) > cashback_bal:
-                        logger.warning(
-                            f"[Billing] Invoice #{invoice.id}: cashback deduction {payment.amount} "
-                            f"exceeds balance {cashback_bal}. Capping deduction."
-                        )
-                        deduct_amount = Decimal(str(max(0, cashback_bal)))
-                    else:
-                        deduct_amount = payment.amount
-
-                    if deduct_amount > 0:
-                        from billing.models import CashbackTransaction
-                        CashbackTransaction.objects.create(
-                            client=invoice.client,
-                            invoice=invoice,
-                            amount=-deduct_amount,
-                            notes=f"Used for Invoice #{invoice.id}"
-                        )
-
-                # Advance / Wallet — create a negative AdvancePayment row (debit from balance)
-                elif 'advance' in pm or ('wallet' in pm and pm != 'cashback wallet'):
-                    # Guard: only deduct if client actually has sufficient balance
-                    from clients.models import Client
-                    locked_client = Client.objects.select_for_update().get(id=invoice.client.id)
-                    advance_bal = locked_client.advance_balance
-
-                    if float(payment.amount) > advance_bal:
-                        logger.warning(
-                            f"[Billing] Invoice #{invoice.id}: advance deduction {payment.amount} "
-                            f"exceeds balance {advance_bal}. Capping deduction."
-                        )
-                        deduct_amount = Decimal(str(max(0, advance_bal)))
-                    else:
-                        deduct_amount = payment.amount
-
-                    if deduct_amount > 0:
-                        AdvancePayment.objects.create(
-                            client=invoice.client,
-                            invoice=invoice,
-                            amount=-deduct_amount,
-                            notes=f"Used for Invoice #{invoice.id}"
-                        )
-
-                # Value Card — use the stored value_card_id (not fragile string parsing)
-                if 'value card' in pm and payment.value_card_id:
-                    try:
-                        from clients.models import ClientValueCard
-                        with transaction.atomic():
-                            client_vc = ClientValueCard.objects.select_for_update().get(id=payment.value_card_id)
-                            if payment.amount > client_vc.balance:
-                                logger.warning(
-                                    f"[Billing] Invoice #{invoice.id}: value card deduction {payment.amount} "
-                                    f"exceeds balance {client_vc.balance}. Capping deduction."
-                                )
-                                payment.amount = client_vc.balance
-                                payment.save()
-                                
-                            client_vc.balance = max(Decimal('0'), client_vc.balance - payment.amount)
-                            if client_vc.balance <= 0:
-                                client_vc.is_active = False
-                            client_vc.save()
-                    except Exception as ex:
-                        logger.error(f"[Billing] Error deducting Value Card id={payment.value_card_id}: {ex}", exc_info=True)
-
-        except Exception as e:
-            logger.error(f"[Billing] Error handling payment deduction: {e}", exc_info=True)
-
-    # 7. Apply Promotion logic (Usage tracking & Cashback)
+    # 7. Validate and record promotion/membership ledgers only after the
+    # invoice has reached paid/partial status.
     if request_data:
-        # Validate Membership Discount to prevent spoofing
-        if request_data.get('membership_id') and invoice.client:
-            membership_id = request_data.get('membership_id')
-            try:
-                from clients.models import ClientMembership
-                cm = ClientMembership.objects.filter(
-                    id=membership_id, client=invoice.client, is_active=True
-                ).first()
-                if cm and cm.membership.discount_percent:
-                    expected_discount = float(invoice.subtotal) * float(cm.membership.discount_percent) / 100
-                    if float(invoice.discount) > expected_discount + 1:  # Allow 1 unit rounding difference
-                        logger.warning(f"[Security] Invoice #{invoice.id} claimed discount {invoice.discount} exceeds membership allowed {expected_discount}. Reverting.")
-                        invoice.discount = Decimal(str(expected_discount))
-                        invoice.total_amount = invoice.subtotal - invoice.discount + invoice.cgst + invoice.sgst
-                        invoice.save(update_fields=['discount', 'total_amount'])
-            except Exception as e:
-                logger.error(f"[Billing] Error validating membership discount: {e}", exc_info=True)
+        membership_id = request_data.get('membership_id') or invoice.membership_id
+        promotion_id = request_data.get('promo_id') or invoice.promotion_id
+        if membership_id and invoice.client_id:
+            from clients.models import ClientMembership
+            cm = ClientMembership.objects.select_for_update().filter(
+                id=membership_id,
+                client_id=invoice.client_id,
+                is_active=True,
+                expiry_date__gte=datetime.date.today(),
+            ).select_related('membership').first()
+            if not cm:
+                raise ValidationError('Membership is not active or does not belong to this client.')
+            allowed_discount = _money(
+                Decimal(str(invoice.subtotal)) * Decimal(str(cm.membership.discount_percent or 0)) / Decimal('100')
+            )
+            if invoice.discount > allowed_discount + Decimal('0.01'):
+                raise ValidationError('Invoice discount exceeds the selected membership benefit.')
 
-        if request_data.get('promo_id'):
-            try:
-                from marketing.promotions import apply_promotion
-                apply_promotion(invoice, request_data.get('promo_id'))
-            except Exception as e:
-                logger.error(f"[Billing] Error processing promotion logic: {e}", exc_info=True)
+        if promotion_id:
+            from marketing.promotions import apply_promotion
+            discount, error = apply_promotion(
+                invoice, promotion_id, record_usage=True
+            )
+            if error:
+                raise ValidationError(error)
+            if discount > 0 and abs(invoice.discount - discount) > Decimal('0.01'):
+                raise ValidationError('Invoice discount does not match the promotion rules.')
 
+    invoice.finalized_at = timezone.now()
+    invoice.save(update_fields=['finalized_at', 'updated_at'])
     logger.info(f"[Billing] finalize_invoice completed for invoice #{invoice.id}")
+    return invoice
 

@@ -75,7 +75,9 @@
               "buildTarget": "pos-frontend:build:production"
             },
             "development": {
-              "buildTarget": "pos-frontend:build:development"
+              "buildTarget": "pos-frontend:build:development",
+              "proxyConfig": "proxy.conf.json",
+              "allowedHosts": true
             }
           },
           "defaultConfiguration": "development"

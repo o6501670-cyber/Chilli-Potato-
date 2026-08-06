@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 
 from django.utils.deprecation import MiddlewareMixin
+from django.db import OperationalError
 from .models import SystemLog
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,7 @@ _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='audit_log')
 SENSITIVE_KEYS = {
     'password', 'pin', 'token', 'auth_token',
     'new_password', 'confirm_password', 'secret',
+    'app_password', 'app_pin', 'aadhar_number', 'card_number',
 }
 
 EXCLUDED_PREFIXES = (
@@ -203,13 +205,23 @@ def _extract_entity_id(path: str) -> str:
 
 
 def _sanitise(body_bytes: bytes) -> dict:
+    """Redact sensitive keys recursively before persisting request bodies."""
     if not body_bytes:
         return {}
+
+    def redact(value):
+        if isinstance(value, dict):
+            return {
+                key: ('***' if str(key).lower() in SENSITIVE_KEYS else redact(item))
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [redact(item) for item in value]
+        return value
+
     try:
         data = json.loads(body_bytes)
-        if isinstance(data, dict):
-            return {k: ('***' if k in SENSITIVE_KEYS else v) for k, v in data.items()}
-        return {}
+        return redact(data) if isinstance(data, dict) else {}
     except Exception:
         return {}
 
@@ -361,6 +373,11 @@ def _write_log(token_key, session_user_pk, path, method, body_bytes, ip, ua_stri
             geo_country=geo.get('country', ''),
             geo_country_code=geo.get('country_code', ''),
         )
+    except OperationalError as e:
+        # SQLite serialises writes and can briefly be locked by Django's test
+        # transaction. Audit failure must never turn into noisy application
+        # errors or affect the request that already completed.
+        logger.debug('audit log write skipped: %s', e)
     except Exception as e:
         logger.error(f'audit_log _write_log error: {e}', exc_info=True)
 

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectorRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api';
@@ -102,7 +102,7 @@ const dataLabelsPlugin = {
   styleUrl: './dashboard.css'
 })
 
-export class DashboardComponent implements OnInit, AfterViewInit {
+export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   apiService = inject(ApiService);
   cdr = inject(ChangeDetectorRef);
 
@@ -170,6 +170,10 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit() { }
+
+  ngOnDestroy(): void {
+    this.destroyCharts();
+  }
 
   setTab(tab: string) {
     this.activeTab = tab;

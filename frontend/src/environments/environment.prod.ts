@@ -1,4 +1,7 @@
 export const environment = {
   production: true,
-  apiUrl: 'http://127.0.0.1:8000/'  // ← Update this to your production backend URL
+  // Serve the Angular app and Django API behind the same HTTPS origin (the
+  // recommended production setup). Configure the reverse proxy to forward
+  // /accounts, /billing, /clients, etc. to Django.
+  apiUrl: ''
 };

@@ -1,12 +1,16 @@
 from rest_framework import viewsets, permissions
+from django.db import transaction
+from salon_admin.models import Center
 from .models import Appointment, AppointmentService
 from .serializers import AppointmentSerializer
+from accounts.access import can_access_center
+from accounts.permissions import RoleActionPermission
 import datetime
 
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -22,6 +26,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(center__in=user.centers.all())
             elif hasattr(user, 'center') and user.center:
                 queryset = queryset.filter(center=user.center)
+            else:
+                queryset = queryset.none()
 
         center_id = self.request.query_params.get('center_id')
         if center_id:
@@ -96,20 +102,20 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         return False, None
 
+    @transaction.atomic
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
         is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
 
-        if not is_owner and not perms.get('all_centers', False):
-            center = serializer.validated_data.get('center')
-            if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create appointments for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create appointments for this center.")
+        center = serializer.validated_data.get('center')
+        if center and not can_access_center(user, center):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You cannot create appointments for this center.")
+        if center:
+            # Serialize all appointment writes per center. This closes the
+            # check-then-insert race that allowed simultaneous double bookings.
+            Center.objects.select_for_update().get(pk=center.pk)
 
         client_phone = serializer.validated_data.get('client_phone')
         if client_phone:
@@ -131,8 +137,23 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         appt = serializer.save()
         self._link_client(appt)
 
+    @transaction.atomic
     def perform_update(self, serializer):
         instance = serializer.instance
+        new_center = serializer.validated_data.get('center', instance.center)
+        if not can_access_center(self.request.user, new_center):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('You cannot move an appointment to this center.')
+        Center.objects.select_for_update().get(pk=new_center.pk)
+
+        client_phone = serializer.validated_data.get('client_phone', instance.client_phone)
+        if client_phone:
+            from clients.models import Client
+            client = Client.objects.filter(phone=client_phone).first()
+            if client and client.is_blacklisted:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError('Client is blacklisted and cannot book appointments.')
+
         services_data = serializer.validated_data.get('services', [])
         appt_date = serializer.validated_data.get('date', instance.date)
 

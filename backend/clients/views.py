@@ -3,12 +3,16 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import models
+from django.db.models import OuterRef, Subquery, Sum, DecimalField, Value
+from django.db.models.functions import Coalesce
 from .models import Client, ClientMembership, ClientPackage, ClientValueCard
 from .serializers import ClientSerializer
 from staff.models import ServiceLog
+from accounts.access import has_global_access, can_access_center
+from accounts.permissions import RoleActionPermission
 
 class ClientViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
     queryset = Client.objects.all().select_related('center').prefetch_related(
         'memberships__membership',
         'packages__package',
@@ -18,7 +22,26 @@ class ClientViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        qs = super().get_queryset().filter(is_active=True)
+        from billing.models import AdvancePayment, CashbackTransaction
+        advance_total = (
+            AdvancePayment.objects.filter(client_id=OuterRef('pk'))
+            .values('client_id').annotate(total=Sum('amount')).values('total')[:1]
+        )
+        cashback_total = (
+            CashbackTransaction.objects.filter(client_id=OuterRef('pk'))
+            .values('client_id').annotate(total=Sum('amount')).values('total')[:1]
+        )
+        balance_field = DecimalField(max_digits=12, decimal_places=2)
+        qs = super().get_queryset().filter(is_active=True).annotate(
+            advance_balance_annotated=Coalesce(
+                Subquery(advance_total, output_field=balance_field),
+                Value(0), output_field=balance_field,
+            ),
+            cashback_balance_annotated=Coalesce(
+                Subquery(cashback_total, output_field=balance_field),
+                Value(0), output_field=balance_field,
+            ),
+        )
         
         perms = getattr(user.role, 'permissions', {}) or {}
         is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
@@ -194,6 +217,8 @@ class ClientViewSet(viewsets.ModelViewSet):
                 center = user.center
             elif user.centers.exists():
                 center = user.centers.first()
+            if not center and not has_global_access(user):
+                return Response({'error': 'User is not assigned to a center.'}, status=403)
             
             # Load existing phones/emails into sets for O(1) duplicate checks
             # instead of per-row exists() queries (was N+1)
@@ -222,7 +247,6 @@ class ClientViewSet(viewsets.ModelViewSet):
                     phone=phone,
                     email=email,
                     gender=str(row.get('gender', '')).strip(),
-                    address=str(row.get('address', '')).strip(),
                     notes=str(row.get('notes', '')).strip()
                 ))
                 existing_phones.add(phone)

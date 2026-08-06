@@ -1,19 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&display=swap');
 
 /* ===================================================================
    DESIGN SYSTEM — Premium Cinematic (Light & Dark)
    =================================================================== */
 :root {
   /* Core Cinematic Light Mode */
-  --black: #0f172a;
-  /* Deep slate */
+  --black: #163b3b;
+  /* Deep salon teal */
   --white: #ffffff;
   --surface: #ffffff;
-  --bg: #f1f5f9;
-  /* A bit more greyish-blue */
-  --bg-2: #e2e8f0;
-  /* Slightly deeper slate-gray */
-  --bg-inverse: #0f172a;
+  --bg: #f4f8f7;
+  /* Soft mint-grey workspace */
+  --bg-2: #e5efed;
+  /* Raised surface tint */
+  --bg-inverse: #163b3b;
+  --accent: #0f766e;
+  --accent-strong: #115e59;
+  --accent-soft: #e5f5f2;
+  --coral: #e97856;
 
   --text-primary: #1e293b;
   --text-secondary: #64748b;
@@ -25,12 +28,12 @@
   --input-bg: #f8fafc;
   --input-border: #e2e8f0;
 
-  --green: #15803d;
-  --green-bg: #f0fdf4;
-  --orange: #c2410c;
-  --orange-bg: #fff7ed;
-  --red: #b91c1c;
-  --red-bg: #fef2f2;
+  --green: #0f766e;
+  --green-bg: #e5f5f2;
+  --orange: #d97745;
+  --orange-bg: #fff2ea;
+  --red: #be5364;
+  --red-bg: #fff0f2;
   --blue: #2563eb;
   --blue-bg: #eff6ff;
   --grey: #64748b;
@@ -52,7 +55,7 @@
   --shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
   --shadow-md: 0 12px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 10px -4px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 24px 48px -12px rgba(15, 23, 42, 0.18), 0 12px 24px -8px rgba(15, 23, 42, 0.12);
-  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.15);
+  --shadow-glow: 0 0 24px rgba(15, 118, 110, 0.18);
 
   --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --transition: 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -104,8 +107,8 @@
    THEME: Cinematic Dark Mode
    =================================================================== */
 [data-theme="dark"] {
-  --black: #ffffff;
-  --white: #000000;
+  --black: #e4fbf6;
+  --white: #091b1b;
   /* Deep cinematic void */
   --surface: #111111;
   /* Slate-tinted surface */
@@ -113,7 +116,11 @@
   /* Pure black background */
   --bg-2: #1a1a1a;
   /* Softened deep gray */
-  --bg-inverse: #262626;
+  --bg-inverse: #0f3f3d;
+  --accent: #34d3c0;
+  --accent-strong: #5eead4;
+  --accent-soft: rgba(52, 211, 192, 0.14);
+  --coral: #fb9a79;
 
   --text-primary: #ffffff;
   --text-secondary: #e5e5e5;
@@ -150,8 +157,8 @@
 [data-theme="dark"] .panel-card,
 [data-theme="dark"] .stat-card,
 [data-theme="dark"] .glass-panel {
-  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.15) !important;
-  border: 2px solid #ffffff !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.28) !important;
+  border: 1px solid rgba(94, 234, 212, 0.22) !important;
   color: #ffffff !important;
 }
 
@@ -1074,4 +1081,40 @@ select.form-control {
   to {
     width: 120px;
   }
+}
+
+/* ===================================================================
+   RELEASE VISUAL SYSTEM — calm teal, warm coral, high-contrast actions
+   =================================================================== */
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, white);
+  outline-offset: 3px;
+}
+
+button,
+.nav-item,
+.card,
+.panel-card,
+.stat-card,
+.module-card {
+  transition: background-color 180ms ease, border-color 180ms ease,
+    box-shadow 180ms ease, transform 180ms ease, color 180ms ease;
+}
+
+.btn-primary,
+.btn-save-target,
+.btn-go,
+.primary-btn,
+.action-btn.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong, #115e59)) !important;
+  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.18);
+}
+
+.btn-primary:hover,
+.btn-save-target:hover,
+.btn-go:hover,
+.primary-btn:hover,
+.action-btn.primary:hover {
+  filter: saturate(1.08) brightness(1.03);
+  transform: translateY(-1px);
 }

@@ -6,11 +6,16 @@ from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
 from .models import ServiceMaster, CenterService
 from .serializers import ServiceMasterSerializer, CenterServiceSerializer
+from accounts.access import can_access_center, has_global_access
+from accounts.permissions import RoleActionPermission
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ServiceMasterViewSet(viewsets.ModelViewSet):
     queryset = ServiceMaster.objects.all().prefetch_related('center_overrides', 'centers')
     serializer_class = ServiceMasterSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -39,21 +44,42 @@ class ServiceMasterViewSet(viewsets.ModelViewSet):
         is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
         is_all_centers = is_owner or perms.get('all_centers', False)
         
-        if self.request.data.get('level') == 'Organisation':
+        requested_level = serializer.validated_data.get('level', self.request.data.get('level', 'Organisation'))
+        if requested_level == 'Organisation':
             if not is_all_centers:
                 raise PermissionDenied("Only owners or users with all-center access can create organisation level services.")
             serializer.save()
             return
             
         if not is_all_centers:
-            if not user.centers.exists() and not getattr(user, 'center', None):
+            allowed_centers = list(user.centers.all())
+            if getattr(user, 'center', None):
+                allowed_centers.append(user.center)
+            requested_centers = serializer.validated_data.get('centers')
+            if not allowed_centers:
                 raise PermissionDenied("User is not assigned to any center.")
+            if requested_centers is not None and any(not can_access_center(user, c) for c in requested_centers):
+                raise PermissionDenied("You cannot assign a service to another center.")
+            if not requested_centers:
+                serializer.save(centers=allowed_centers)
+                return
         
         serializer.save()
 
     def perform_update(self, serializer):
+        instance = serializer.instance
+        if getattr(instance, 'level', None) == 'Organisation' and not has_global_access(self.request.user):
+            raise PermissionDenied('Only owners or all-centre managers can modify organisation services.')
+
+        requested_centers = serializer.validated_data.get('centers')
+        if not has_global_access(self.request.user) and requested_centers is not None:
+            if any(not can_access_center(self.request.user, c) for c in requested_centers):
+                raise PermissionDenied('You cannot assign a service to another center.')
+
         center_id = self.request.query_params.get('center_id')
         if center_id:
+            if not can_access_center(self.request.user, center_id):
+                raise PermissionDenied('You do not have permission to edit this center.')
             from .models import CenterService
             # When editing with a center_id, route center-specific fields to CenterService override
             # instead of mutating the global ServiceMaster record.
@@ -105,17 +131,21 @@ class ServiceMasterViewSet(viewsets.ModelViewSet):
             # Resolve the center to assign services to
             center = None
             center_id_param = request.data.get('center_id') or request.query_params.get('center_id')
+            from salon_admin.models import Center as SalonCenter
             if center_id_param:
-                from salon_admin.models import Center as SalonCenter
                 try:
                     center = SalonCenter.objects.get(id=int(center_id_param))
-                except SalonCenter.DoesNotExist:
-                    pass
+                except (TypeError, ValueError, SalonCenter.DoesNotExist):
+                    return Response({'error': 'Invalid center_id'}, status=400)
+                if not can_access_center(user, center):
+                    raise PermissionDenied('You do not have access to this center.')
             if not center:
                 if hasattr(user, 'center') and user.center:
                     center = user.center
                 elif user.centers.exists():
                     center = user.centers.first()
+                elif not has_global_access(user):
+                    raise PermissionDenied('User is not assigned to any center.')
 
             def safe_float(val, default=0.0):
                 try:
@@ -246,14 +276,14 @@ class ServiceMasterViewSet(viewsets.ModelViewSet):
                 result['warnings'] = errors[:20]
             return Response(result)
 
-        except Exception as e:
-            import traceback
-            return Response({'error': str(e), 'detail': traceback.format_exc()}, status=400)
+        except Exception:
+            logger.exception('Service bulk upload failed')
+            return Response({'error': 'Service upload failed. Check the file and try again.'}, status=400)
 
 
 class CenterServiceViewSet(viewsets.ModelViewSet):
     serializer_class = CenterServiceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -275,6 +305,18 @@ class CenterServiceViewSet(viewsets.ModelViewSet):
             return queryset.filter(center=user.center)
             
         return queryset.none()
+
+    def perform_create(self, serializer):
+        center = serializer.validated_data.get('center')
+        if not center or not can_access_center(self.request.user, center):
+            raise PermissionDenied('You do not have permission to create an override for this center.')
+        serializer.save()
+
+    def perform_update(self, serializer):
+        center = serializer.validated_data.get('center', serializer.instance.center)
+        if not can_access_center(self.request.user, center):
+            raise PermissionDenied('You do not have permission to edit this center.')
+        serializer.save()
     
     @action(detail=False, methods=['post'])
     def override(self, request):

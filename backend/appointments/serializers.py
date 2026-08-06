@@ -67,8 +67,10 @@ class AppointmentSerializer(serializers.ModelSerializer):
             staff_val = service_data.pop('staff', None)
             staff_id = _extract_service_staff_id(staff_val)
             if staff_id:
-                staff_member = StaffMember.objects.filter(id=staff_id).first()
-                if staff_member and staff_member.center != appointment.center:
+                staff_member = StaffMember.objects.filter(id=staff_id, is_active=True).first()
+                if not staff_member:
+                    raise serializers.ValidationError("Selected staff member does not exist or is inactive.")
+                if staff_member.center_id != appointment.center_id:
                     raise serializers.ValidationError("Staff member does not belong to this center.")
                 service_data['staff_id'] = staff_id
             AppointmentService.objects.create(appointment=appointment, **service_data)
@@ -94,8 +96,10 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 staff_val = service_data.pop('staff', None)
                 staff_id = _extract_service_staff_id(staff_val)
                 if staff_id:
-                    staff_member = StaffMember.objects.filter(id=staff_id).first()
-                    if staff_member and staff_member.center != instance.center:
+                    staff_member = StaffMember.objects.filter(id=staff_id, is_active=True).first()
+                    if not staff_member:
+                        raise serializers.ValidationError("Selected staff member does not exist or is inactive.")
+                    if staff_member.center_id != instance.center_id:
                         raise serializers.ValidationError("Staff member does not belong to this center.")
                     service_data['staff_id'] = staff_id
                 AppointmentService.objects.create(appointment=instance, **service_data)

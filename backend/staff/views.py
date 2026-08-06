@@ -3,27 +3,96 @@ from rest_framework.decorators import action
 import openpyxl
 from datetime import datetime
 from decimal import Decimal
+import hashlib
+import logging
+from django.contrib.auth.hashers import check_password, make_password
+from django.utils.crypto import constant_time_compare
 from salon_admin.models import Center
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.decorators import api_view, permission_classes, throttle_classes, action
+from accounts.throttles import AppLoginRateThrottle
+from django.db import transaction
 from django.db.models import Sum, Count, Q
 from .models import StaffMember, ServiceLog, StaffConsumptionLog, StaffTransfer, StaffToolTracker, PayrollRecord, Designation
 from .serializers import (
-    StaffMemberSerializer, ServiceLogSerializer, StaffConsumptionLogSerializer,
+    StaffMemberSerializer, StaffAppSerializer, ServiceLogSerializer, StaffConsumptionLogSerializer,
     StaffTransferSerializer, StaffToolTrackerSerializer, PayrollRecordSerializer, DesignationSerializer
 )
 import datetime
 from .utils import sync_staff_transfers_and_tools
+from accounts.access import can_access_center, has_global_access
+from accounts.permissions import RoleActionPermission
+
+logger = logging.getLogger(__name__)
+
+
+def _read_bulk_rows(uploaded_file):
+    """Read an XLSX/CSV upload into normalized dictionaries."""
+    if uploaded_file.name.lower().endswith('.csv'):
+        import csv
+        from io import TextIOWrapper
+        rows = list(csv.DictReader(TextIOWrapper(uploaded_file.file, encoding='utf-8')))
+        return [
+            {str(key).strip().lower().replace(' ', '_'): value for key, value in row.items()}
+            for row in rows
+        ]
+    workbook = openpyxl.load_workbook(uploaded_file, data_only=True)
+    sheet = workbook.active
+    rows = list(sheet.iter_rows(values_only=True))
+    if not rows:
+        return []
+    headers = [str(value or '').strip().lower().replace(' ', '_') for value in rows[0]]
+    return [dict(zip(headers, row)) for row in rows[1:] if any(value not in (None, '') for value in row)]
+
+
+def _bulk_value(row, *names, default=None):
+    for name in names:
+        value = row.get(name)
+        if value not in (None, ''):
+            return value
+    return default
+
+
+def _bulk_date(value):
+    if value in (None, ''):
+        return None
+    if hasattr(value, 'date'):
+        return value.date()
+    for fmt in ('%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%d %b %Y'):
+        try:
+            return datetime.datetime.strptime(str(value).strip(), fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f'Invalid date: {value}')
+
+
+def _bulk_center(value):
+    if value in (None, ''):
+        return None
+    try:
+        return Center.objects.get(pk=int(value))
+    except (TypeError, ValueError, Center.DoesNotExist):
+        return Center.objects.filter(center_name__iexact=str(value).strip()).first()
+
+
+def _bulk_staff(value):
+    if value in (None, ''):
+        return None
+    try:
+        return StaffMember.objects.get(pk=int(value))
+    except (TypeError, ValueError, StaffMember.DoesNotExist):
+        return StaffMember.objects.filter(staff_code__iexact=str(value).strip()).first()
+
 
 class DesignationViewSet(viewsets.ModelViewSet):
     queryset = Designation.objects.all().order_by('name')
     serializer_class = DesignationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
 class StaffMemberViewSet(viewsets.ModelViewSet):
     serializer_class = StaffMemberSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -49,6 +118,8 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(center__in=user.centers.all())
             elif hasattr(user, 'center') and user.center:
                 queryset = queryset.filter(center=user.center)
+            else:
+                queryset = queryset.none()
 
         center_id = self.request.query_params.get('center_id')
         if center_id:
@@ -59,6 +130,13 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=True)
 
         return queryset
+
+    def destroy(self, request, *args, **kwargs):
+        """Deactivate staff instead of cascading payroll/service history."""
+        staff = self.get_object()
+        staff.is_active = False
+        staff.save(update_fields=['is_active'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['post'])
     def sync_transfers(self, request):
@@ -353,6 +431,9 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
         feed = []
         
         center_id = request.query_params.get('center_id')
+        role = getattr(request.user, 'role', None)
+        is_owner = getattr(request.user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        perms = getattr(role, 'permissions', {}) or {}
         
         services_qs = ServiceLog.objects.exclude(
             invoice__status__in=['cancelled', 'refunded']
@@ -361,11 +442,37 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
         tools_qs = StaffToolTracker.objects.select_related('staff').order_by('-created_at')
         transfers_qs = StaffTransfer.objects.select_related('staff', 'to_center', 'from_center').order_by('-created_at')
 
+        is_global = is_owner or perms.get('all_centers', False)
+        if not is_global:
+            if user.centers.exists():
+                scope = user.centers.all()
+                services_qs = services_qs.filter(staff__center__in=scope)
+                consumptions_qs = consumptions_qs.filter(staff__center__in=scope)
+                tools_qs = tools_qs.filter(staff__center__in=scope)
+                transfers_qs = transfers_qs.filter(Q(from_center__in=scope) | Q(to_center__in=scope))
+            elif getattr(user, 'center', None):
+                services_qs = services_qs.filter(staff__center=user.center)
+                consumptions_qs = consumptions_qs.filter(staff__center=user.center)
+                tools_qs = tools_qs.filter(staff__center=user.center)
+                transfers_qs = transfers_qs.filter(Q(from_center=user.center) | Q(to_center=user.center))
+            else:
+                return Response([])
+
         if center_id:
+            try:
+                center_id = int(center_id)
+            except (TypeError, ValueError):
+                return Response({'error': 'Invalid center_id'}, status=400)
+            if not is_global:
+                allowed = set(user.centers.values_list('id', flat=True))
+                if getattr(user, 'center_id', None):
+                    allowed.add(user.center_id)
+                if center_id not in allowed:
+                    return Response({'error': 'You do not have access to this center.'}, status=403)
             services_qs = services_qs.filter(staff__center_id=center_id)
             consumptions_qs = consumptions_qs.filter(staff__center_id=center_id)
             tools_qs = tools_qs.filter(staff__center_id=center_id)
-            transfers_qs = transfers_qs.filter(staff__center_id=center_id)
+            transfers_qs = transfers_qs.filter(Q(from_center_id=center_id) | Q(to_center_id=center_id))
         
         # Limit each source to 20 to reduce data load — final sort will pick top 50 overall
         services = services_qs[:20]
@@ -600,7 +707,7 @@ def _is_float(s):
 
 class ServiceLogViewSet(viewsets.ModelViewSet):
     serializer_class = ServiceLogSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -614,6 +721,8 @@ class ServiceLogViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(center__in=user.centers.all())
             elif hasattr(user, 'center') and user.center:
                 queryset = queryset.filter(center=user.center)
+            else:
+                queryset = queryset.none()
 
         staff_id = self.request.query_params.get('staff_id')
         if staff_id:
@@ -715,7 +824,7 @@ class ServiceLogViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 errors.append(f"Row {i}: Error saving '{first_name}' - {str(e)}")
                 
-        print('UPLOAD ERRORS:', errors)
+        logger.warning('Staff bulk upload errors: %s', errors)
         return Response({
             'message': f'Successfully uploaded {success_count} staff members.',
             'errors': errors
@@ -738,7 +847,7 @@ class ServiceLogViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([RoleActionPermission])
 def revenue_report(request):
     user = request.user
     queryset = ServiceLog.objects.all()
@@ -750,6 +859,8 @@ def revenue_report(request):
             queryset = queryset.filter(center__in=user.centers.all())
         elif hasattr(user, 'center') and user.center:
             queryset = queryset.filter(center=user.center)
+        else:
+            queryset = queryset.none()
             
     center_id = request.query_params.get('center_id')
     if center_id:
@@ -806,7 +917,7 @@ def revenue_report(request):
     })
 
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([RoleActionPermission])
 def usage_report(request):
     user = request.user
     queryset = ServiceLog.objects.all()
@@ -818,6 +929,8 @@ def usage_report(request):
             queryset = queryset.filter(center__in=user.centers.all())
         elif hasattr(user, 'center') and user.center:
             queryset = queryset.filter(center=user.center)
+        else:
+            queryset = queryset.none()
 
     start_date = request.query_params.get('start_date')
     end_date = request.query_params.get('end_date')
@@ -846,7 +959,7 @@ def usage_report(request):
 
 class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
     serializer_class = StaffConsumptionLogSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -860,6 +973,8 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(center__in=user.centers.all())
             elif hasattr(user, 'center') and user.center:
                 queryset = queryset.filter(center=user.center)
+            else:
+                queryset = queryset.none()
 
         staff_id = self.request.query_params.get('staff_id')
         if staff_id:
@@ -961,12 +1076,13 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 errors.append(f"Row {i}: Error saving '{first_name}' - {str(e)}")
                 
-        print('UPLOAD ERRORS:', errors)
+        logger.warning('Staff bulk upload errors: %s', errors)
         return Response({
             'message': f'Successfully uploaded {success_count} staff members.',
             'errors': errors
         })
 
+    @transaction.atomic
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
@@ -985,6 +1101,13 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
         payment_method = serializer.validated_data.get('payment_method', 'Points')
         amount = serializer.validated_data.get('amount', 0)
         staff = serializer.validated_data.get('staff')
+        center = serializer.validated_data.get('center')
+        if amount <= 0:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'amount': 'Consumption amount must be greater than zero.'})
+        if staff and center and staff.center_id != center.id:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'staff': 'Staff member does not belong to the selected center.'})
         service_name = serializer.validated_data.get('service_name')
         
         remaining_money_amount = 0
@@ -1005,17 +1128,14 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
                 staff.allocated_points -= amount
                 staff.save()
 
-        try:
-            from inventory.models import Product
-            from django.db.models import F
-            product = Product.objects.filter(name__iexact=service_name, center=staff.center).first()
-            if product and hasattr(product, 'current_stock'):
-                qty = int(serializer.validated_data.get('quantity', 1)) if 'quantity' in serializer.fields else 1
-                Product.objects.filter(pk=product.pk).update(current_stock=F('current_stock') - qty)
-                # Ensure stock does not go below zero
-                Product.objects.filter(pk=product.pk, current_stock__lt=0).update(current_stock=0)
-        except Exception as e:
-            print(f"[StaffConsumptionLog] Error deducting stock: {e}")
+        from inventory.models import Product
+        from rest_framework.exceptions import ValidationError
+        product = Product.objects.filter(name__iexact=service_name, center=staff.center).first()
+        if product:
+            if product.current_stock <= 0:
+                raise ValidationError({'service_name': f'No stock available for {product.name}.'})
+            product.current_stock -= 1
+            product.save(update_fields=['current_stock'])
 
         serializer.save()
 
@@ -1031,7 +1151,7 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
             )
 
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([RoleActionPermission])
 def consumption_report(request):
     user = request.user
     queryset = StaffConsumptionLog.objects.all()
@@ -1044,6 +1164,8 @@ def consumption_report(request):
             queryset = queryset.filter(center__in=user.centers.all())
         elif hasattr(user, 'center') and user.center:
             queryset = queryset.filter(center=user.center)
+        else:
+            queryset = queryset.none()
             
     center_id = request.query_params.get('center_id')
     if center_id:
@@ -1078,10 +1200,9 @@ def consumption_report(request):
 
 class StaffTransferViewSet(viewsets.ModelViewSet):
     serializer_class = StaffTransferSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
-        sync_staff_transfers_and_tools()
         user = self.request.user
         queryset = StaffTransfer.objects.all().order_by('-created_at')
         role = getattr(user, 'role', None)
@@ -1093,6 +1214,8 @@ class StaffTransferViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(to_center__in=user.centers.all()) | queryset.filter(from_center__in=user.centers.all())
             elif hasattr(user, 'center') and user.center:
                 queryset = queryset.filter(to_center=user.center) | queryset.filter(from_center=user.center)
+            else:
+                queryset = queryset.none()
 
         staff_id = self.request.query_params.get('staff_id')
         if staff_id:
@@ -1105,119 +1228,67 @@ class StaffTransferViewSet(viewsets.ModelViewSet):
     def bulk_upload(self, request):
         if 'file' not in request.FILES:
             return Response({'detail': 'No file provided'}, status=400)
-            
-        excel_file = request.FILES['file']
         try:
-            wb = openpyxl.load_workbook(excel_file, data_only=True)
-            sheet = wb.active
-        except Exception as e:
-            return Response({'detail': f'Error reading Excel file: {str(e)}'}, status=400)
-
-        rows = list(sheet.iter_rows(values_only=True))
-        header_idx = 0
-        for idx, row in enumerate(rows):
-            if any(str(cell).strip() for cell in row if cell is not None):
-                header_idx = idx
-                break
-                
-        if len(rows) <= header_idx + 1:
-            return Response({'detail': 'File is empty or missing headers'}, status=400)
-            
-        header = [str(h).strip().lower().replace(' ', '_') if h else '' for h in rows[header_idx]]
-        
-        success_count = 0
-        errors = []
-        
-        for i, row in enumerate(rows[header_idx+1:], start=header_idx+2):
-            row_data = dict(zip(header, row))
-            
-            raw_name = str(row_data.get('name') or '').strip()
-            if not raw_name:
-                continue
-                
-            parts = raw_name.split(' ', 1)
-            first_name = parts[0]
-            last_name = parts[1] if len(parts) > 1 else ''
-            
-            loc_name = str(row_data.get('location name') or row_data.get('location') or '').strip()
-            center = None
-            if loc_name:
-                center = Center.objects.filter(center_name__icontains=loc_name).first()
-            
-            if not center:
-                errors.append(f"Row {i}: Could not find Center matching '{loc_name}'")
-                continue
-                
-            designation = str(row_data.get('designation') or '').strip()
-            gender = str(row_data.get('gender') or '').strip().capitalize()
-            if gender not in ['Male', 'Female', 'Other']:
-                gender = 'Female'
-                
-            raw_salary = row_data.get('monthly gross') or 0
-            try:
-                salary = Decimal(str(raw_salary))
-            except Exception:
-                salary = Decimal('0.0')
-                
-            raw_date = row_data.get('join date')
-            joining_date = None
-            if raw_date:
-                if hasattr(raw_date, 'date'):
-                    joining_date = raw_date.date()
-                else:
-                    try:
-                        joining_date = datetime.datetime.strptime(str(raw_date).strip(), '%d %b %Y').date()
-                    except ValueError:
-                        pass
-                        
-            try:
-                StaffMember.objects.create(
-                    first_name=first_name,
-                    last_name=last_name,
-                    center=center,
-                    designation=designation,
-                    gender=gender,
-                    salary=salary,
-                    joining_date=joining_date,
-                    is_active=True
-                )
-                success_count += 1
-            except Exception as e:
-                errors.append(f"Row {i}: Error saving '{first_name}' - {str(e)}")
-                
-        print('UPLOAD ERRORS:', errors)
-        return Response({
-            'message': f'Successfully uploaded {success_count} staff members.',
-            'errors': errors
-        })
+            rows = _read_bulk_rows(request.FILES['file'])
+        except Exception as exc:
+            return Response({'detail': f'Error reading file: {exc}'}, status=400)
+        created, errors = 0, []
+        with transaction.atomic():
+            for row_number, row in enumerate(rows, start=2):
+                try:
+                    staff = _bulk_staff(_bulk_value(row, 'staff_id', 'staff', 'staff_code'))
+                    from_center = _bulk_center(_bulk_value(row, 'from_center', 'from_center_id', 'from'))
+                    to_center = _bulk_center(_bulk_value(row, 'to_center', 'to_center_id', 'to'))
+                    if not staff or not from_center or not to_center:
+                        raise ValueError('staff_id, from_center and to_center are required')
+                    if staff.center_id != from_center.id:
+                        raise ValueError('staff is not assigned to from_center')
+                    if not has_global_access(request.user) and (not can_access_center(request.user, from_center) or not can_access_center(request.user, to_center)):
+                        raise PermissionDenied('center is outside your scope')
+                    transfer = StaffTransfer.objects.create(
+                        staff=staff,
+                        from_center=from_center,
+                        to_center=to_center,
+                        transfer_type=_bulk_value(row, 'transfer_type', default='Permanent'),
+                        start_date=_bulk_date(_bulk_value(row, 'start_date')) or datetime.date.today(),
+                        end_date=_bulk_date(_bulk_value(row, 'end_date')),
+                        status=_bulk_value(row, 'status', default='Active'),
+                        reason=_bulk_value(row, 'reason', default='') or '',
+                    )
+                    staff.center = transfer.to_center
+                    staff.save(update_fields=['center'])
+                    created += 1
+                except Exception as exc:
+                    errors.append(f'Row {row_number}: {exc}')
+        return Response({'created': created, 'errors': errors}, status=201 if created else 400)
 
     def perform_create(self, serializer):
         user = self.request.user
-        perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
-        
-        if not is_owner and not perms.get('all_centers', False):
-            from_center = serializer.validated_data.get('from_center')
-            if from_center:
-                if user.centers.exists() and from_center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot transfer staff from this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and from_center != user.center:
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot transfer staff from this center.")
-                    
+        from rest_framework.exceptions import PermissionDenied, ValidationError
+        from_center = serializer.validated_data.get('from_center')
+        to_center = serializer.validated_data.get('to_center')
+        staff = serializer.validated_data.get('staff')
+        if not from_center or not to_center or not staff:
+            raise ValidationError('staff, from_center and to_center are required.')
+        if staff.center_id != from_center.id:
+            raise ValidationError({'staff': 'Staff member is not currently assigned to from_center.'})
+        if not has_global_access(user) and (
+            not can_access_center(user, from_center) or not can_access_center(user, to_center)
+        ):
+            raise PermissionDenied('You cannot transfer staff through an inaccessible center.')
+        if from_center.id == to_center.id:
+            raise ValidationError('from_center and to_center must be different.')
+
         transfer = serializer.save()
-        staff = transfer.staff
         staff.center = transfer.to_center
-        staff.save()
+        staff.save(update_fields=['center'])
 
 class StaffToolTrackerViewSet(viewsets.ModelViewSet):
     queryset = StaffToolTracker.objects.all().order_by('-created_at')
     serializer_class = StaffToolTrackerSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
-        sync_staff_transfers_and_tools()
         user = self.request.user
         queryset = super().get_queryset()
 
@@ -1225,8 +1296,12 @@ class StaffToolTrackerViewSet(viewsets.ModelViewSet):
             pass
         elif hasattr(user, 'is_superuser') and user.is_superuser:
             pass
+        elif user.centers.exists():
+            queryset = queryset.filter(staff__center__in=user.centers.all())
         elif hasattr(user, 'center') and user.center:
             queryset = queryset.filter(staff__center=user.center)
+        else:
+            queryset = queryset.none()
 
         staff_id = self.request.query_params.get('staff_id')
         if staff_id:
@@ -1239,100 +1314,49 @@ class StaffToolTrackerViewSet(viewsets.ModelViewSet):
     def bulk_upload(self, request):
         if 'file' not in request.FILES:
             return Response({'detail': 'No file provided'}, status=400)
-            
-        excel_file = request.FILES['file']
         try:
-            wb = openpyxl.load_workbook(excel_file, data_only=True)
-            sheet = wb.active
-        except Exception as e:
-            return Response({'detail': f'Error reading Excel file: {str(e)}'}, status=400)
-
-        rows = list(sheet.iter_rows(values_only=True))
-        header_idx = 0
-        for idx, row in enumerate(rows):
-            if any(str(cell).strip() for cell in row if cell is not None):
-                header_idx = idx
-                break
-                
-        if len(rows) <= header_idx + 1:
-            return Response({'detail': 'File is empty or missing headers'}, status=400)
-            
-        header = [str(h).strip().lower().replace(' ', '_') if h else '' for h in rows[header_idx]]
-        
-        success_count = 0
-        errors = []
-        
-        for i, row in enumerate(rows[header_idx+1:], start=header_idx+2):
-            row_data = dict(zip(header, row))
-            
-            raw_name = str(row_data.get('name') or '').strip()
-            if not raw_name:
-                continue
-                
-            parts = raw_name.split(' ', 1)
-            first_name = parts[0]
-            last_name = parts[1] if len(parts) > 1 else ''
-            
-            loc_name = str(row_data.get('location name') or row_data.get('location') or '').strip()
-            center = None
-            if loc_name:
-                center = Center.objects.filter(center_name__icontains=loc_name).first()
-            
-            if not center:
-                errors.append(f"Row {i}: Could not find Center matching '{loc_name}'")
-                continue
-                
-            designation = str(row_data.get('designation') or '').strip()
-            gender = str(row_data.get('gender') or '').strip().capitalize()
-            if gender not in ['Male', 'Female', 'Other']:
-                gender = 'Female'
-                
-            raw_salary = row_data.get('monthly gross') or 0
-            try:
-                salary = Decimal(str(raw_salary))
-            except Exception:
-                salary = Decimal('0.0')
-                
-            raw_date = row_data.get('join date')
-            joining_date = None
-            if raw_date:
-                if hasattr(raw_date, 'date'):
-                    joining_date = raw_date.date()
-                else:
-                    try:
-                        joining_date = datetime.datetime.strptime(str(raw_date).strip(), '%d %b %Y').date()
-                    except ValueError:
-                        pass
-                        
-            try:
-                StaffMember.objects.create(
-                    first_name=first_name,
-                    last_name=last_name,
-                    center=center,
-                    designation=designation,
-                    gender=gender,
-                    salary=salary,
-                    joining_date=joining_date,
-                    is_active=True
-                )
-                success_count += 1
-            except Exception as e:
-                errors.append(f"Row {i}: Error saving '{first_name}' - {str(e)}")
-                
-        print('UPLOAD ERRORS:', errors)
-        return Response({
-            'message': f'Successfully uploaded {success_count} staff members.',
-            'errors': errors
-        })
+            rows = _read_bulk_rows(request.FILES['file'])
+        except Exception as exc:
+            return Response({'detail': f'Error reading file: {exc}'}, status=400)
+        created, errors = 0, []
+        with transaction.atomic():
+            for row_number, row in enumerate(rows, start=2):
+                try:
+                    staff = _bulk_staff(_bulk_value(row, 'staff_id', 'staff', 'staff_code'))
+                    if not staff or not can_access_center(request.user, staff.center):
+                        raise PermissionDenied('staff member is outside your scope')
+                    tool_name = str(_bulk_value(row, 'tool_name', 'name', default='')).strip()
+                    amount = int(_bulk_value(row, 'amount', 'quantity', default=1))
+                    if not tool_name or amount <= 0:
+                        raise ValueError('tool_name and a positive amount are required')
+                    StaffToolTracker.objects.create(
+                        staff=staff,
+                        tool_name=tool_name,
+                        details=_bulk_value(row, 'details'),
+                        amount=amount,
+                        date_taken=_bulk_date(_bulk_value(row, 'date_taken')) or datetime.date.today(),
+                        expected_return_date=_bulk_date(_bulk_value(row, 'expected_return_date')),
+                        actual_return_date=_bulk_date(_bulk_value(row, 'actual_return_date')),
+                        status=_bulk_value(row, 'status', default='Taken'),
+                    )
+                    created += 1
+                except Exception as exc:
+                    errors.append(f'Row {row_number}: {exc}')
+        return Response({'created': created, 'errors': errors}, status=201 if created else 400)
 
     def perform_create(self, serializer):
-        user = self.request.user
+        from rest_framework.exceptions import PermissionDenied, ValidationError
+        staff = serializer.validated_data.get('staff')
+        if not staff:
+            raise ValidationError({'staff': 'Staff member is required.'})
+        if not can_access_center(self.request.user, staff.center):
+            raise PermissionDenied('You cannot assign tools at this center.')
         serializer.save()
 
 class PayrollRecordViewSet(viewsets.ModelViewSet):
     queryset = PayrollRecord.objects.all().order_by('-created_at')
     serializer_class = PayrollRecordSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [RoleActionPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -1346,6 +1370,8 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(center__in=user.centers.all())
             elif hasattr(user, 'center') and user.center:
                 queryset = queryset.filter(center=user.center)
+            else:
+                queryset = queryset.none()
                 
         staff_id = self.request.query_params.get('staff_id')
         if staff_id:
@@ -1365,91 +1391,41 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
     def bulk_upload(self, request):
         if 'file' not in request.FILES:
             return Response({'detail': 'No file provided'}, status=400)
-            
-        excel_file = request.FILES['file']
         try:
-            wb = openpyxl.load_workbook(excel_file, data_only=True)
-            sheet = wb.active
-        except Exception as e:
-            return Response({'detail': f'Error reading Excel file: {str(e)}'}, status=400)
-
-        rows = list(sheet.iter_rows(values_only=True))
-        header_idx = 0
-        for idx, row in enumerate(rows):
-            if any(str(cell).strip() for cell in row if cell is not None):
-                header_idx = idx
-                break
-                
-        if len(rows) <= header_idx + 1:
-            return Response({'detail': 'File is empty or missing headers'}, status=400)
-            
-        header = [str(h).strip().lower().replace(' ', '_') if h else '' for h in rows[header_idx]]
-        
-        success_count = 0
-        errors = []
-        
-        for i, row in enumerate(rows[header_idx+1:], start=header_idx+2):
-            row_data = dict(zip(header, row))
-            
-            raw_name = str(row_data.get('name') or '').strip()
-            if not raw_name:
-                continue
-                
-            parts = raw_name.split(' ', 1)
-            first_name = parts[0]
-            last_name = parts[1] if len(parts) > 1 else ''
-            
-            loc_name = str(row_data.get('location name') or row_data.get('location') or '').strip()
-            center = None
-            if loc_name:
-                center = Center.objects.filter(center_name__icontains=loc_name).first()
-            
-            if not center:
-                errors.append(f"Row {i}: Could not find Center matching '{loc_name}'")
-                continue
-                
-            designation = str(row_data.get('designation') or '').strip()
-            gender = str(row_data.get('gender') or '').strip().capitalize()
-            if gender not in ['Male', 'Female', 'Other']:
-                gender = 'Female'
-                
-            raw_salary = row_data.get('monthly gross') or 0
-            try:
-                salary = Decimal(str(raw_salary))
-            except Exception:
-                salary = Decimal('0.0')
-                
-            raw_date = row_data.get('join date')
-            joining_date = None
-            if raw_date:
-                if hasattr(raw_date, 'date'):
-                    joining_date = raw_date.date()
-                else:
-                    try:
-                        joining_date = datetime.datetime.strptime(str(raw_date).strip(), '%d %b %Y').date()
-                    except ValueError:
-                        pass
-                        
-            try:
-                StaffMember.objects.create(
-                    first_name=first_name,
-                    last_name=last_name,
-                    center=center,
-                    designation=designation,
-                    gender=gender,
-                    salary=salary,
-                    joining_date=joining_date,
-                    is_active=True
-                )
-                success_count += 1
-            except Exception as e:
-                errors.append(f"Row {i}: Error saving '{first_name}' - {str(e)}")
-                
-        print('UPLOAD ERRORS:', errors)
-        return Response({
-            'message': f'Successfully uploaded {success_count} staff members.',
-            'errors': errors
-        })
+            rows = _read_bulk_rows(request.FILES['file'])
+        except Exception as exc:
+            return Response({'detail': f'Error reading file: {exc}'}, status=400)
+        created, errors = 0, []
+        with transaction.atomic():
+            for row_number, row in enumerate(rows, start=2):
+                try:
+                    staff = _bulk_staff(_bulk_value(row, 'staff_id', 'staff', 'staff_code'))
+                    center = _bulk_center(_bulk_value(row, 'center', 'center_id')) or (staff.center if staff else None)
+                    if not staff or not center or not can_access_center(request.user, center):
+                        raise PermissionDenied('staff or center is outside your scope')
+                    month = int(_bulk_value(row, 'month'))
+                    year = int(_bulk_value(row, 'year'))
+                    base = Decimal(str(_bulk_value(row, 'base_salary', default=staff.salary or 0)))
+                    service_commission = Decimal(str(_bulk_value(row, 'service_commission', default=0)))
+                    product_commission = Decimal(str(_bulk_value(row, 'product_commission', default=0)))
+                    deductions = Decimal(str(_bulk_value(row, 'deductions', default=0)))
+                    net_pay = base + service_commission + product_commission - deductions
+                    PayrollRecord.objects.update_or_create(
+                        staff=staff, month=month, year=year,
+                        defaults={
+                            'center': center,
+                            'base_salary': base,
+                            'service_commission': service_commission,
+                            'product_commission': product_commission,
+                            'deductions': deductions,
+                            'net_pay': net_pay,
+                            'status': _bulk_value(row, 'status', default='Draft'),
+                        },
+                    )
+                    created += 1
+                except Exception as exc:
+                    errors.append(f'Row {row_number}: {exc}')
+        return Response({'created': created, 'errors': errors}, status=201 if created else 400)
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -1467,15 +1443,21 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def mark_paid(self, request, pk=None):
-        payroll = self.get_object()
+        payroll = PayrollRecord.objects.select_for_update().get(pk=self.get_object().pk)
+        if payroll.status != 'Locked':
+            return Response({'detail': 'Payroll must be locked before it can be paid.'}, status=400)
         payroll.status = 'Paid'
         payroll.save(update_fields=['status', 'updated_at'])
         return Response(PayrollRecordSerializer(payroll).data)
 
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def lock(self, request, pk=None):
-        payroll = self.get_object()
+        payroll = PayrollRecord.objects.select_for_update().get(pk=self.get_object().pk)
+        if payroll.status != 'Draft':
+            return Response({'detail': 'Only draft payroll can be locked.'}, status=400)
         payroll.status = 'Locked'
         payroll.save(update_fields=['status', 'updated_at'])
         return Response(PayrollRecordSerializer(payroll).data)
@@ -1486,21 +1468,36 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
 
 from django.core import signing as _signing
 
+def _pin_digest(value):
+    return hashlib.sha256((value or '').encode('utf-8')).hexdigest()
+
+
+def _staff_pin_matches(staff, pin):
+    stored = staff.app_password or ''
+    if stored.startswith(('pbkdf2_', 'argon2', 'bcrypt', 'scrypt')):
+        return check_password(pin, stored)
+    return constant_time_compare(stored, str(pin or ''))
+
+
 def _generate_staff_token(staff):
-    """Generate a signed token for the staff mobile app. Valid 30 days."""
+    """Generate a signed, password-bound token valid for 30 days."""
     return _signing.dumps(
-        {'staff_id': staff.id, 'pin_hash': str(hash(staff.app_password))},
+        {'staff_id': staff.id, 'pin_digest': _pin_digest(staff.app_password)},
         salt='staff-app-token'
     )
 
+
 def _verify_staff_token(token):
-    """Verify a staff app token. Returns StaffMember or None."""
+    """Verify a staff app token and invalidate it when the PIN changes."""
     try:
         data = _signing.loads(token, salt='staff-app-token', max_age=86400 * 30)
-        return StaffMember.objects.get(
+        staff = StaffMember.objects.select_related('center').get(
             id=data['staff_id'],
-            is_active=True
+            is_active=True,
         )
+        if not constant_time_compare(data.get('pin_digest', ''), _pin_digest(staff.app_password)):
+            return None
+        return staff
     except Exception:
         return None
 
@@ -1514,6 +1511,7 @@ def _get_authenticated_staff(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([AppLoginRateThrottle])
 def staff_app_login(request):
     """Staff app login. Returns staff data + auth_token for subsequent requests."""
     identifier = request.data.get('identifier') or request.data.get('phone')
@@ -1533,8 +1531,12 @@ def staff_app_login(request):
         except (StaffMember.DoesNotExist, ValueError):
             pass
 
-    if staff and staff.app_password == pin:
-        data = StaffMemberSerializer(staff).data
+    if staff and _staff_pin_matches(staff, pin):
+        # Migrate legacy plaintext PINs at first successful login.
+        if staff.app_password and not staff.app_password.startswith(('pbkdf2_', 'argon2', 'bcrypt', 'scrypt')):
+            staff.app_password = make_password(str(pin))
+            staff.save(update_fields=['app_password'])
+        data = StaffAppSerializer(staff).data
         data['auth_token'] = _generate_staff_token(staff)
         return Response(data)
 
@@ -1604,7 +1606,6 @@ def staff_app_tools(request):
     if not staff:
         return Response({'error': 'Unauthorized. Please log in again.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    sync_staff_transfers_and_tools()
     tools = StaffToolTracker.objects.filter(staff=staff).order_by('-created_at')
     return Response(StaffToolTrackerSerializer(tools, many=True).data)
 
@@ -1617,7 +1618,6 @@ def staff_app_transfers(request):
     if not staff:
         return Response({'error': 'Unauthorized. Please log in again.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-    sync_staff_transfers_and_tools()
     transfers = StaffTransfer.objects.filter(staff=staff).order_by('-created_at')
     return Response(StaffTransferSerializer(transfers, many=True).data)
 

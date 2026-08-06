@@ -14,10 +14,17 @@ class PromotionSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         from django.utils import timezone
-        # If this is a creation (no instance) or start_date is being changed
-        if not self.instance and 'start_date' in attrs:
-            if attrs['start_date'] < timezone.now().date():
-                raise serializers.ValidationError({"start_date": "Start date cannot be in the past."})
+        start = attrs.get('start_date', getattr(self.instance, 'start_date', None))
+        end = attrs.get('end_date', getattr(self.instance, 'end_date', None))
+        if start and end and end < start:
+            raise serializers.ValidationError({'end_date': 'End date cannot be before start date.'})
+        if not self.instance and start and start < timezone.now().date():
+            raise serializers.ValidationError({'start_date': 'Start date cannot be in the past.'})
+        if attrs.get('discount_value') is not None and attrs['discount_value'] < 0:
+            raise serializers.ValidationError({'discount_value': 'Discount value cannot be negative.'})
+        max_usage = attrs.get('max_usage_per_client')
+        if max_usage is not None and max_usage <= 0:
+            raise serializers.ValidationError({'max_usage_per_client': 'Usage limit must be greater than zero.'})
         return super().validate(attrs)
 
 class ValueCardSerializer(serializers.ModelSerializer):

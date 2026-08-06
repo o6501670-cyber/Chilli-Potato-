@@ -8,10 +8,15 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const token = localStorage.getItem('token');
 
-  let headers = req.headers
-    .set('Cache-Control', 'no-cache, no-store, must-revalidate')
-    .set('Pragma', 'no-cache')
-    .set('Expires', '0');
+  let headers = req.headers;
+  // Mutations must not be replayed from an intermediary cache. GETs already
+  // use explicit cache-busting parameters where live POS data is required;
+  // leaving them cacheable avoids slowing every navigation.
+  if (req.method !== 'GET') {
+    headers = headers
+      .set('Cache-Control', 'no-store')
+      .set('Pragma', 'no-cache');
+  }
 
   // Do not attach token for login requests
   if (token && !req.url.includes('/login/')) {

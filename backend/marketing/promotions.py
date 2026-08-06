@@ -1,70 +1,107 @@
-def apply_promotion(invoice, promotion_id):
-    """Apply a promotion to an invoice. Returns (discount_amount, error_message)."""
+"""Server-side promotion calculations and promotion-ledger writes."""
+
+from decimal import Decimal, ROUND_HALF_UP
+
+from django.db import transaction
+from rest_framework.exceptions import ValidationError
+
+
+MONEY_QUANTUM = Decimal('0.01')
+
+
+def _money(value) -> Decimal:
+    return Decimal(str(value or 0)).quantize(MONEY_QUANTUM, rounding=ROUND_HALF_UP)
+
+
+@transaction.atomic
+def apply_promotion(invoice, promotion_id, *, record_usage=True):
+    """Validate and calculate a promotion for an invoice.
+
+    ``record_usage=False`` is used by the draft preview endpoint. Usage and
+    cashback are ledger entries and are only committed when a bill is paid or
+    becomes partial. The promotion row is locked so per-client limits cannot
+    be bypassed by two concurrent checkouts.
+    """
+    from .models import Promotion, PromotionUsage
+
     try:
-        from .models import Promotion, PromotionUsage
-        promo = Promotion.objects.get(id=promotion_id, is_active=True)
-    except Promotion.DoesNotExist:
-        return 0, "Promotion not found or inactive"
+        promo = Promotion.objects.select_for_update().get(
+            id=promotion_id, is_active=True
+        )
+    except (Promotion.DoesNotExist, TypeError, ValueError):
+        return Decimal('0.00'), 'Promotion not found or inactive'
 
-    import datetime
-    today = datetime.date.today()
+    today = invoice.created_at.date() if invoice.created_at else __import__('datetime').date.today()
     if not (promo.start_date <= today <= promo.end_date):
-        return 0, "Promotion has expired"
+        return Decimal('0.00'), 'Promotion is not valid for the invoice date'
 
-    # Per-client usage limit
-    if promo.max_usage_per_client and invoice.client:
+    if promo.level == 'Center' and promo.center_id != invoice.center_id:
+        return Decimal('0.00'), 'Promotion is not valid for this center'
+
+    if promo.members_only:
+        if not invoice.client_id:
+            return Decimal('0.00'), 'This promotion is available to members only'
+        from clients.models import ClientMembership
+        if not ClientMembership.objects.filter(
+            client_id=invoice.client_id,
+            is_active=True,
+            expiry_date__gte=today,
+        ).exists():
+            return Decimal('0.00'), 'Client does not have an active membership'
+
+    existing_usage = PromotionUsage.objects.filter(
+        promotion=promo, invoice_id=invoice.id
+    ).first() if invoice.pk else None
+    if existing_usage:
+        # Idempotent retry: do not issue a second cashback or usage row.
+        return _money(invoice.discount), None
+
+    if promo.max_usage_per_client and invoice.client_id:
         usage_count = PromotionUsage.objects.filter(
-            promotion=promo, client=invoice.client
+            promotion=promo, client_id=invoice.client_id
         ).count()
         if usage_count >= promo.max_usage_per_client:
-            return 0, "Usage limit reached for this client"
+            return Decimal('0.00'), 'Usage limit reached for this client'
 
-    before = float(invoice.subtotal)
-    discount = 0
+    before = _money(invoice.subtotal)
+    discount = Decimal('0.00')
 
     if promo.promo_type == 'Discount':
         if promo.discount_type == 'Percentage':
-            discount = before * float(promo.discount_value) / 100
-        else:
-            discount = float(promo.discount_value)
-    elif promo.promo_type == 'FlatPrice':
-        # Handled per-item — skip invoice level
-        pass
-    elif promo.promo_type == 'Trigger':
-        # Trigger deal mathematically deducted by the POS frontend
-        pass
+            discount = before * _money(promo.discount_value) / Decimal('100')
+        elif promo.discount_type == 'Flat':
+            discount = _money(promo.discount_value)
+    elif promo.promo_type in ('FlatPrice', 'Trigger'):
+        # These promotions are applied at line level by the POS. We still
+        # record their usage once the invoice is finalized.
+        discount = Decimal('0.00')
     elif promo.promo_type == 'Cashback':
-        # Check minimum bill requirement
-        min_bill = float(promo.config.get('cashback_min_bill') or 0)
-        if before >= min_bill:
-            # Cashback gives money to the client's wallet for future use
-            if invoice.client:
-                cashback_percent = float(promo.config.get('cashback_discount') or 0)
-                cashback_val = before * cashback_percent / 100
-                
-                if cashback_val > 0:
-                    try:
-                        from billing.models import CashbackTransaction
-                        CashbackTransaction.objects.create(
-                            client=invoice.client,
-                            invoice=invoice,
-                            amount=cashback_val,
-                            notes=f"Cashback from Promotion: {promo.name}"
-                        )
-                    except Exception as e:
-                        import logging
-                        logging.getLogger(__name__).error(f"Error applying cashback: {e}")
-        # Cashback does not discount the current bill
-        discount = 0
+        if record_usage and invoice.client_id:
+            minimum = _money((promo.config or {}).get('cashback_min_bill'))
+            cashback_percent = _money((promo.config or {}).get('cashback_discount'))
+            if before >= minimum and cashback_percent > 0:
+                cashback_value = _money(before * cashback_percent / Decimal('100'))
+                from billing.models import CashbackTransaction
+                CashbackTransaction.objects.create(
+                    client_id=invoice.client_id,
+                    invoice=invoice,
+                    amount=cashback_value,
+                    notes=f'Cashback from Promotion: {promo.name}',
+                )
 
-    discount = min(discount, before)  # Never discount more than invoice total
-    after = before - discount
+    discount = min(_money(discount), before)
+    if record_usage:
+        center_id = invoice.center_id or getattr(invoice.client, 'center_id', None)
+        if not center_id:
+            raise ValidationError('A center is required to record promotion usage.')
+        PromotionUsage.objects.create(
+            promotion=promo,
+            invoice=invoice,
+            center_id=center_id,
+            client_id=invoice.client_id,
+            bill_amount_before=before,
+            bill_amount_after=_money(before - discount),
+            revenue_generated=_money(before - discount),
+        )
 
-    # Log usage
-    PromotionUsage.objects.create(
-        promotion=promo, center=invoice.center, client=invoice.client,
-        bill_amount_before=before, bill_amount_after=after,
-        revenue_generated=after
-    )
-
-    return round(discount, 2), None
+    return discount, None

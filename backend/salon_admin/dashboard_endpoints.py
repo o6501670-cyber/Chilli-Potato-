@@ -1,5 +1,6 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from accounts.permissions import RoleActionPermission
 from rest_framework.response import Response
 from django.db.models import Sum, Count, Q, DateField, Max
 from django.db.models.functions import TruncDate, ExtractHour, ExtractYear, ExtractMonth, Cast, ExtractWeekDay
@@ -30,6 +31,8 @@ def _apply_security(request, queryset, model_type='invoice'):
                 queryset = queryset.filter(center=user.center)
             else:
                 queryset = queryset.filter(center=user.center)
+        else:
+            queryset = queryset.none()
     
     center_id = request.GET.get('center_id')
     if center_id and center_id != 'null':
@@ -54,7 +57,7 @@ def _apply_dates(request, queryset, date_field='created_at', is_datetime=True):
     return queryset
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([RoleActionPermission])
 def dashboard_summary(request):
     invoices = Invoice.objects.filter(status__in=['paid', 'partial']).select_related('client')
     invoices = _apply_security(request, invoices)
@@ -283,7 +286,7 @@ def dashboard_summary(request):
     })
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([RoleActionPermission])
 def dashboard_revenues(request):
     invoices = Invoice.objects.filter(status__in=['paid', 'partial'])
     invoices = _apply_security(request, invoices)
@@ -376,7 +379,7 @@ def dashboard_revenues(request):
     })
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([RoleActionPermission])
 def dashboard_clients(request):
     clients = Client.objects.all()
     clients = _apply_security(request, clients)
@@ -533,7 +536,7 @@ def dashboard_clients(request):
     })
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([RoleActionPermission])
 def dashboard_finance(request):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
@@ -658,7 +661,7 @@ def dashboard_finance(request):
     return Response(sources)
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([RoleActionPermission])
 def dashboard_staff(request):
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
@@ -751,7 +754,7 @@ def dashboard_staff(request):
     })
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([RoleActionPermission])
 def dashboard_services_products(request):
     invoices = Invoice.objects.filter(status__in=['paid', 'partial'])
     invoices = _apply_security(request, invoices)

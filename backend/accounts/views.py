@@ -8,15 +8,20 @@ from django.db.models import Q
 from django.conf import settings
 import logging
 import os
+from datetime import timedelta
+from django.utils import timezone
 
 from .models import CustomUser, Message
 from .serializers import UserSerializer, MessageSerializer, UserChatSerializer
+from .access import has_action_permission, can_access_center
+from .permissions import RoleActionPermission
+from rest_framework.exceptions import PermissionDenied
 
 logger = logging.getLogger(__name__)
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [RoleActionPermission]
     serializer_class = UserSerializer
 
     def get_queryset(self):
@@ -36,8 +41,36 @@ class UserViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(
                     Q(center=user.center) | Q(centers=user.center)
                 ).distinct()
+            else:
+                queryset = queryset.none()
                 
         return queryset
+
+    def _require_write(self, action):
+        if not has_action_permission(self.request.user, 'admin', 'users', action):
+            raise PermissionDenied('You do not have permission to modify users.')
+
+    def _validate_centers(self, validated_data):
+        for center in ([validated_data.get('center')] if validated_data.get('center') else []):
+            if not can_access_center(self.request.user, center):
+                raise PermissionDenied('You cannot assign users to another center.')
+        for center in validated_data.get('centers', []) or []:
+            if not can_access_center(self.request.user, center):
+                raise PermissionDenied('You cannot assign users to another center.')
+
+    def perform_create(self, serializer):
+        self._require_write('create')
+        self._validate_centers(serializer.validated_data)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        self._require_write('update')
+        self._validate_centers(serializer.validated_data)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._require_write('delete')
+        instance.delete()
 
 
 class CustomAuthToken(ObtainAuthToken):
@@ -46,6 +79,10 @@ class CustomAuthToken(ObtainAuthToken):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         token, created = Token.objects.get_or_create(user=user)
+        max_age_days = getattr(settings, 'API_TOKEN_MAX_AGE_DAYS', 30)
+        if timezone.now() - token.created > timedelta(days=max_age_days):
+            token.delete()
+            token = Token.objects.create(user=user)
         return Response({
             'token': token.key,
             'user_id': user.pk,
@@ -75,7 +112,7 @@ class ChatUserListView(APIView):
         else:
             users = CustomUser.objects.filter(is_superuser=True)
 
-        users = users.annotate(
+        users = users.select_related('center').prefetch_related('centers').annotate(
             last_message_content=Subquery(last_message_subquery.values('content')[:1]),
             last_message_time_annotated=Subquery(last_message_subquery.values('timestamp')[:1]),
             last_message_image=Subquery(last_message_subquery.values('image')[:1])
