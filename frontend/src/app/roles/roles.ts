@@ -74,7 +74,8 @@ export class RolesComponent implements OnInit {
       procurement: { read: false, create: false, update: false, delete: false },
       multi_salon: { read: false, create: false, update: false, delete: false },
       incentives: { read: false, create: false, update: false, delete: false },
-      pettycash: { read: false, create: false, update: false, delete: false }
+      pettycash: { read: false, create: false, update: false, delete: false },
+      manage: { read: false, create: false, update: false, delete: false }
     }
   };
 
