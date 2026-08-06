@@ -1,0 +1,135 @@
+<div class="bills-page">
+  <div class="bills-header">
+    <div class="bills-page-title" style="margin-right: auto;">Users</div>
+    <div class="bills-controls" style="margin-bottom: 0;">
+      <button class="pill-btn black-btn" *ngIf="isOwner || permissions.admin?.users?.create" (click)="openModal()">
+        + Add New User
+      </button>
+    </div>
+  </div>
+
+  <div class="bills-layout-grid">
+    <!-- Left Column: Users Table -->
+    <div class="bills-list">
+      <div class="date-divider" *ngIf="users.length > 0">ALL USERS</div>
+
+      <table class="modern-bills-table" *ngIf="users.length > 0">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Designation</th>
+            <th>Role</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let user of users">
+            <td>
+              <div class="table-client">
+                <div class="table-avatar">{{ (user.full_name || 'U').charAt(0).toUpperCase() }}</div>
+                <span class="font-semibold">{{ user.full_name }}</span>
+              </div>
+            </td>
+            <td class="text-secondary">{{ user.email }}</td>
+            <td class="text-secondary">{{ user.phone || 'N/A' }}</td>
+            <td class="font-bold">{{ user.designation || 'Staff' }}</td>
+            <td>
+              <span class="status-badge badge-paid">
+                {{ getRoleName(user.role) }}
+              </span>
+            </td>
+            <td>
+              <button class="icon-action-btn" title="Edit User" *ngIf="isOwner || permissions.admin?.users?.update" (click)="editUser(user)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="no-bills-msg" *ngIf="users.length === 0">
+        No users found. Click "+ Add New User" to create one.
+      </div>
+    </div>
+
+    <!-- Right Column: KPI Snapshot -->
+    <div class="bills-sidebar">
+      <div class="kpi-card-dark">
+        <div class="kpi-label">Total Users</div>
+        <div class="kpi-value">{{ users.length }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" *ngIf="showModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 style="margin:0;">{{ isEditing ? 'Edit User' : 'New User' }}</h3>
+      <button class="modal-close" (click)="closeModal()">&times;</button>
+    </div>
+
+    <form (ngSubmit)="onSubmit()" ngNativeValidate>
+      <div class="form-group">
+        <input type="text" class="form-control" [(ngModel)]="newUser.full_name" name="full_name" required
+          placeholder="Full Name">
+      </div>
+      <div class="form-group">
+        <input type="email" class="form-control" [(ngModel)]="newUser.email" name="email" required placeholder="Email">
+      </div>
+      <div class="form-group">
+        <input type="password" class="form-control" [(ngModel)]="newUser.password" name="password"
+          [required]="!isEditing" [placeholder]="isEditing ? 'Leave blank to keep current password' : 'Password'">
+      </div>
+      <div class="form-group">
+        <input type="text" class="form-control" [(ngModel)]="newUser.phone" name="phone" placeholder="Phone">
+      </div>
+      <div class="form-group">
+        <input type="text" class="form-control" [(ngModel)]="newUser.designation" name="designation"
+          placeholder="Designation (e.g. Admin, Junior Recruiter)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select class="form-control" [(ngModel)]="newUser.role" name="role">
+          <option [ngValue]="null">Select Role</option>
+          <option *ngFor="let role of roles" [ngValue]="role.id">{{ role.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Assigned Centers</label>
+
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <select class="form-control" #centerSelect style="flex: 1;">
+            <option value="">Select a center to add...</option>
+            <option value="all">-- All Centers --</option>
+            <option *ngFor="let c of centers" [value]="c.id">{{c.display_name || c.center_name}}</option>
+          </select>
+          <button type="button" class="btn btn-outline"
+            (click)="addCenterFromSelect(centerSelect.value); centerSelect.value = ''">Add</button>
+        </div>
+
+        <div class="selected-centers-container"
+          style="display: flex; flex-wrap: wrap; gap: 0.5rem; min-height: 40px; padding: 0.5rem; background: #f9fafb; border-radius: 6px; border: 1px dashed #d1d5db;">
+          <div *ngIf="newUser.centers.length === 0"
+            style="color: #9ca3af; font-size: 0.85rem; display: flex; align-items: center; width: 100%; justify-content: center;">
+            No centers assigned
+          </div>
+          <div *ngFor="let id of newUser.centers" class="center-pill"
+            style="display: inline-flex; align-items: center; background: #e0e7ff; color: #4338ca; padding: 0.25rem 0.75rem; border-radius: 16px; font-size: 0.85rem; font-weight: 500;">
+            {{ getCenterName(id) }}
+            <button type="button" (click)="removeCenter(id)"
+              style="background: none; border: none; color: #4338ca; margin-left: 0.5rem; cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0; display: flex; align-items: center;">&times;</button>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;" [disabled]="isSaving">
+        <span *ngIf="isSaving">Saving...</span>
+        <span *ngIf="!isSaving">{{ isEditing ? 'Save Changes' : 'Create User' }}</span>
+      </button>
+    </form>
+  </div>
+</div>

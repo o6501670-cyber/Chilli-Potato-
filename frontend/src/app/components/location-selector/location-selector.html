@@ -1,0 +1,16 @@
+<div style="position: relative; display: flex; align-items: center; gap: 8px;">
+  <div class="custom-center-dropdown" (click)="isOpen = !isOpen" [class.active]="isOpen">
+    <span class="dropdown-text">{{ selectedCenterName }}</span>
+    <i class="fa fa-chevron-down dropdown-icon"></i>
+  </div>
+  
+  <div class="dropdown-overlay" *ngIf="isOpen" (click)="isOpen = false"></div>
+  <div class="custom-dropdown-menu" *ngIf="isOpen">
+    <div class="dropdown-menu-item" *ngIf="hasGlobalAccess" (click)="selectCenter(null)" [class.selected]="selectedCenterId === null">
+      All Locations
+    </div>
+    <div class="dropdown-menu-item" *ngFor="let center of centers" (click)="selectCenter(center.id)" [class.selected]="selectedCenterId === center.id">
+      {{ center.display_name || center.center_name || center.name }}
+    </div>
+  </div>
+</div>

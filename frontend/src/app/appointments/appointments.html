@@ -1,0 +1,304 @@
+<div class="appointments-container">
+  <!-- Merged dark bar + New Appointment button -->
+  <div class="header-row">
+    <div class="top-controls">
+      <div style="display: flex; align-items: center; gap: 8px;">
+
+      <app-location-selector
+        [centers]="centers"
+        [hasGlobalAccess]="hasGlobalAccess"
+        [(selectedCenterId)]="selectedCenterId"
+        (selectionChange)="loadData()">
+      </app-location-selector>
+    </div>
+
+      <div class="date-picker-group">
+        <button class="icon-btn" (click)="prevDay()">❮</button>
+        <input type="date" class="form-control date-input" [ngModel]="selectedDate" (change)="onDateChange($event)">
+        <button class="icon-btn" (click)="nextDay()">❯</button>
+        <button class="btn btn-outline today-btn" (click)="setToday()">Today</button>
+      </div>
+
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="showCancelled" (change)="loadAppointments()">
+        Show Cancelled
+      </label>
+      <div style="display: flex; align-items: center; gap: 12px; margin-left: 12px; font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+        <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span> Completed</div>
+        <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></span> Scheduled</div>
+        <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span> Cancelled</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary new-appt-btn"
+      *ngIf="isOwner || permissions.appointments?.calendar?.create || permissions.appointment?.calendar?.create"
+      (click)="openNewModal()">+ New Appointment</button>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-row">
+    <div class="kpi-card kpi-card-dark">
+      <div class="kpi-label">APPOINTMENTS</div>
+      <div class="kpi-value">{{ totalAppointments }}</div>
+      <div><span class="pill-accent">Target {{ (totalAppointments || 0) * 1.5 | number:'1.0-0' }}</span></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">UNALLOCATED SERVICES</div>
+      <div class="kpi-value">{{ unallocatedServices }}</div>
+      <div class="kpi-sub">Needs assignment</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">CANCELLED</div>
+      <div class="kpi-value">{{ cancelledAppointments }}</div>
+      <div class="kpi-sub">Lost bookings</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">EXPECTED REVENUE</div>
+      <div class="kpi-value" style="color: var(--primary-color);">₹{{ expectedRevenue }}</div>
+      <div class="kpi-sub">For scheduled appointments</div>
+    </div>
+  </div>
+
+  <!-- Calendar Grid Area -->
+  <div class="calendar-area">
+    <!-- Left Panel: Staff Status -->
+    <div class="staff-panel">
+      <div class="panel-header">STAFF STATUS</div>
+      <div class="staff-list">
+        <!-- We skip Unallocated here because it doesn't need a status box -->
+        <div class="staff-card" *ngFor="let staff of activeStaffMembers">
+          <div class="avatar-circle">
+            {{ staff.first_name[0] }}{{ staff.last_name ? staff.last_name[0] : '' }}
+          </div>
+          <div class="staff-info">
+            <div class="staff-name">{{ staff.first_name }} {{ staff.last_name }}</div>
+            <div class="staff-sub">{{ getAppointmentsForStaff(staff.id).length }} bookings today</div>
+          </div>
+          <div class="status-badge" [ngClass]="getAppointmentsForStaff(staff.id).length > 0 ? 'booked' : 'free'">
+            {{ getAppointmentsForStaff(staff.id).length > 0 ? 'BOOKED' : 'FREE' }}
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-outline full-width mt-4">📄 Full Staff Report</button>
+    </div>
+
+    <!-- Right Panel: Schedule Grid -->
+    <div class="schedule-panel">
+      <!-- Time Header -->
+      <div class="schedule-header">
+        <div class="staff-col-header">STAFF</div>
+        <div class="time-col-header" *ngFor="let t of timeSlots">
+          {{ t }}
+        </div>
+      </div>
+
+      <!-- Grid Rows -->
+      <div class="schedule-body">
+
+        <!-- Unallocated Row -->
+        <div class="schedule-row">
+          <div class="staff-col">
+            <span class="dot"></span> Unallocated
+          </div>
+          <div class="timeline-area">
+            <div class="time-grid-lines">
+              <div class="grid-line" *ngFor="let t of timeSlots"></div>
+            </div>
+
+            <!-- Appointment Blocks -->
+            <div class="appt-block" *ngFor="let item of getAppointmentsForStaff(null)"
+              [style.left]="calculateLeftStyle(item.service.time)"
+              [style.width]="calculateWidthStyle(item.service.duration, item.service.time)"
+              [class.scheduled]="item.appointment.status === 'Scheduled'"
+              [class.completed]="item.appointment.status === 'Completed'"
+              [class.cancelled]="item.appointment.status === 'Cancelled'" (mousedown)="openEditModal(item.appointment)">
+              <div class="appt-title">{{ item.appointment.client_name }}</div>
+              <div class="appt-desc">{{ item.service.service_name }}</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Staff Rows -->
+        <div class="schedule-row" *ngFor="let staff of activeStaffMembers">
+          <div class="staff-col">
+            <span class="dot"></span> {{ staff.first_name }} {{ staff.last_name }}
+          </div>
+          <div class="timeline-area">
+            <div class="time-grid-lines">
+              <div class="grid-line" *ngFor="let t of timeSlots"></div>
+            </div>
+
+            <div class="appt-block" *ngFor="let item of getAppointmentsForStaff(staff.id)"
+              [style.left]="calculateLeftStyle(item.service.time)"
+              [style.width]="calculateWidthStyle(item.service.duration, item.service.time)"
+              [class.scheduled]="item.appointment.status === 'Scheduled'"
+              [class.completed]="item.appointment.status === 'Completed'"
+              [class.cancelled]="item.appointment.status === 'Cancelled'" (mousedown)="openEditModal(item.appointment)">
+              <div class="appt-title">{{ item.appointment.client_name }}</div>
+              <div class="appt-desc">{{ item.service.service_name }}</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" *ngIf="showModal">
+  <div class="modal-content large-modal" cdkDrag>
+    <div class="modal-header" cdkDragHandle style="cursor: move;">
+      <div>
+        <h2>{{ isEdit ? 'Edit Appointment' : 'New Appointment' }}</h2>
+        <p class="modal-subtitle">Drag this window by the header to reposition it</p>
+      </div>
+      <button class="close-btn" (click)="showModal = false">×</button>
+    </div>
+
+    <div class="modal-body">
+      <div *ngIf="currentAppointment.status === 'Completed'" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+        <i class="fa fa-check-circle" style="color: #10b981;"></i> This appointment has been paid and completed. It can no longer be edited or cancelled.
+      </div>
+      <div class="modal-grid" [style.opacity]="currentAppointment.status === 'Completed' ? '0.7' : '1'" [style.pointer-events]="currentAppointment.status === 'Completed' ? 'none' : 'auto'">
+
+        <!-- Left Column: Client Details -->
+        <div class="modal-grid-left">
+          <div class="form-group" style="position: relative; z-index: 50;">
+            <label>SEARCH CLIENT DATABASE</label>
+            <input type="text" class="form-control" placeholder="Start typing name or phone to search..."
+              [(ngModel)]="searchQuery" (input)="onSearchInput($event)">
+            <div class="client-search-results" *ngIf="clientSearchResults && clientSearchResults.length > 0">
+              <div class="client-result-item" *ngFor="let c of clientSearchResults" (mousedown)="selectClient(c)">
+                <div>
+                  <strong style="color: var(--text-primary);">{{c.first_name}} {{c.last_name}}</strong>
+                  <span style="color: var(--text-secondary); font-size: 11px; margin-left: 8px;">{{c.phone}}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group w-50">
+              <label>CLIENT PHONE</label>
+              <input type="text" class="form-control" placeholder="Enter Phone"
+                [(ngModel)]="currentAppointment.client_phone" (ngModelChange)="searchRecentVisits()">
+            </div>
+            <div class="form-group w-50" *ngIf="selectedClient?.is_blacklisted"
+              style="display: flex; align-items: flex-end; padding-bottom: 8px;">
+              <span
+                style="background: #fee2e2; color: #b91c1c; padding: 6px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; border: 1px solid #fca5a5; width: 100%;">
+                <i class="fa fa-ban" style="margin-right: 4px;"></i>BLACKLISTED
+                <span *ngIf="selectedClient.blacklist_reason" style="font-weight: 400; margin-left: 4px;">- {{
+                  selectedClient.blacklist_reason }}</span>
+              </span>
+            </div>
+            <div class="form-group w-50">
+              <label>CLIENT NAME</label>
+              <input type="text" class="form-control" placeholder="Add New Client"
+                [(ngModel)]="currentAppointment.client_name">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group w-50">
+              <label>DATE</label>
+              <input type="date" class="form-control" [(ngModel)]="currentAppointment.date">
+            </div>
+            <div class="form-group w-50">
+              <label>START TIME</label>
+              <input type="time" class="form-control" [(ngModel)]="currentAppointment.start_time"
+                (ngModelChange)="onStartTimeChange()">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>APPOINTMENT NOTES</label>
+            <textarea class="form-control" rows="2" [(ngModel)]="currentAppointment.notes"></textarea>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
+            <label>RECENT VISITS</label>
+            <div class="recent-visits-box" style="max-height: 80px; overflow-y: auto;">
+              <div *ngIf="recentVisits.length === 0" class="text-muted" style="font-size: 12px;">Search a client to see
+                history</div>
+              <div class="visit-item" *ngFor="let rv of recentVisits">
+                {{ rv.date | date }} - {{ rv.services.length }} services
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Services -->
+        <div class="modal-grid-right">
+          <label
+            style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; letter-spacing: 0.4px;">SERVICES</label>
+
+          <div class="add-service-row">
+            <select class="form-control" [(ngModel)]="newServiceForm.service_name">
+              <option value="">Select Service to Add</option>
+              <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
+            </select>
+            <button class="btn btn-dark" (click)="addService()">+ Add</button>
+          </div>
+
+          <div class="services-list-container">
+            <div class="services-list" *ngIf="currentAppointment.services.length > 0">
+              <div class="service-header-row">
+                <div class="col-name">SERVICE</div>
+                <div class="col-time">TIME</div>
+                <div class="col-dur">MIN</div>
+                <div class="col-staff">STAFF</div>
+                <div class="col-act"></div>
+              </div>
+              <div class="service-row" *ngFor="let s of currentAppointment.services; let i = index">
+                <div class="col-name" style="font-weight: 600;">{{ s.service_name }}</div>
+                <div class="col-time">
+                  <input type="time" class="form-control" [(ngModel)]="s.time" (ngModelChange)="recalculateTimes()">
+                </div>
+                <div class="col-dur">
+                  <input type="number" class="form-control" [(ngModel)]="s.duration"
+                    (ngModelChange)="recalculateTimes()">
+                </div>
+                <div class="col-staff">
+                  <select class="form-control" [(ngModel)]="s.staff">
+                    <option [ngValue]="null">Unallocated</option>
+                    <option *ngFor="let st of activeStaffMembers" [ngValue]="st.id">{{ st.first_name }} {{ st.last_name
+                      }}</option>
+                  </select>
+                </div>
+                <div class="col-act">
+                  <button class="icon-btn delete-btn" (click)="removeService(i)">×</button>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="currentAppointment.services.length === 0"
+              style="text-align: center; color: var(--text-secondary); font-style: italic; padding: 32px 0;">
+              No services added yet.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="modal-footer justify-start">
+      <button class="btn btn-dark"
+        *ngIf="currentAppointment.status !== 'Completed' && (isOwner || (isEdit ? (permissions.appointments?.calendar?.update || permissions.appointment?.calendar?.update) : (permissions.appointments?.calendar?.create || permissions.appointment?.calendar?.create)))"
+        (click)="saveAppointment()" [disabled]="isSaving || selectedClient?.is_blacklisted">
+        <span *ngIf="isSaving">Saving...</span>
+        <span *ngIf="!isSaving">Save</span>
+      </button>
+      <button class="btn btn-outline"
+        *ngIf="isEdit && currentAppointment.status !== 'Cancelled' && currentAppointment.status !== 'Completed' && (isOwner || permissions.appointments?.calendar?.update || permissions.appointment?.calendar?.update)"
+        (click)="cancelAppointment()">Cancel Appointment</button>
+      <button class="btn btn-outline"
+        *ngIf="isEdit && currentAppointment.status === 'Cancelled' && currentAppointment.status !== 'Completed' && (isOwner || permissions.appointments?.calendar?.update || permissions.appointment?.calendar?.update)"
+        (click)="restoreAppointment()">Restore Appointment</button>
+      <button class="btn btn-primary" *ngIf="currentAppointment.status !== 'Completed'" (click)="sendToBilling()">Start Client Invoice</button>
+      <button class="btn btn-outline" *ngIf="currentAppointment.status !== 'Completed'">Send Reminder SMS</button>
+      <button class="btn btn-outline" *ngIf="currentAppointment.status === 'Completed'" (click)="showModal = false">Close</button>
+    </div>
+  </div>
+</div>

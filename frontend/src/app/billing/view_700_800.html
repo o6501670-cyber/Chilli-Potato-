@@ -1,0 +1,101 @@
+        </div>
+        <div class="summary-row" style="color: var(--text-primary);">
+          Rounding: {{ roundingAmount | number:'1.2-2' }}
+        </div>
+        <div class="summary-row total-row">
+          Total Invoice Amount: Rs. {{ finalTotalAmount | number:'1.2-2' }}
+        </div>
+        
+
+      </div>
+
+      <div class="invoice-actions">
+        <button class="btn-discard" (click)="holdCurrentCart()" *ngIf="cart.length > 0 && currentInvoiceStatus === 'draft'" style="background: var(--warning, #f59e0b); color: white; border-color: var(--warning, #f59e0b);">Hold Cart</button>
+        <button class="btn-discard" (click)="discardInvoice()">Discard</button>
+        <button class="btn-save" (click)="saveInvoice(true)" *ngIf="currentInvoiceStatus === 'draft'">SAVE</button>
+        <button class="btn-finalise" *ngIf="cart.length > 0 && currentInvoiceStatus === 'draft'" (click)="openCheckoutModal()"><i class="fa fa-check-circle" style="margin-right:8px;"></i>Finalise [F2]</button>
+      </div>
+    </div>
+  </div>
+
+
+
+
+<!-- Toast Notification -->
+<div class="toast-notification" [class.show]="toastVisible" [ngClass]="toastType">
+  <i class="fa" [ngClass]="{'fa-check-circle': toastType === 'success', 'fa-exclamation-circle': toastType === 'error', 'fa-info-circle': toastType === 'info'}" style="margin-right: 8px;"></i>
+  {{ toastMessage }}
+</div>
+
+
+<!-- Checkout Drawer (Split Payments) -->
+<div class="modal-overlay" *ngIf="showCheckoutModal" (click)="closeCheckoutModal()" style="display: flex; justify-content: flex-end; background: rgba(0,0,0,0.4); position: fixed; inset: 0; z-index: 2000; backdrop-filter: blur(2px);">
+  <div class="drawer-content" (click)="$event.stopPropagation()" style="background: var(--bg-card); padding: 0; width: 500px; max-width: 100%; height: 100%; box-shadow: -10px 0 25px rgba(0,0,0,0.1); overflow-y: auto; display: flex; flex-direction: column;">
+    
+    <!-- Header -->
+    <div style="padding: 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface);">
+      <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: var(--text-primary);">Checkout & Payment</h2>
+      <button (click)="closeCheckoutModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-muted); line-height: 1;">&times;</button>
+    </div>
+    
+    <!-- Body -->
+    <div style="padding: 24px; flex: 1;">
+      <div style="background: var(--bg-subtle); padding: 20px; border-radius: var(--radius-md); margin-bottom: 24px; text-align: center; border: 1px solid var(--border);">
+        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Total Bill Amount</div>
+        <div style="font-size: 32px; font-weight: 800; color: var(--ink); margin-top: 8px;">Rs. {{ finalTotalAmount | number:'1.2-2' }}</div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 16px; background: var(--bg-2); border: 1px solid #e2e8f0; border-radius: 8px;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">
+          Add Tip (Optional)
+        </div>
+        <div style="position: relative; width: 120px;">
+          <span style="position: absolute; left: 12px; top: 12px; color: var(--text-secondary); font-weight: 600; font-size: 13px;">Rs.</span>
+          <input type="number" [(ngModel)]="checkoutTipAmount" (ngModelChange)="calcCheckoutRemaining()" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-sizing: border-box; background: var(--surface); outline: none;">
+        </div>
+      </div>
+
+      <h4 style="margin-top: 0; font-size: 13px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Split Payments</h4>
+      
+      <div *ngFor="let p of checkoutPayments; let i = index" style="margin-bottom: 16px;">
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <select [(ngModel)]="p.method" (ngModelChange)="calcCheckoutRemaining()" style="flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--bg-card); color: var(--text-primary); outline: none;">
+            <option value="Cash">Cash</option>
+            <option value="Card">Card</option>
+            <option value="UPI">UPI</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Advance">Advance/Wallet (Bal: Rs. {{clientAdvanceBalance}})</option>
+            <option *ngFor="let vc of client?.active_value_cards" [value]="'Value Card ' + vc.id">
+              🎁 {{ vc.value_card_detail?.title }} (Bal: ₹{{ vc.balance | number:'1.2-2' }})
+            </option>
+          </select>
+          
+          <div style="position: relative; flex: 1;">
+            <span style="position: absolute; left: 12px; top: 12px; color: var(--text-secondary); font-weight: 600; font-size: 13px;">Rs.</span>
+            <input type="number" [(ngModel)]="p.amount" (ngModelChange)="calcCheckoutRemaining()" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-sizing: border-box; background: var(--bg-card); color: var(--text-primary); outline: none;">
+          </div>
+          
+          <button (click)="removePaymentRow(i)" *ngIf="checkoutPayments.length > 1" class="btn-icon-danger" style="padding: 10px;"><i class="fa fa-trash"></i></button>
+        </div>
+        
+        <!-- Quick Cash Buttons -->
+        <div *ngIf="p.method === 'Cash'" style="display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end;">
+          <button (click)="p.amount = checkoutRemaining + (p.amount || 0); calcCheckoutRemaining()" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-subtle); color: var(--text-primary); cursor: pointer;">Exact</button>
+          <button (click)="p.amount = 500; calcCheckoutRemaining()" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-subtle); color: var(--text-primary); cursor: pointer;">₹500</button>
+          <button (click)="p.amount = 1000; calcCheckoutRemaining()" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-subtle); color: var(--text-primary); cursor: pointer;">₹1000</button>
+          <button (click)="p.amount = 2000; calcCheckoutRemaining()" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-subtle); color: var(--text-primary); cursor: pointer;">₹2000</button>
+        </div>
+      </div>
+
+      <button (click)="addPaymentRow()" style="background: transparent; border: 1px dashed var(--border-strong, #c7cad3); width: 100%; padding: 12px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-secondary); font-weight: 600; font-size: 12.5px; margin-bottom: 24px; transition: all 0.2s;" onmouseover="this.style.background='var(--bg-subtle)'; this.style.color='var(--ink)'" onmouseout="this.style.background='transparent'; this.style.color='var(--text-secondary)'">
+        + Add Another Payment Method
+      </button>
+
+      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 20px; text-align: center;">
+        <kbd style="padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px;">Esc</kbd> to Close | <kbd style="padding: 2px 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px;">Enter</kbd> to Complete
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding: 20px 24px; border-top: 1px solid var(--border); background: var(--surface); display: flex; justify-content: space-between; align-items: center;">
+      <div>

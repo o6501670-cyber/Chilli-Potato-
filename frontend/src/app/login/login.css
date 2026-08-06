@@ -1,0 +1,544 @@
+/* --------------------------------------
+   BASE LAYOUT
+-------------------------------------- */
+:host {
+  display: block;
+}
+
+.login-wrapper {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  font-family: 'Inter', 'Outfit', system-ui, sans-serif;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Image background as requested */
+  background: url('/assets/images/log.png') center center no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+/* Background glow removed for white theme */
+
+/* Subtle dots pattern removed for pure white look */
+.bg-pattern {
+  display: none;
+}
+
+/* Elegant Hair Strands Background */
+.hair-container {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.hair-svg {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  opacity: 0.8;
+}
+
+.strand {
+  fill: none;
+  stroke-width: 0.15;
+  vector-effect: non-scaling-stroke;
+  animation: wave 15s ease-in-out infinite alternate;
+}
+
+/* Base hair colors for light theme */
+.strand-dark { stroke: rgba(40, 25, 15, 0.4); } /* Soft dark brown */
+.strand-gold { stroke: rgba(198, 156, 109, 0.5); } /* Shimmering gold/blonde */
+
+/* Add slight delays to individual paths to simulate natural hair flow */
+.strand:nth-child(3n+1) { animation-delay: -2s; stroke-width: 0.2; }
+.strand:nth-child(3n+2) { animation-delay: -5s; stroke-width: 0.1; }
+.strand:nth-child(3n) { animation-delay: -8s; stroke-width: 0.25; }
+
+@keyframes wave {
+  0% { transform: scaleY(1) translateY(0) skewX(0); }
+  100% { transform: scaleY(1.05) translateY(2%) skewX(2deg); }
+}
+
+/* Canvas for interactive particles */
+.particle-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* --------------------------------------
+   LEFT SIDE: SHOWCASE / LOGO
+-------------------------------------- */
+.login-showcase {
+  flex: 1;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.showcase-content {
+  text-align: center;
+  width: 100%;
+  max-width: 600px;
+  padding: 2rem;
+  margin-top: 4rem; /* Small nudge downward as requested */
+}
+
+.top-logo-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end; /* Align to bottom to minimize gap */
+  margin-bottom: 0; 
+}
+
+.top-logo {
+  width: 100%;
+  max-width: 400px; /* Slightly reduced to ensure it fits on all laptop screens without scrolling */
+  height: auto;
+  object-fit: contain;
+  mix-blend-mode: darken; /* Makes the white background of the image transparent */
+}
+
+.hero-image-wrapper {
+  width: 120%; /* Expanded past container to make it bigger */
+  display: flex;
+  justify-content: center;
+  overflow: visible;
+  background: transparent;
+  margin-top: -8rem; /* Moved up significantly */
+  margin-left: -10%; /* Offset width expansion */
+  position: relative;
+  z-index: 2;
+  animation: logoEntrance 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  opacity: 0;
+  transform: translateX(-40px);
+}
+
+@keyframes logoEntrance {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.hero-image {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  transition: transform 0.5s ease;
+  mix-blend-mode: darken; /* Ensures clean blending */
+  filter: drop-shadow(0 15px 25px rgba(0,0,0,0.15));
+}
+
+
+
+/* --------------------------------------
+   CENTERED: AUTH PANEL
+-------------------------------------- */
+.login-auth-panel {
+  flex: 1;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; 
+  padding: 2rem;
+  min-height: 100vh;
+}
+
+/* Typewriter Machine */
+.printer-machine {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  margin: auto; /* ensure perfectly centered and avoids top flex clipping */
+}
+
+/* 3D POS Billing Machine */
+.printer-slot {
+  width: 440px; 
+  height: 80px;
+  /* Realistic dark matte plastic molding gradient */
+  background: linear-gradient(to bottom, 
+      #333333 0%, 
+      #222222 15%, 
+      #111111 50%, 
+      #050505 85%, 
+      #1a1a1a 100%);
+  border-radius: 16px 16px 6px 6px;
+  /* Very subtle shadow for white background */
+  box-shadow: 
+    0 15px 30px rgba(0,0,0,0.06), 
+    inset 0 4px 6px rgba(255,255,255,0.15),
+    inset 0 -2px 5px rgba(0,0,0,0.8);
+  position: relative;
+  z-index: 20;
+  border: 1px solid #111;
+  border-top: 1px solid #444;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Green Power LED */
+.printer-led {
+  position: absolute;
+  top: 15px;
+  right: 25px;
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #10b981, inset 0 2px 2px rgba(255,255,255,0.6);
+}
+
+/* Faux brand text on the machine */
+.printer-logo-text {
+  position: absolute;
+  top: 13px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 4px;
+  color: rgba(255,255,255,0.7); /* White text */
+  font-weight: 700;
+}
+
+/* The deep slit where paper emerges */
+.slot-shadow {
+  position: absolute;
+  bottom: -4px; left: 30px; right: 30px; 
+  height: 14px;
+  background: #000; /* Pitch black inside the slot */
+  border-radius: 20px;
+  box-shadow: inset 0 8px 12px rgba(0,0,0,1);
+}
+
+.receipt-wrapper {
+  overflow: hidden;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-bottom: 4rem; /* Allow space for shadow at the bottom */
+  margin-top: -20px; /* tuck deeper into printer slot */
+}
+
+/* Invoice / Receipt Style Card */
+.receipt-paper {
+  width: 100%;
+  max-width: 380px; 
+  padding: 1.5rem 2rem 2.5rem; /* Standard receipt padding */
+  /* Pure white paper */
+  background: #ffffff;
+  border-radius: 0 0 12px 12px; 
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08); /* Much lighter shadow */
+  /* Smooth straight vertical dropping DOWN animation */
+  animation: typeRollDown 2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; 
+  animation-delay: 4.0s; /* Increased delay to perfectly sync with splash fade */
+  position: relative;
+  z-index: 10;
+  transform: translateY(-100%); /* start fully hidden inside the slot at top */
+}
+
+/* Dynamic class to remove delay on subsequent loads (e.g. logout) */
+.receipt-paper.no-delay {
+  animation-delay: 0.1s !important;
+}
+
+@keyframes typeRollDown {
+  0% { 
+    transform: translateY(-100%);
+  }
+  100% { 
+    transform: translateY(0);
+  }
+}
+
+.glass-panel {
+  /* Class kept for compatibility but overridden in auth-card for paper look */
+}
+
+.receipt-header {
+  text-align: center;
+  margin-bottom: 1rem;
+  margin-top: 0.5rem;
+}
+
+.receipt-logo {
+  width: 100%;
+  max-width: 220px; /* appropriately sized original logo */
+  height: auto;
+  object-fit: contain;
+  mix-blend-mode: multiply; /* Blends the white background of the image into the creamy paper */
+  margin-bottom: 0.5rem;
+}
+
+.receipt-meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #4b5563; /* Sleek grey */
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.invoice-divider {
+  width: 100%;
+  border-bottom: 1.5px dashed #d1d5db;
+  margin-bottom: 1rem;
+}
+
+/* Alert Error */
+.alert-error {
+  background: rgba(254, 226, 226, 0.8);
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 0.8rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+
+/* --------------------------------------
+   FORM STYLES
+-------------------------------------- */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.input-group label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-family: monospace;
+  letter-spacing: 0.5px;
+  color: #374151; /* Dark sleek label */
+  margin-bottom: 0.4rem;
+}
+
+.input-field-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  color: #888;
+}
+
+.floating-input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem; /* The 2.5rem padding gives room for the SVG */
+  font-size: 0.9rem;
+  font-family: monospace;
+  background: #fdfdfd;
+  border: 1px dashed #ccc;
+  border-radius: 6px; /* slightly smoother rounded inputs */
+  color: #111;
+  transition: all 0.2s ease;
+}
+
+.floating-input:focus {
+  outline: none;
+  background: #ffffff;
+  border-color: #111;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Submit Button (Black & White Theme) */
+.btn-primary-auth.bw-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.9rem;
+  margin-top: 0.8rem;
+  background: #111827;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.3);
+}
+
+/* Solid receipt button */
+.receipt-btn {
+  width: 100%;
+  padding: 1rem;
+  background: #111827;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  letter-spacing: 1px;
+  margin-top: 1rem;
+  transition: all 0.2s;
+}
+
+.receipt-btn:hover {
+  background: #374151;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Barcode with Animated Laser */
+.receipt-footer {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.barcode-container {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.barcode-laser {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: rgba(239, 68, 68, 0.8);
+  box-shadow: 0 0 8px 2px rgba(239, 68, 68, 0.4);
+  animation: scanLaser 1.5s infinite linear alternate;
+  z-index: 5;
+}
+
+@keyframes scanLaser {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(40px); }
+}
+
+.receipt-barcode {
+  height: 40px;
+  width: 100%;
+  background: repeating-linear-gradient(
+    to right,
+    #111 0,
+    #111 2px,
+    transparent 2px,
+    transparent 5px,
+    #111 5px,
+    #111 6px,
+    transparent 6px,
+    transparent 10px,
+    #111 10px,
+    #111 14px,
+    transparent 14px,
+    transparent 16px,
+    #111 16px,
+    #111 17px,
+    transparent 17px,
+    transparent 22px,
+    #111 22px,
+    #111 25px
+  );
+  margin-bottom: 0.5rem;
+}
+
+.barcode-numbers {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #111;
+  letter-spacing: 4px;
+}
+
+.btn-primary-auth.bw-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 25px -8px rgba(0, 0, 0, 0.4);
+  background: #1f2937;
+}
+.btn-primary-auth.bw-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Footer Link */
+.form-actions-bottom {
+  text-align: center;
+  margin-top: 0.8rem;
+}
+.powered-text {
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.powered-text strong {
+  color: #111827;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+/* Loader */
+.loader {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(0,0,0,0.2);
+  border-bottom-color: #000;
+  border-radius: 50%;
+  display: inline-block;
+  animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* --------------------------------------
+   RESPONSIVE
+-------------------------------------- */
+@media (max-width: 900px) {
+  .login-wrapper {
+    flex-direction: column;
+    padding: 2rem 1rem;
+  }
+  .login-showcase {
+    flex: none;
+    margin-bottom: 2rem;
+  }
+  .login-auth-panel {
+    flex: none;
+    padding: 0;
+    justify-content: center;
+  }
+  .logo-icon {
+    width: 60px;
+    height: 60px;
+  }
+  .logo-icon svg {
+    width: 30px;
+    height: 30px;
+  }
+  .logo-text {
+    font-size: 2rem;
+  }
+}

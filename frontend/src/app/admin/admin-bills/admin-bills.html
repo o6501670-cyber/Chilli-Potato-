@@ -1,0 +1,304 @@
+<div class="page-wrapper bills-page">
+  <!-- Modern Controls -->
+  <div class="bills-controls">
+
+    
+    <div class="control-pill-group">
+      <div style="display: flex; align-items: center; gap: 8px;">
+
+      <app-location-selector
+        [centers]="centers"
+        [hasGlobalAccess]="hasGlobalAccess"
+        [(selectedCenterId)]="selectedCenterId"
+        (selectionChange)="getInvoices()">
+      </app-location-selector>
+    </div>
+    </div>
+
+    <div class="control-pill-group">
+      <div class="date-pill">
+        <label>From:</label>
+        <input type="date" [(ngModel)]="fromDate" (change)="getInvoices()">
+      </div>
+      <div class="date-pill">
+        <label>To:</label>
+        <input type="date" [(ngModel)]="toDate" (change)="getInvoices()">
+      </div>
+    </div>
+    
+    <button class="pill-btn black-btn" (click)="getInvoices()">Apply</button>
+    <button class="pill-btn outline-btn" (click)="exportExcel()" *ngIf="invoices.length > 0">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> 
+      Export
+    </button>
+  </div>
+
+  <div class="bills-layout-grid">
+    <!-- Left Column: Invoice Cards -->
+    <div class="bills-list">
+      <div class="loading-overlay" *ngIf="isLoading">Loading...</div>
+
+      <div class="date-divider" *ngIf="invoices.length > 0">BILLS FOUND ({{ invoices.length }})</div>
+
+      <table class="modern-bills-table" *ngIf="invoices.length > 0">
+        <thead>
+          <tr>
+            <th>Bill No.</th>
+            <th>Date</th>
+            <th>Biller</th>
+            <th>Client</th>
+            <th>Services</th>
+            <th>Products</th>
+            <th>Memb.</th>
+            <th>Others</th>
+            <th>Subtotal</th>
+            <th>Discount</th>
+            <th>Tax</th>
+            <th>Total</th>
+            <th>Redempt.</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let inv of invoices">
+            <td class="font-bold"><span class="invoice-tag" style="background:#e0e7ff; color:#4f46e5; padding:4px 8px; border-radius:6px;">#{{ inv.id }}</span></td>
+            <td class="text-secondary">{{ inv.created_at | date:'dd-MM-yyyy' }}</td>
+            <td class="text-secondary">{{ inv.billerNameStr || 'N/A' }}</td>
+            <td>
+              <div class="table-client">
+                <span class="font-semibold">{{ inv.clientNameStr || 'Unknown Client' }}</span>
+              </div>
+            </td>
+            <td>{{ inv.serviceCount || 0 }}</td>
+            <td>{{ inv.productCount || 0 }}</td>
+            <td>{{ inv.membCount || 0 }}</td>
+            <td>{{ inv.othersCount || 0 }}</td>
+            <td>{{ inv.subtotal | number:'1.0-2' }}</td>
+            <td>{{ inv.discount | number:'1.0-2' }}</td>
+            <td>{{ inv.taxVal | number:'1.0-2' }}</td>
+            <td class="font-bold amount-pop">₹{{ inv.total_amount | number:'1.0-2' }}</td>
+            <td>{{ inv.redemptionVal | number:'1.0-2' }}</td>
+            <td>
+              <span class="status-badge" 
+                    [ngClass]="inv.status === 'cancelled' ? 'badge-cancelled' : inv.status === 'refunded' ? 'badge-refunded' : 'badge-paid'">
+                {{ inv.statusStr | titlecase }}
+              </span>
+            </td>
+            <td>
+              <button class="icon-action-btn" title="View Document" (click)="openInvoiceModal(inv)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="no-bills-msg" *ngIf="invoices.length === 0 && !isLoading">
+        No invoices found for the selected criteria.
+      </div>
+    </div>
+
+    <!-- Right Column: KPI Snapshot -->
+    <div class="bills-sidebar">
+      <!-- Total Invoices Card (Dark) -->
+      <div class="kpi-card-dark">
+        <div class="kpi-label">Total bills</div>
+        <div class="kpi-value">{{ invoices.length }}</div>
+      </div>
+
+      <!-- This Page Summary (Light) -->
+      <div class="kpi-card-light">
+        <div class="kpi-label">Total value</div>
+        <div class="kpi-value-small">₹{{ getTotalValue() | number:'1.0-2' }}</div>
+      </div>
+
+      <!-- Pipeline Snapshot -->
+      <div class="kpi-card-white">
+        <div class="kpi-panel-title">STATUS SNAPSHOT</div>
+        <div class="kpi-snapshot-list">
+          <div class="snapshot-row">
+            <div class="snapshot-name"><span class="dot paid"></span> Paid</div>
+            <div class="snapshot-line"></div>
+            <div class="snapshot-count">{{ getPaidCount() }}</div>
+          </div>
+          <div class="snapshot-row">
+            <div class="snapshot-name"><span class="dot cancelled"></span> Cancelled</div>
+            <div class="snapshot-line"></div>
+            <div class="snapshot-count">{{ getCancelledCount() }}</div>
+          </div>
+          <div class="snapshot-row">
+            <div class="snapshot-name"><span class="dot refunded"></span> Refunded</div>
+            <div class="snapshot-line"></div>
+            <div class="snapshot-count">{{ getRefundedCount() }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- INVOICE DETAILS MODAL -->
+<div class="modal-overlay" *ngIf="showModal && selectedInvoice">
+  <div class="modal-content invoice-modal">
+
+    <div class="modal-body d-flex">
+
+      <!-- Left Panel: Current Invoice -->
+      <div class="left-panel">
+        <h3 class="panel-title">CURRENT INVOICE</h3>
+
+        <div class="invoice-info">
+          <div>Invoice No: <strong>{{ selectedInvoice.id }}</strong></div>
+          <div>Billed on: {{ selectedInvoice.created_at | date:'d-MMM-yyyy HH:mm' }}</div>
+        </div>
+
+        <div class="client-info mt-3">
+          <h4 class="client-name">{{ getClientName(selectedInvoice) }}</h4>
+          <div class="client-phone"><strong>{{ getClientPhone(selectedInvoice) }}</strong></div>
+        </div>
+
+        <table class="summary-table mt-3">
+          <tr>
+            <td>Sub Total:</td>
+            <td class="text-right">{{ selectedInvoice.subtotal | number:'1.2-2' }}</td>
+          </tr>
+          <tr>
+            <td>Before tax:</td>
+            <td class="text-right">{{ (selectedInvoice.total_amount - getTax(selectedInvoice)) | number:'1.2-2' }}</td>
+          </tr>
+          <tr>
+            <td>Total CGST:</td>
+            <td class="text-right">{{ selectedInvoice.cgst | number:'1.2-2' }}</td>
+          </tr>
+          <tr>
+            <td>Total SGST:</td>
+            <td class="text-right">{{ selectedInvoice.sgst | number:'1.2-2' }}</td>
+          </tr>
+          <tr>
+            <td>Total GST:</td>
+            <td class="text-right">{{ getTax(selectedInvoice) | number:'1.2-2' }}</td>
+          </tr>
+          <tr>
+            <td>Total Discount:</td>
+            <td class="text-right">{{ selectedInvoice.discount | number:'1.2-2' }}</td>
+          </tr>
+          <tr class="gross-row">
+            <td><strong>Total Gross:</strong></td>
+            <td class="text-right"><strong>{{ selectedInvoice.total_amount | number:'1.2-2' }}</strong></td>
+          </tr>
+          <tr *ngFor="let p of selectedInvoice.payments">
+            <td>Paid by {{ p.payment_method }}:</td>
+            <td class="text-right">{{ p.amount | number:'1.2-2' }}</td>
+          </tr>
+        </table>
+
+        <hr>
+
+        <div class="payment-change-section mt-3">
+          <label>Change Payment Method To:</label>
+          <select class="form-control mt-1" [(ngModel)]="paymentMethodChange">
+            <option value="Cash">Cash</option>
+            <option value="Card">Card</option>
+            <option value="PayTM">PayTM</option>
+            <option value="UPI">UPI</option>
+            <option value="Advance">Advance</option>
+          </select>
+          <div class="mt-2 text-center">
+            <a href="javascript:void(0)" class="update-link" (click)="updatePaymentMethod()">UPDATE INVOICE</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Invoice Details -->
+      <div class="right-panel flex-grow-1">
+        <div class="right-header d-flex justify-content-between">
+          <h3 class="panel-title mx-auto">INVOICE DETAILS</h3>
+          <button class="close-btn" (click)="closeInvoiceModal()">X</button>
+        </div>
+
+        <div class="text-center mt-2 text-muted">
+          {{ selectedInvoice.notes || 'No Notes' }}
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons mt-3" *ngIf="!actionConfirmType">
+          <button class="btn btn-outline mr-2" (click)="confirmAction('change_payment')"
+            [disabled]="selectedInvoice.status === 'cancelled' || selectedInvoice.status === 'refunded' || selectedInvoice.status === 'draft'">
+            <i class="fa fa-money-bill"></i> Change Payment
+          </button>
+          <button class="btn btn-outline-danger mr-2" (click)="confirmAction('cancel')"
+            [disabled]="selectedInvoice.status === 'cancelled' || selectedInvoice.status === 'refunded'">
+            <i class="fa fa-times-circle"></i> Cancel Invoice
+          </button>
+          <button class="btn btn-outline-warning mr-2" (click)="confirmAction('refund')"
+            [disabled]="selectedInvoice.status === 'cancelled' || selectedInvoice.status === 'refunded'">
+            <i class="fa fa-undo"></i> Refund
+          </button>
+        </div>
+
+        <!-- Inline Confirmation Panel -->
+        <div class="confirmation-panel mt-3" *ngIf="actionConfirmType">
+
+          <div *ngIf="actionConfirmType === 'cancel'" class="confirm-content text-danger">
+            <h5><i class="fa fa-exclamation-triangle"></i> Cancel Invoice</h5>
+            <p>Are you sure you want to completely cancel this invoice? This action cannot be easily undone.</p>
+          </div>
+
+          <div *ngIf="actionConfirmType === 'refund'" class="confirm-content text-warning">
+            <h5><i class="fa fa-undo"></i> Refund Invoice</h5>
+            <p>Are you sure you want to refund this invoice? This will revert stocks and value cards.</p>
+          </div>
+
+          <div class="confirm-actions">
+            <button class="btn btn-secondary mr-2" (click)="cancelActionConfirm()" [disabled]="isLoading">Go
+              Back</button>
+            <button class="btn btn-primary" (click)="executeAction()" [disabled]="isLoading">
+              <span *ngIf="!isLoading">Confirm & Execute</span>
+              <span *ngIf="isLoading">Processing...</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive mt-3">
+          <table class="table details-table">
+            <thead>
+              <tr>
+                <th>Bill Item</th>
+                <th>Mgr Disc</th>
+                <th>Mem Disc</th>
+                <th>Offer Disc</th>
+                <th>Price</th>
+                <th>Tax</th>
+                <th>Serv. Balance</th>
+                <th>Staff 1</th>
+                <th>Staff 2</th>
+                <th>Staff 3</th>
+                <th>Staff 4</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of selectedInvoice.items">
+                <td>{{ item.description || 'Item' }}</td>
+                <td>{{ item.discount | number:'1.0-0' }}</td>
+                <td>0</td>
+                <td>0</td>
+                <td>{{ item.unit_price | number:'1.0-0' }}</td>
+                <td>0</td>
+                <td>0</td>
+                <td>{{ item.staff_members?.[0]?.name || '' }}</td>
+                <td>{{ item.staff_members?.[1]?.name || '' }}</td>
+                <td>{{ item.staff_members?.[2]?.name || '' }}</td>
+                <td>{{ item.staff_members?.[3]?.name || '' }}</td>
+              </tr>
+              <tr *ngIf="!selectedInvoice.items?.length">
+                <td colspan="11" class="text-center">No items</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

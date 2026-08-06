@@ -1,0 +1,962 @@
+<div class="dash-wrap">
+  <!-- ===== HEADER CONTROLS ===== -->
+  <div class="top-bar">
+    <div class="top-bar-left" style="display: flex; align-items: center; gap: 16px;">
+      <app-location-selector
+        [centers]="centers"
+        [hasGlobalAccess]="hasGlobalAccess"
+        [(selectedCenterId)]="selectedCenterId"
+        (selectionChange)="onCenterChange()">
+      </app-location-selector>
+      <div class="tabs-bar">
+        <button class="tab-btn" *ngFor="let tab of tabs" 
+                [class.active]="activeTab === tab"
+                (click)="setTab(tab)">
+          {{ tab }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Master Content -->
+  <div class="tab-content" *ngIf="activeTab === 'Product Master'">
+    
+    <!-- Smart Dashboard -->
+    <!-- KPI Strip -->
+    <div class="kpi-strip">
+      <div class="kpi-tile kpi-dark" style="min-width: 150px;">
+        <span class="kpi-tile-label">TOTAL PRODUCTS</span>
+        <span class="kpi-tile-amount" style="font-size: 28px; margin-top: 4px; line-height: 1.2;">{{ products.length }}</span>
+        <span class="kpi-pill">Low Stock: {{ topLowStock.length }}</span>
+      </div>
+      <div class="kpi-tile" style="min-width: 150px;">
+        <span class="kpi-tile-label">LOW STOCK ALERTS</span>
+        <span class="kpi-tile-val" style="color: #3b82f6; font-size: 28px; margin-top: 4px; line-height: 1.2;">{{ topLowStock.length }}</span>
+        <span class="kpi-tile-label" style="font-size: 11px; margin-top: auto;">Items needing restock</span>
+      </div>
+      <div class="kpi-tile" style="min-width: 150px;">
+        <span class="kpi-tile-label">FAST MOVERS</span>
+        <span class="kpi-tile-val" style="color: #10b981; font-size: 28px; margin-top: 4px; line-height: 1.2;">{{ fastMovers.length }}</span>
+        <span class="kpi-tile-label" style="font-size: 11px; margin-top: auto;">High consumption items</span>
+      </div>
+      <div class="kpi-tile kpi-red-bg" style="min-width: 150px;">
+        <span class="kpi-tile-label">STOCK VALUE</span>
+        <span class="kpi-tile-amount" style="font-size: 28px; margin-top: 4px; line-height: 1.2;">{{ totalValue | currency:'INR' }}</span>
+        <span class="kpi-tile-label" style="font-size: 11px; margin-top: auto;">Capital on shelves</span>
+      </div>
+    </div>
+
+    <!-- Smart Lists Grid -->
+    <div class="register-grid" style="margin-bottom: 24px;">
+      <div class="report-card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h4 style="margin: 0; font-size: 15px; color: #0f172a;">Restock Priority</h4>
+          <button class="btn btn-outline" style="color: #10b981; border-color: #10b981; padding: 0.1rem 0.4rem; font-size: 0.75rem;" (click)="exportLowStockExcel()" *ngIf="topLowStock.length > 0">
+            Export All
+          </button>
+        </div>
+        <div class="list-card" style="height: 250px; overflow-y: auto;">
+          <table class="data-table">
+            <tbody>
+              <tr *ngFor="let item of topLowStock">
+                <td>{{ item.name }}</td>
+                <td style="color: #e11d48; font-weight: 600; text-align: right;">{{ item.current_stock }} / {{ item.reorder_level }}</td>
+              </tr>
+              <tr *ngIf="topLowStock.length === 0">
+                <td colspan="2" style="text-align: center; color: #64748b;">All stock levels are healthy!</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div class="report-card">
+        <div class="card-header" style="margin-bottom: 16px;">
+          <h4 style="margin: 0; font-size: 15px; color: #0f172a;">Fast-Moving Products</h4>
+        </div>
+        <div class="list-card" style="height: 250px; overflow-y: auto;">
+          <table class="data-table">
+            <tbody>
+              <tr *ngFor="let item of fastMovers">
+                <td>{{ item.service_name }}</td>
+                <td style="color: #10b981; font-weight: 600; text-align: right;">{{ item.times_used }} used</td>
+              </tr>
+              <tr *ngIf="fastMovers.length === 0">
+                <td colspan="2" style="text-align: center; color: #64748b;">No consumption data yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+      <!-- Top: Form -->
+      <div>
+
+
+        <div class="form-card compact-form" style="margin-bottom: 1rem; " *ngIf="isOwner || permissions.inventory?.products?.create">
+          <h4 style="margin: 0 0 16px 0; font-size: 14px; color: #0f172a;">{{ newProduct.id ? 'Edit Product' : 'Add New Product' }}</h4>
+          <form class="action-form compact-form" (ngSubmit)="addProduct()" ngNativeValidate style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; align-items: end;">
+            
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">Product ID:</label>
+              <input type="text" class="form-control" [(ngModel)]="newProduct.product_id_str" name="product_id_str">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">Product Code:</label>
+              <input type="text" class="form-control" [(ngModel)]="newProduct.product_code" name="product_code">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">Name:</label>
+              <input type="text" class="form-control" [(ngModel)]="newProduct.name" name="name" required>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">Brand:</label>
+              <input type="text" class="form-control" [(ngModel)]="newProduct.brand" name="brand">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">Category:</label>
+              <input type="text" class="form-control" [(ngModel)]="newProduct.category" name="category">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">Sub Category:</label>
+              <input type="text" class="form-control" [(ngModel)]="newProduct.sub_category" name="sub_category">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">Vendor:</label>
+              <input type="text" class="form-control" [(ngModel)]="newProduct.vendor_name" name="vendor_name">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">Price:</label>
+              <input type="number" class="form-control" [(ngModel)]="newProduct.price" name="price" step="0.01">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">GST:</label>
+              <input type="number" class="form-control" [(ngModel)]="newProduct.gst_percent" name="gst_percent" step="0.01">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">SAC code:</label>
+              <input type="text" class="form-control" [(ngModel)]="newProduct.sac_code" name="sac_code">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">Barcode:</label>
+              <input type="text" class="form-control" [(ngModel)]="newProduct.barcode" name="barcode">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">Reorder Lvl:</label>
+              <input type="number" class="form-control" [(ngModel)]="newProduct.reorder_level" name="reorder_level">
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:0.8rem; color: #64748b;">Reorder Qty:</label>
+              <input type="number" class="form-control" [(ngModel)]="newProduct.reorder_quantity" name="reorder_quantity">
+            </div>
+            <div style="display:flex; flex-direction:row; align-items:center; gap:8px;">
+              <input type="checkbox" [(ngModel)]="newProduct.is_active" name="is_active">
+              <label style="font-size:0.8rem; color: #64748b; margin:0;">Active</label>
+            </div>
+            
+            <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end; gap:8px; margin-top: 8px;">
+              <input type="file" #fileInputProducts (change)="uploadProducts($event)" style="display: none;" accept=".csv, .xlsx" />
+              <button type="button" class="btn btn-outline" style="padding:0.5rem 1rem; color: #10b981; border-color: #10b981; display:flex; align-items:center; gap:6px;" (click)="exportExcel()" *ngIf="products.length > 0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> Export
+              </button>
+              <button type="button" class="btn btn-outline" style="padding:0.5rem 1rem; color: #3b82f6; border-color: #3b82f6;" (click)="downloadTemplate()">Template</button>
+              <button type="button" class="btn btn-secondary" style="padding:0.5rem 1rem;" (click)="fileInputProducts.click()">Bulk Upload</button>
+              <button type="submit" class="btn-primary" style="padding:0.5rem 2rem;" [disabled]="isSaving">
+                <span *ngIf="isSaving">SAVING...</span>
+                <span *ngIf="!isSaving">{{ newProduct.id ? 'CHANGE' : 'ADD' }}</span>
+              </button>
+              <button type="button" class="btn btn-outline" style="margin-left: 0.5rem; padding:0.5rem 1rem; color: var(--red); border-color: var(--red);" *ngIf="newProduct.id" (click)="deleteProduct(newProduct.id)">DELETE</button>
+              <button type="button" class="btn btn-outline" style="margin-left: 0.5rem; padding:0.5rem 1rem; color: #0f172a; border-color: #e2e8f0;" (click)="newProduct = { product_id_str: '', product_code: '', name: '', brand: '', category: 'Retail', sub_category: '', vendor_name: '', is_active: true, price: null, gst_percent: 0, barcode: '', sac_code: '', reorder_level: 0, reorder_quantity: 0 }; selectedProduct = null;">CLEAR</button>
+            </div>
+          </form>
+      </div>
+      
+      </div>
+      
+<!-- Bottom: List -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h4 style="margin: 0; font-size: 15px; color: #0f172a;">All Products</h4>
+          <input type="text" class="form-control" placeholder="Search product..." [(ngModel)]="productMasterSearchTerm" (ngModelChange)="onProductMasterSearch()" style="width: 250px; padding: 6px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc;">
+        </div>
+        <div class="list-card" style="margin:0; max-height: 60vh; overflow-y: auto; overflow-x: auto;">
+          <table class="modern-bills-table" style="min-width: 1200px;">
+            <thead>
+              <tr>
+                <th>Product ID</th>
+                <th>Product Code</th>
+                <th>Name</th>
+                <th>Brand</th>
+                <th>Category</th>
+                <th>Sub Category</th>
+                <th>Vendor</th>
+                <th>Price</th>
+                <th>Tax %</th>
+                <th>Stock</th>
+                <th>Barcode</th>
+                <th>SAC Code</th>
+                <th>Active</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let product of masterPaginatedProducts" (mousedown)="editProduct(product)" [class.active-row]="selectedProduct?.id === product.id" style="cursor: pointer;">
+                <td class="text-secondary">{{ product.product_id_str || '-' }}</td>
+                <td class="text-secondary">{{ product.product_code || '-' }}</td>
+                <td>
+                  <span class="font-bold">{{ product.name }}</span>
+                  <span *ngIf="product.current_stock <= product.reorder_level" style="background: var(--red-bg); color: var(--red); font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-weight: 600; white-space: nowrap; display: inline-block;">LOW STOCK</span>
+                </td>
+                <td>{{ product.brand || '-' }}</td>
+                <td><span class="status-badge badge-paid">{{ product.category || '-' }}</span></td>
+                <td><span class="status-badge badge-paid" *ngIf="product.sub_category">{{ product.sub_category }}</span><span *ngIf="!product.sub_category">-</span></td>
+                <td>{{ product.vendor_name || '-' }}</td>
+                <td class="font-bold amount-pop">{{ product.price !== null ? (product.price | currency:'INR') : '-' }}</td>
+                <td>{{ product.gst_percent }}%</td>
+                <td><strong>{{ product.current_stock }}</strong></td>
+                <td>{{ product.barcode || '-' }}</td>
+                <td>{{ product.sac_code || '-' }}</td>
+                <td>
+                  <span *ngIf="product.is_active" style="color: green;">Yes</span>
+                  <span *ngIf="!product.is_active" style="color: red;">No</span>
+                </td>
+              </tr>
+              <tr *ngIf="masterPaginatedProducts.length === 0">
+                <td colspan="13" class="empty-state">No products found for this center.</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="pagination-controls" style="display: flex; justify-content: flex-end; align-items: center; gap: 15px; padding: 10px 15px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
+            <button class="btn btn-outline" (click)="prevProductMasterPage()" [disabled]="productMasterCurrentPage === 1" style="padding: 4px 12px; font-size: 13px;">Previous</button>
+            <span style="font-size: 13px; color: #64748b;">Page <strong style="color: #0f172a;">{{ productMasterCurrentPage }}</strong> of <strong style="color: #0f172a;">{{ productMasterTotalPages }}</strong> ({{ masterFilteredProducts.length }} total items)</span>
+            <button class="btn btn-outline" (click)="nextProductMasterPage()" [disabled]="productMasterCurrentPage === productMasterTotalPages" style="padding: 4px 12px; font-size: 13px;">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side: Edit Form & Lots -->
+      <div class="side-panel">
+        
+
+
+        <!-- Lots -->
+        <div class="master-right-card" *ngIf="selectedProduct">
+          <div class="subtitle" style="color: #0f172a; font-size:0.85rem; border-bottom: 1px solid #e2e8f0; padding-bottom:0.5rem; margin-bottom:1rem;">
+            Current lots for {{ selectedProduct.name | uppercase }}
+          </div>
+          
+          <form (ngSubmit)="addProductLot()" style="display:flex; gap:0.5rem; align-items:center; margin-bottom: 1rem; flex-wrap: wrap;">
+            <input type="text" class="form-control" placeholder="Lot Num" style="flex:1;" [(ngModel)]="newLot.lot_number" name="lot_number" required>
+            <input type="number" class="form-control" placeholder="MRP" style="width: 70px;" [(ngModel)]="newLot.mrp" name="mrp" step="0.01" required>
+            <input type="number" class="form-control" placeholder="Net" style="width: 70px;" [(ngModel)]="newLot.net_price" name="net_price" step="0.01" required>
+            <input type="date" class="form-control" placeholder="Expiry" style="flex:1;" [(ngModel)]="newLot.expiry_date" name="expiry_date">
+            <button type="submit" class="btn btn-outline" style="color: #0f172a; padding:0.4rem; white-space:nowrap;" [disabled]="isSaving">
+              <span *ngIf="isSaving">Saving...</span>
+              <span *ngIf="!isSaving">+ Add</span>
+            </button>
+          </form>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Lot Number</th>
+                <th>Net/MRP</th>
+                <th>Expiry</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let lot of selectedProduct.lots">
+                <td>{{ lot.lot_number }}</td>
+                <td>{{ lot.net_price }} / {{ lot.mrp }}</td>
+                <td>{{ lot.expiry_date ? (lot.expiry_date | date:'MMM yyyy') : '-' }}</td>
+                <td><button class="icon-btn" style="color: var(--red); font-size:1rem;" (click)="deleteLot(lot.id)">×</button></td>
+              </tr>
+              <tr *ngIf="!selectedProduct.lots || selectedProduct.lots.length === 0">
+                <td colspan="3" class="text-muted" style="text-align:center;">No lots added yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Vendor Master Content -->
+  <div class="tab-content" *ngIf="activeTab === 'Vendor Master'">
+    <p class="tab-subtitle" style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">Manage your suppliers and their contact information.</p>
+    
+    <div class="three-col-layout">
+      <!-- Left Side -->
+      <div class="side-panel">
+
+
+        <div class="form-card compact-form" style="margin-bottom: 1rem; " *ngIf="isOwner || permissions.inventory?.vendors?.create">
+          <h4 style="margin: 0 0 16px 0; font-size: 14px; color: #0f172a;">{{ newVendor.id ? 'Edit Vendor' : 'Add New Vendor' }}</h4>
+          <form class="action-form compact-form" (ngSubmit)="addVendor()" ngNativeValidate style="display:flex; flex-direction:column; gap:8px;">
+            <div class="form-row" style="margin-bottom: 0;">
+              <input type="text" class="form-control" placeholder="Vendor Code" [(ngModel)]="newVendor.vendor_code" name="vendor_code">
+            </div>
+            <div class="form-row" style="margin-bottom: 0;">
+              <input type="text" class="form-control" placeholder="Short Name" [(ngModel)]="newVendor.short_name" name="short_name">
+            </div>
+            <div class="form-row" style="margin-bottom: 0;">
+              <input type="text" class="form-control" placeholder="Full Name for PO" [(ngModel)]="newVendor.name" name="name" required>
+            </div>
+            <div class="form-row" style="margin-bottom: 0;">
+              <input type="text" class="form-control" placeholder="GST Number" [(ngModel)]="newVendor.cst_number" name="cst_number">
+            </div>
+            <div class="form-row" style="margin-bottom: 0;">
+              <input type="text" class="form-control" placeholder="PAN Number" [(ngModel)]="newVendor.pan_number" name="pan_number">
+            </div>
+            <div class="form-row" style="margin-bottom: 0;">
+              <input type="text" class="form-control" placeholder="Phone Number" [(ngModel)]="newVendor.phone" name="phone">
+            </div>
+            <div class="form-row" style="margin-bottom: 0;">
+              <input type="email" class="form-control" placeholder="Email Address" [(ngModel)]="newVendor.email" name="email">
+            </div>
+            <div class="form-row" style="margin-bottom: 0;">
+              <input type="text" class="form-control" placeholder="Address" [(ngModel)]="newVendor.address" name="address">
+            </div>
+            <div class="form-row" style="margin-bottom: 0;">
+              <input type="text" class="form-control" placeholder="City" [(ngModel)]="newVendor.city" name="city">
+            </div>
+            <div class="form-row" style="margin-bottom: 0;">
+              <input type="text" class="form-control" placeholder="State" [(ngModel)]="newVendor.state" name="state">
+            </div>
+            <div class="form-row" style="margin-bottom: 0;">
+              <input type="text" class="form-control" placeholder="PIN Code" [(ngModel)]="newVendor.pin_code" name="pin_code">
+            </div>
+            
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+              <button type="submit" class="btn-primary" style="padding:0.5rem 1rem; flex: 1;" [disabled]="isSaving">
+                <span *ngIf="isSaving">SAVING...</span>
+                <span *ngIf="!isSaving">{{ newVendor.id ? 'UPDATE' : 'ADD' }}</span>
+              </button>
+              <button type="button" class="btn btn-outline" style="padding:0.5rem 1rem; color: var(--red); border-color: var(--red);" *ngIf="newVendor.id" (click)="deleteVendor(newVendor.id)">DELETE</button>
+              <button type="button" class="btn btn-outline" style="padding:0.5rem 1rem;" (click)="newVendor = {vendor_code: '', name: '', short_name: '', phone: '', email: '', cst_number: '', pan_number: '', address: '', city: '', state: '', pin_code: '', mapped_products: []}; selectedVendor = null;">CLEAR</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      
+      <!-- Middle: List -->
+      <div class="main-panel">
+        <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+          <label style="font-size: 0.85rem; color: #0f172a; cursor: pointer;">
+            <input type="checkbox" [(ngModel)]="showMappedVendorsOnly" style="margin-right:0.5rem;"> 
+            Only Show Vendors with Product Mappings
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <input type="file" #fileInputVendors (change)="uploadVendors($event)" style="display: none;" accept=".csv, .xlsx" />
+            <button type="button" class="btn btn-outline" style="padding:0.4rem 0.8rem; color: #3b82f6; border-color: #3b82f6; font-size: 0.85rem;" (click)="downloadVendorTemplate()">Template</button>
+            <button type="button" class="btn btn-secondary" style="padding:0.4rem 0.8rem; font-size: 0.85rem;" (click)="fileInputVendors.click()">Bulk Upload</button>
+          </div>
+        </div>
+
+        <div class="list-card" style="margin:0; max-height: 60vh; overflow-y: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Vendor Name</th>
+                <th>Phone Number</th>
+                <th>GST Number</th>
+                <th>PAN Number</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let vendor of filteredVendors" (mousedown)="editVendor(vendor)" [class.active-row]="selectedVendor?.id === vendor.id" style="cursor: pointer;">
+                <td>{{ vendor.name }}</td>
+                <td>{{ vendor.phone || '-' }}</td>
+                <td>{{ vendor.cst_number || '-' }}</td>
+                <td>{{ vendor.pan_number || '-' }}</td>
+              </tr>
+              <tr *ngIf="filteredVendors.length === 0">
+                <td colspan="4" class="empty-state">No vendors found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right Side: Mapping Form -->
+      <div class="side-panel right-panel">
+        <div class="master-right-card" *ngIf="selectedVendor">
+          <h4>{{ selectedVendor.name | uppercase }}</h4>
+          <div class="subtitle">
+            {{ newVendor.mapped_products?.length || 0 }} Products mapped out of {{ products.length }}
+          </div>
+          
+          <div class="mapping-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width:40px;"></th>
+                  <th>Brand</th>
+                  <th>Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let p of products">
+                  <td>
+                    <input type="checkbox" [checked]="newVendor.mapped_products?.includes(p.id)" (change)="toggleVendorMapping(p.id)">
+                  </td>
+                  <td>{{ p.brand || p.category }}</td>
+                  <td>{{ p.name }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="mapping-actions">
+            <button class="btn-primary" (click)="addVendor()">SAVE MAPPINGS</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  
+  <!-- Purchase Orders Content -->
+  <div class="tab-content po-tab-content" *ngIf="activeTab === 'Purchase Orders'">
+    <div class="po-layout">
+      <!-- Left Column: List of POs -->
+      <div class="po-sidebar">
+        <div class="po-sidebar-header">
+          <h3>Purchase Orders</h3>
+        </div>
+        <div class="po-list">
+          <div class="po-item" *ngFor="let po of purchaseOrders" (mousedown)="selectPO(po)" [class.active-po]="selectedPO?.id === po.id" style="cursor: pointer;">
+            <div class="po-item-header">
+              <span class="po-vendor-name">{{ po.vendor_details?.name }}</span>
+              <span class="po-date">Created: {{ po.created_at | date:'d-MMM-yyyy HH:mm' }}</span>
+            </div>
+            <div class="po-item-body">
+              <span class="po-amount">Amount: {{ po.total_amount | currency:'INR' }}</span>
+              <span class="po-items-count">{{ po.items?.length || 0 }} items</span>
+              <span class="po-status" [class.status-draft]="po.status === 'Draft'">{{ po.status }}</span>
+            </div>
+          </div>
+          <div *ngIf="purchaseOrders.length === 0" class="empty-state-small">
+            No purchase orders found.
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Create / View PO Form -->
+      <div class="po-main-area">
+        <div class="po-action-header">
+          <button class="btn btn-primary" *ngIf="isOwner || permissions.inventory?.purchase_orders?.create" (click)="newPO = {vendor_id: null, invoice_number: '', items: []}; selectedVendor = null; selectedPO = null;">+ NEW</button>
+          <span class="po-form-title" *ngIf="!selectedPO">Create and Manage your Purchase Orders</span>
+          <span class="po-form-title" *ngIf="selectedPO">Purchase Order Details</span>
+        </div>
+
+        <ng-container *ngIf="!selectedPO">
+          <div class="po-form-body compact-form">
+          <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 8px;">
+            <div class="po-field-row" style="margin-bottom: 0;">
+              <label style="width: 60px;">PO ID:</label>
+              <span style="font-weight: 600;">New</span>
+            </div>
+            <div class="po-field-row" style="margin-bottom: 0;">
+              <label style="width: 60px;">Vendor:</label>
+              <select class="form-control" style="width: 200px; padding: 4px 8px; height: 30px; font-size: 13px;" [(ngModel)]="newPO.vendor_id" (change)="onVendorSelect()">
+                <option [ngValue]="null">Select Vendor</option>
+                <option *ngFor="let v of vendors" [ngValue]="v.id">{{ v.name }}</option>
+              </select>
+            </div>
+            <div class="po-field-row" style="margin-bottom: 0;">
+              <label style="width: 60px;">Invoice:</label>
+              <input type="text" class="form-control" style="width: 150px; padding: 4px 8px; height: 30px; font-size: 13px;" [(ngModel)]="newPO.invoice_number">
+            </div>
+          </div>
+
+          <!-- Info Cards -->
+          <div class="po-info-cards">
+            <!-- Vendor Info -->
+            <div class="po-info-card">
+              <h4>VENDOR</h4>
+              <ng-container *ngIf="selectedVendor; else noVendor">
+                <p><strong>Address:</strong> {{ selectedVendor.address }}</p>
+                <p><strong>Phone:</strong> {{ selectedVendor.phone }}</p>
+                <p><strong>Email:</strong> {{ selectedVendor.email || 'N/A' }}</p>
+                <p><strong>GST/CST No:</strong> {{ selectedVendor.cst_number }}</p>
+                <p><strong>PAN No:</strong> {{ selectedVendor.pan_number }}</p>
+              </ng-container>
+              <ng-template #noVendor>
+                <p class="text-muted">Select a vendor to view details.</p>
+              </ng-template>
+            </div>
+
+            <!-- Center Info -->
+            <div class="po-info-card">
+              <h4>ORDER RAISED FROM</h4>
+              <ng-container *ngIf="activeCenterDetails; else noCenter">
+                <p><strong>Salon:</strong> {{ activeCenterDetails.display_name || activeCenterDetails.center_name }}</p>
+                <p><strong>Address:</strong> {{ activeCenterDetails.address }}</p>
+                <p><strong>Phone:</strong> {{ activeCenterDetails.phone }}</p>
+                <p><strong>GST/CST No:</strong> {{ activeCenterDetails.cst_number }}</p>
+                <p><strong>PAN No:</strong> {{ activeCenterDetails.pan_number }}</p>
+              </ng-container>
+              <ng-template #noCenter>
+                <p class="text-muted">Loading center details...</p>
+              </ng-template>
+            </div>
+          </div>
+
+          <!-- Products Table -->
+          <div class="po-products-section">
+            <div class="po-products-header">
+              <span style="color: #0f172a; font-size: 1.1rem;">Add Products:</span>
+              <button class="btn btn-outline btn-sm" (click)="addPOItem()">+ Add Item</button>
+            </div>
+
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th>Bar Code</th>
+                  <th>HSN/SAC Code</th>
+                  <th>Quantity</th>
+                  <th>Rate</th>
+                  <th>Discount %</th>
+                  <th>Tax %</th>
+                  <th>Total Price</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of newPO.items; let i = index">
+                  <td>
+                    <select class="form-control" [(ngModel)]="item.product_id" (change)="onProductSelect(item)">
+                      <option [ngValue]="null">Select Product</option>
+                      <option *ngFor="let p of getVendorProducts()" [ngValue]="p.id">{{ p.name }}</option>
+                    </select>
+                  </td>
+                  <td>
+                    <ng-container *ngIf="item.product_id">
+                      {{ getProductProperty(item.product_id, 'barcode') }}
+                    </ng-container>
+                  </td>
+                  <td>
+                    <ng-container *ngIf="item.product_id">
+                      {{ getProductProperty(item.product_id, 'sac_code') }}
+                    </ng-container>
+                  </td>
+                  <td><input type="number" class="form-control text-center" style="width:60px" [(ngModel)]="item.quantity" min="1"></td>
+                  <td><input type="number" class="form-control text-right" style="width:80px" [(ngModel)]="item.rate" step="0.01"></td>
+                  <td><input type="number" class="form-control text-center" style="width:70px" [(ngModel)]="item.discount_percent" step="0.01"></td>
+                  <td><input type="number" class="form-control text-center" style="width:70px" [(ngModel)]="item.tax_percent" step="0.01"></td>
+                  <td class="text-right"><strong>{{ calculateItemTotal(item) | currency:'INR' }}</strong></td>
+                  <td><button class="icon-btn" (click)="removePOItem(i)">🗑️</button></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="po-total-section">
+              <button class="btn-primary" style="padding: 0.75rem 2rem; margin-top: 2rem;" *ngIf="isOwner || permissions.inventory?.purchase_orders?.create" (click)="createPurchaseOrder()" [disabled]="isSaving">
+                <span *ngIf="isSaving">SAVING...</span>
+                <span *ngIf="!isSaving">{{ newPO.id ? 'UPDATE' : 'CREATE' }} ORDER</span>
+              </button>
+              <div class="grand-total">
+                <span>Grand Total:</span>
+                <h2>{{ calculatePOTotal() | currency:'INR' }}</h2>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        </ng-container>
+
+        <!-- View Mode -->
+        <ng-container *ngIf="selectedPO">
+          
+          <!-- PO Stepper -->
+          <div class="po-stepper-container">
+            <div class="po-stepper">
+              <ng-container *ngFor="let status of poStatuses; let i = index">
+                <div class="step" [class.active]="selectedPO.status === status" [class.completed]="isStatusCompleted(status)">
+                  <div class="step-icon" (mousedown)="updatePOStatus(status)" [ngStyle]="{'cursor': (poStatuses.indexOf(status) <= poStatuses.indexOf(selectedPO.status)) ? 'not-allowed' : 'pointer'}">
+                    <span *ngIf="!isStatusCompleted(status) || selectedPO.status === status">{{ i + 1 }}</span>
+                    <span *ngIf="isStatusCompleted(status) && selectedPO.status !== status">✓</span>
+                  </div>
+                  <div class="step-label">{{ status }}</div>
+                </div>
+                <div class="stepper-line" *ngIf="i < poStatuses.length - 1" [class.completed]="isStatusCompleted(poStatuses[i + 1])"></div>
+              </ng-container>
+            </div>
+            <div class="stepper-hint">Click on a step icon to advance the order status. <br><span style="color: var(--orange); font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 4px;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Note: Marking as "Delivered" will automatically ADD these items to your stock.</span></div>
+          </div>
+
+          <div class="po-form-body">
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 1rem;">
+              <button class="btn btn-outline" (click)="editPO()" [disabled]="selectedPO.status === 'Delivered'" [title]="selectedPO.status === 'Delivered' ? 'Cannot edit a delivered receipt' : ''">Edit PO</button>
+              <button class="btn btn-outline" style="border-color: var(--red); color: var(--red);" (click)="deletePO(selectedPO.id)" [disabled]="selectedPO.status === 'Delivered'" [title]="selectedPO.status === 'Delivered' ? 'Cannot delete a delivered receipt' : ''">Delete PO</button>
+            </div>
+            <div class="form-row po-field-row" style="margin-bottom: 2rem;">
+              <div>
+                <span style="color: #64748b; font-size:0.85rem;">Purchase Order ID</span><br>
+                <strong>#{{ selectedPO.id }}</strong>
+              </div>
+              <div>
+                <span style="color: #64748b; font-size:0.85rem;">Invoice Number</span><br>
+                <strong>{{ selectedPO.invoice_number || 'N/A' }}</strong>
+              </div>
+              <div>
+                <span style="color: #64748b; font-size:0.85rem;">Status</span><br>
+                <strong [class.status-draft]="selectedPO.status === 'Draft'">{{ selectedPO.status }}</strong>
+              </div>
+              <div>
+                <span style="color: #64748b; font-size:0.85rem;">Date</span><br>
+                <strong>{{ selectedPO.created_at | date:'dd MMM yyyy, HH:mm' }}</strong>
+              </div>
+            </div>
+
+            <!-- Info Cards -->
+            <div class="po-info-cards">
+              <div class="po-info-card">
+                <h4>VENDOR</h4>
+                <p><strong>Name:</strong> {{ selectedPO.vendor_details?.name }}</p>
+                <p><strong>Address:</strong> {{ selectedPO.vendor_details?.address }}</p>
+                <p><strong>Phone:</strong> {{ selectedPO.vendor_details?.phone }}</p>
+                <p><strong>GST/CST No:</strong> {{ selectedPO.vendor_details?.cst_number }}</p>
+                <p><strong>PAN No:</strong> {{ selectedPO.vendor_details?.pan_number }}</p>
+              </div>
+            </div>
+
+            <!-- Products Table -->
+            <div class="po-products-section">
+              <div class="po-products-header">
+                <span style="color: #0f172a; font-size: 1.1rem;">Order Items</span>
+              </div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Product Name</th>
+                    <th>Quantity</th>
+                    <th>Rate</th>
+                    <th>Discount %</th>
+                    <th>Tax %</th>
+                    <th>Total Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let item of selectedPO.items">
+                    <td>{{ getProductName(item.product) }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.rate | currency:'INR' }}</td>
+                    <td>{{ item.discount_percent }}%</td>
+                    <td>{{ item.tax_percent }}%</td>
+                    <td class="text-right"><strong>{{ item.total_price | currency:'INR' }}</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="po-total-section">
+                <div class="grand-total">
+                  <span>Grand Total:</span>
+                  <h2>{{ selectedPO.total_amount | currency:'INR' }}</h2>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+
+  <!-- Checkout Content -->
+  <div class="tab-content" *ngIf="activeTab === 'Checkout'">
+    <div class="tab-header-context" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+      <div>
+        <h2 style="margin: 0; color: #0f172a; font-size: 1.4rem;">Checkout Stock</h2>
+        <p class="tab-subtitle" style="color: #64748b; font-size: 0.9rem; margin: 5px 0 0 0;">Deduct items directly from the shelves</p>
+      </div>
+      <div style="text-align: right; background: var(--surface); padding: 10px 15px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-bottom: 1px solid #e2e8f0;">
+        <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Current Location</div>
+        <div style="font-weight: 600; color: #64748b;">{{ activeCenterDetails?.display_name || activeCenterDetails?.center_name || 'Selected Center' }}</div>
+      </div>
+    </div>
+    
+    <div class="master-split-layout">
+      <!-- Left Side: Stock List -->
+      <div class="master-left" style="flex: 2;">
+        <div class="tabs-bar" style="margin-bottom: 1rem; display: flex; gap: 8px; align-items: center; padding: 4px 16px; width: max-content; background: #fff; border: 1px solid #e2e8f0; border-radius: 50px;">
+          <svg width="16" height="16" fill="none" stroke="#64748b" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" class="search-bar-compact" placeholder="Search Products or Barcode..." [(ngModel)]="checkoutSearchTerm" (ngModelChange)="onCheckoutSearch()" style="border:none; outline:none; width: 250px; background: transparent; padding: 4px 0;">
+          <label style="font-size: 0.85rem; color: #0f172a; cursor: pointer; display: flex; align-items: center;">
+            <input type="checkbox" [(ngModel)]="showInStockOnly" style="margin-right:0.5rem;"> 
+            Show Only Items with count > 0
+          </label>
+        </div>
+
+        <div class="list-card" style="margin:0; max-height: 60vh; overflow-y: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Brand</th>
+                <th>Type</th>
+                <th>Lot No.</th>
+                <th>MRP</th>
+                <th>Count</th>
+                <th>Total Value</th>
+                <th>Checkout Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let product of checkoutPaginatedProducts">
+                <td>{{ product.name }}</td>
+                <td>{{ product.brand || 'Non Brand' }}</td>
+                <td>{{ product.category }}</td>
+                <td>{{ product.lots && product.lots.length > 0 ? product.lots[0].lot_number : '1' }}</td>
+                <td>{{ product.price !== null ? product.price : '-' }}</td>
+                <td><strong>{{ product.current_stock }}</strong></td>
+                <td>{{ (product.price * product.current_stock) || 0 | currency:'INR' }}</td>
+                <td>
+                  <div style="display: flex; gap: 5px; align-items: center;">
+                    <input type="number" class="form-control" style="width: 70px; padding: 4px 8px; text-align: center;" [(ngModel)]="checkoutQuantities[product.id]" min="1" placeholder="0">
+                    <button class="btn btn-primary" style="padding: 4px 12px; font-size: 0.85rem; background-color: #0f172a;" (click)="processCheckout(product)" [disabled]="isSaving">
+                      <span *ngIf="isSaving">Confirming...</span>
+                      <span *ngIf="!isSaving">Confirm</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="checkoutPaginatedProducts.length === 0">
+                <td colspan="8" class="empty-state">No products found.</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="pagination-controls" style="display: flex; justify-content: flex-end; align-items: center; gap: 15px; padding: 10px 15px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
+            <button class="btn btn-outline" (click)="prevCheckoutPage()" [disabled]="checkoutCurrentPage === 1" style="padding: 4px 12px; font-size: 13px;">Previous</button>
+            <span style="font-size: 13px; color: #64748b;">Page <strong style="color: #0f172a;">{{ checkoutCurrentPage }}</strong> of <strong style="color: #0f172a;">{{ checkoutTotalPages }}</strong> ({{ checkoutFilteredProducts.length }} total items)</span>
+            <button class="btn btn-outline" (click)="nextCheckoutPage()" [disabled]="checkoutCurrentPage === checkoutTotalPages" style="padding: 4px 12px; font-size: 13px;">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side: Today's Checkouts -->
+      <div class="master-right" style="flex: 1;">
+        <div class="master-right-card" style="padding: 0;">
+          <h4 class="panel-title" style="background-color: #0f172a; color: var(--surface); margin: 0; padding: 10px; text-align: center; font-size: 0.9rem;">Checkouts done today</h4>
+          <table class="data-table" style="margin: 0; width: 100%;">
+            <tbody>
+              <tr *ngFor="let tx of todayCheckouts">
+                <td style="font-size: 0.85rem;">{{ tx.product_name }}</td>
+                <td style="font-size: 0.85rem; font-weight: bold; color: var(--red);">{{ tx.quantity_change * -1 }} items deducted</td>
+                <td style="font-size: 0.75rem; color: #64748b;">{{ tx.created_at | date:'HH:mm' }}</td>
+              </tr>
+              <tr *ngIf="todayCheckouts.length === 0">
+                <td colspan="3" class="text-muted" style="text-align:center; padding: 20px;">No checkouts today.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audit Content -->
+  <div class="tab-content" *ngIf="activeTab === 'Audit'">
+    <div class="tab-header-context" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+      <div>
+        <h2 style="margin: 0; color: #0f172a; font-size: 1.4rem;">Physical Stock Audit</h2>
+        <p class="tab-subtitle" style="color: #64748b; font-size: 0.9rem; margin: 5px 0 0 0;">Count and verify products on the table against the digital system</p>
+      </div>
+      <div style="text-align: right; background: var(--surface); padding: 10px 15px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-bottom: 1px solid #e2e8f0;">
+        <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Auditing Location</div>
+        <div style="font-weight: 600; color: #64748b;">{{ activeCenterDetails?.display_name || activeCenterDetails?.center_name || 'Selected Center' }}</div>
+      </div>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <div class="tabs-bar" style="display: flex; gap: 8px; align-items: center; padding: 4px 16px; width: max-content; background: #fff; border: 1px solid #e2e8f0; border-radius: 50px;">
+        <svg width="16" height="16" fill="none" stroke="#64748b" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" class="search-bar-compact" placeholder="Search Products or Barcode..." [(ngModel)]="auditSearchTerm" (ngModelChange)="onAuditSearch()" style="border:none; outline:none; width: 250px; background: transparent; padding: 4px 0;">
+      </div>
+      <button class="btn btn-primary" (click)="processAudit()" [disabled]="isSaving" style="padding: 6px 16px; border-radius: 50px;">
+        <span *ngIf="isSaving">SUBMITTING...</span>
+        <span *ngIf="!isSaving">SUBMIT AUDIT</span>
+      </button>
+    </div>
+
+    <div class="list-card" style="margin:0; max-height: 60vh; overflow-y: auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Type</th>
+            <th>Lot No.</th>
+            <th>Price</th>
+            <th>Current Digital Stock</th>
+            <th>Physical Quantity (Audit)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let product of auditPaginatedProducts">
+            <td>{{ product.name }}</td>
+            <td>{{ product.brand || 'Non Brand' }}</td>
+            <td>{{ product.category }}</td>
+            <td>{{ product.lots && product.lots.length > 0 ? product.lots[0].lot_number : '1' }}</td>
+            <td>{{ product.price !== null ? product.price : '-' }}</td>
+            <td><strong>{{ product.current_stock }}</strong></td>
+            <td>
+              <input type="number" class="form-control" style="width: 100px; background-color: var(--bg-2);" [(ngModel)]="auditQuantities[product.id]">
+            </td>
+          </tr>
+          <tr *ngIf="auditPaginatedProducts.length === 0">
+            <td colspan="7" class="empty-state">No products found.</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pagination-controls" style="display: flex; justify-content: flex-end; align-items: center; gap: 15px; padding: 10px 15px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
+        <button class="btn btn-outline" (click)="prevAuditPage()" [disabled]="auditCurrentPage === 1" style="padding: 4px 12px; font-size: 13px;">Previous</button>
+        <span style="font-size: 13px; color: #64748b;">Page <strong style="color: #0f172a;">{{ auditCurrentPage }}</strong> of <strong style="color: #0f172a;">{{ auditTotalPages }}</strong> ({{ auditFilteredProducts.length }} total items)</span>
+        <button class="btn btn-outline" (click)="nextAuditPage()" [disabled]="auditCurrentPage === auditTotalPages" style="padding: 4px 12px; font-size: 13px;">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stock History Content -->
+  <div class="tab-content" *ngIf="activeTab === 'Stock History'">
+    <div class="tab-header-context" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+      <div>
+        <h2 style="margin: 0; color: #0f172a; font-size: 1.4rem;">Historical Stock Reports</h2>
+        <p class="tab-subtitle" style="color: #64748b; font-size: 0.9rem; margin: 5px 0 0 0;">View and download past stock levels</p>
+      </div>
+      <div style="text-align: right; background: var(--surface); padding: 10px 15px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-bottom: 1px solid #e2e8f0;">
+        <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Location</div>
+        <div style="font-weight: 600; color: #64748b;">{{ activeCenterDetails?.display_name || activeCenterDetails?.center_name || 'Selected Center' }}</div>
+      </div>
+    </div>
+    
+    <div class="master-split-layout">
+      <!-- Left Side: Dates List -->
+      <div class="master-left" style="flex: 1;">
+        <div class="list-card" style="margin:0; max-height: 60vh; overflow-y: auto;">
+          <table class="data-table">
+            <tbody>
+              <tr *ngFor="let dateStr of stockHistoryDates" (mousedown)="viewStockHistoryForDate(dateStr)" [class.active-row]="selectedHistoryDate === dateStr" style="cursor: pointer;">
+                <td style="padding: 15px 20px; font-size: 1rem; color: #0f172a; display: flex; justify-content: space-between; align-items: center;">
+                  <span>Stock as of <strong>{{ formatDisplayDate(dateStr) }}</strong></span>
+                  <span style="color: #0f172a;">➔</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right Side: Data View -->
+      <div class="master-right" style="flex: 2;">
+        <div class="master-right-card" style="padding: 1.5rem;" *ngIf="selectedHistoryDate">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem; margin-bottom: 1rem;">
+            <div>
+              <h3 style="margin: 0; color: #64748b;">Records for {{ formatDisplayDate(selectedHistoryDate) }}</h3>
+              <p style="margin: 5px 0 0 0; color: #64748b; font-size: 0.85rem;">End of day stock quantities</p>
+            </div>
+            <button class="btn btn-primary" style="display: flex; align-items: center; gap: 8px; background-color: var(--green); border: none;" (click)="downloadStockHistoryExcel(selectedHistoryDate)">
+              <span style="font-size: 1.1rem;">⬇️</span> Download CSV
+            </button>
+          </div>
+
+          <div *ngIf="isLoadingHistory" style="padding: 2rem; text-align: center; color: #64748b;">
+            Loading records...
+          </div>
+
+          <div *ngIf="!isLoadingHistory" style="background: var(--surface); border-radius: 4px; border-bottom: 1px solid #e2e8f0; overflow: hidden;">
+            <table class="data-table" style="margin: 0;">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th>Type</th>
+                  <th style="text-align: right;">Historical Stock</th>
+                  <th style="text-align: right;">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of selectedHistoryRecords">
+                  <td>
+                    <strong>{{ item.name }}</strong>
+                    <div style="font-size: 0.75rem; color: #64748b;">{{ item.brand || 'Non Brand' }}</div>
+                  </td>
+                  <td>{{ item.category }}</td>
+                  <td style="text-align: right; font-weight: 600;">{{ item.historical_stock }}</td>
+                  <td style="text-align: right; color: #0f172a;">{{ (item.price * item.historical_stock) || 0 | currency:'INR' }}</td>
+                </tr>
+                <tr *ngIf="selectedHistoryRecords.length === 0">
+                  <td colspan="4" class="text-muted" style="text-align:center; padding: 20px;">No historical records found for this date.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Empty State for Right Side -->
+        <div class="empty-state" *ngIf="!selectedHistoryDate" style="height: 100%; display: flex; flex-direction: column; justify-content: center; background: var(--surface); border-radius: 8px; border-bottom: 1px solid #e2e8f0;">
+          <span style="font-size: 3rem; margin-bottom: 1rem;">📅</span>
+          <h3>Select a Date</h3>
+          <p>Click on a date from the left panel to view the historical stock records for that day.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PO History Content -->
+  <div class="tab-content" *ngIf="activeTab === 'PO History'">
+    <div class="tab-header-context" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px;">
+      <div>
+        <h2 style="margin: 0; color: #0f172a; font-size: 1.4rem;">Confirmed Receipts</h2>
+        <p class="tab-subtitle" style="color: #64748b; font-size: 0.9rem; margin: 5px 0 0 0;">View all successfully delivered Purchase Orders</p>
+      </div>
+      <div style="text-align: right; background: var(--surface); padding: 10px 15px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-bottom: 1px solid #e2e8f0;">
+        <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Location</div>
+        <div style="font-weight: 600; color: #64748b;">{{ activeCenterDetails?.display_name || activeCenterDetails?.center_name || 'Selected Center' }}</div>
+      </div>
+    </div>
+    
+    <div class="list-card" style="margin:0; max-height: 60vh; overflow-y: auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>PO No.</th>
+            <th>Date Created</th>
+            <th>Invoice No.</th>
+            <th>Vendor</th>
+            <th>Delivery Center</th>
+            <th>Unique Items</th>
+            <th>Amount (incl. tax)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let po of deliveredPurchaseOrders">
+            <tr style="cursor: pointer;" (mousedown)="setTab('Purchase Orders'); selectPO(po);">
+              <td><strong>#{{ po.id }}</strong></td>
+              <td>{{ po.created_at | date:'d-MMM-yyyy HH:mm' }}</td>
+              <td>{{ po.invoice_number || '-' }}</td>
+              <td>{{ po.vendor_details?.name || 'Vendor ID: ' + po.vendor }}</td>
+              <td>{{ activeCenterDetails?.display_name || activeCenterDetails?.center_name || 'Selected Center' }}</td>
+              <td><span style=" padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;">{{ po.items?.length || 0 }} items</span></td>
+              <td style="color: #0f172a; font-weight: bold;">{{ po.total_amount | currency:'INR' }}</td>
+              <td>
+                <button class="btn btn-outline btn-sm" style="font-size: 0.8rem;">View Details</button>
+              </td>
+            </tr>
+          </ng-container>
+          <tr *ngIf="deliveredPurchaseOrders.length === 0">
+             <td colspan="8" class="empty-state" style="padding: 3rem;">
+               <span style="font-size: 2rem; display: block; margin-bottom: 10px;">📦</span>
+               No confirmed receipts found.
+             </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>

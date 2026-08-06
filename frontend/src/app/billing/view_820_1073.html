@@ -1,0 +1,254 @@
+<!-- FULL INVOICE RECEIPT MODAL (auto-shows after sale complete)  -->
+<!-- ============================================================ -->
+<div class="inv-receipt-overlay" *ngIf="showSuccessModal && completedInvoiceData" id="invoice-receipt-modal">
+  <div class="inv-receipt-panel">
+
+    <!-- Left: Actions Sidebar -->
+    <div class="inv-receipt-actions">
+      <div class="inv-receipt-logo">
+        <i class="fa fa-check-circle" style="font-size:32px; color:#10b981; margin-bottom:10px; display:block;"></i>
+        <div style="font-size:15px; font-weight:800; color:var(--ink);">Sale Complete!</div>
+        <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">Invoice #{{ completedInvoiceData.id }}</div>
+      </div>
+
+      <div class="inv-receipt-stats">
+        <div class="inv-stat-block">
+          <div class="inv-stat-label">Total Billed</div>
+          <div class="inv-stat-value">Rs. {{ completedInvoiceData.total_amount | number:'1.0-0' }}</div>
+        </div>
+        <div class="inv-stat-block">
+          <div class="inv-stat-label">Paid</div>
+          <div class="inv-stat-value" style="color:#10b981;">Rs. {{ completedInvoiceData.paid_amount | number:'1.0-0' }}</div>
+        </div>
+        <div class="inv-stat-block" *ngIf="+completedInvoiceData.discount > 0">
+          <div class="inv-stat-label">Savings</div>
+          <div class="inv-stat-value" style="color:#f59e0b;">Rs. {{ completedInvoiceData.discount | number:'1.0-0' }}</div>
+        </div>
+        <div class="inv-stat-block">
+          <div class="inv-stat-label">Items</div>
+          <div class="inv-stat-value">{{ completedInvoiceData.items?.length || 0 }}</div>
+        </div>
+      </div>
+
+      <!-- Payment Methods Used -->
+      <div class="inv-receipt-pay-methods" *ngIf="completedInvoiceData.payments?.length">
+        <div class="inv-sect-label">Paid Via</div>
+        <div *ngFor="let pay of completedInvoiceData.payments" class="inv-pay-chip">
+          <span class="inv-pay-method">{{ pay.payment_method }}</span>
+          <span class="inv-pay-amount">Rs. {{ pay.amount | number:'1.0-0' }}</span>
+        </div>
+      </div>
+
+      <!-- Membership Used -->
+      <div class="inv-receipt-perk" *ngIf="selectedPromotion && selectedPromotion.id?.toString()?.startsWith('m_')">
+        <div class="inv-sect-label">Membership Used</div>
+        <div class="inv-perk-badge membership">
+          <i class="fa fa-crown" style="margin-right:5px;"></i>{{ selectedPromotion.name | slice:2 }}
+        </div>
+      </div>
+
+      <!-- Value Card Used -->
+      <div class="inv-receipt-perk" *ngIf="completedInvoiceData.payments | slice:0 as pays">
+        <ng-container *ngFor="let pay of completedInvoiceData.payments">
+          <div *ngIf="pay.payment_method?.startsWith('Value Card')" class="inv-perk-badge card">
+            <i class="fa fa-credit-card" style="margin-right:5px;"></i>Card Used
+          </div>
+        </ng-container>
+      </div>
+
+      <div class="inv-receipt-action-btns">
+        <button class="inv-action-btn-print" (click)="printInvoice()">
+          <i class="fa fa-print"></i> Print
+        </button>
+        <button class="inv-action-btn-new" (click)="closeSuccessModal()">
+          <i class="fa fa-plus"></i> New Sale
+        </button>
+      </div>
+    </div>
+
+    <!-- Right: Invoice Receipt -->
+    <div class="inv-receipt-body" id="inv-printable">
+
+      <!-- Header -->
+      <div class="inv-receipt-header">
+        <div class="inv-salon-block">
+          <div class="inv-salon-name">GEETANJALI SALON</div>
+          <div class="inv-salon-branch">{{ completedInvoiceData.center_detail?.name || selectedCenterName }}</div>
+          <div class="inv-salon-addr" *ngIf="completedInvoiceData.center_detail?.address">{{ completedInvoiceData.center_detail.address }}</div>
+        </div>
+        <div class="inv-number-block">
+          <div class="inv-label-sm">INVOICE</div>
+          <div class="inv-number">#{{ completedInvoiceData.id }}</div>
+          <div class="inv-date">{{ completedInvoiceData.created_at | date:'dd MMM yyyy' }}</div>
+          <div class="inv-time">{{ completedInvoiceData.created_at | date:'h:mm a' }}</div>
+        </div>
+      </div>
+
+      <div class="inv-divider"></div>
+
+      <!-- Client Info -->
+      <div class="inv-billed-row">
+        <div class="inv-billed-to">
+          <div class="inv-label-sm">BILLED TO</div>
+          <div class="inv-client-name">{{ completedInvoiceData.client?.first_name }} {{ completedInvoiceData.client?.last_name || '' }}</div>
+          <div class="inv-client-phone" *ngIf="completedInvoiceData.client?.phone">{{ completedInvoiceData.client.phone }}</div>
+        </div>
+        <div class="inv-status-block">
+          <div class="inv-status-badge" [style.background]="completedInvoiceData.status === 'paid' ? '#dcfce7' : '#fef3c7'" [style.color]="completedInvoiceData.status === 'paid' ? '#15803d' : '#b45309'">
+            {{ completedInvoiceData.status | titlecase }}
+          </div>
+        </div>
+      </div>
+
+      <div class="inv-divider"></div>
+
+      <!-- Items Table -->
+      <table class="inv-items-table">
+        <thead>
+          <tr>
+            <th style="text-align:left; width:40%;">ITEM</th>
+            <th style="text-align:left;">STAFF</th>
+            <th style="text-align:center;">QTY</th>
+            <th style="text-align:right;">RATE</th>
+            <th style="text-align:right;">DISC</th>
+            <th style="text-align:right;">TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of completedInvoiceData.items; let odd = odd" [style.background]="odd ? '#f8fafc' : '#fff'">
+            <td class="inv-item-name">{{ item.description }}</td>
+            <td class="inv-item-staff">
+              <span *ngFor="let s of item.staff_members; let last=last">{{ s.name }}{{last ? '' : ', '}}</span>
+              <span *ngIf="!item.staff_members?.length" style="color:#94a3b8;">—</span>
+            </td>
+            <td style="text-align:center; font-size:13px;">{{ item.quantity }}</td>
+            <td style="text-align:right; font-size:13px;">{{ item.unit_price | number:'1.0-0' }}</td>
+            <td style="text-align:right; font-size:13px; color:#ef4444;">{{ +item.discount > 0 ? (item.discount | number:'1.0-0') : '—' }}</td>
+            <td style="text-align:right; font-weight:700; font-size:13px;">{{ ((item.unit_price * item.quantity) - item.discount) | number:'1.0-0' }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="inv-divider"></div>
+
+      <!-- Totals -->
+      <div class="inv-totals-block">
+        <div class="inv-total-row">
+          <span>Subtotal</span>
+          <span>Rs. {{ completedInvoiceData.subtotal | number:'1.0-0' }}</span>
+        </div>
+        <div class="inv-total-row" *ngIf="+completedInvoiceData.discount > 0" style="color:#10b981;">
+          <span>Discount Applied</span>
+          <span>− Rs. {{ completedInvoiceData.discount | number:'1.0-0' }}</span>
+        </div>
+        <div class="inv-total-row" *ngIf="+completedInvoiceData.cgst > 0">
+          <span>CGST</span>
+          <span>Rs. {{ completedInvoiceData.cgst | number:'1.0-0' }}</span>
+        </div>
+        <div class="inv-total-row" *ngIf="+completedInvoiceData.sgst > 0">
+          <span>SGST</span>
+          <span>Rs. {{ completedInvoiceData.sgst | number:'1.0-0' }}</span>
+        </div>
+        <div class="inv-total-grand">
+          <span>TOTAL</span>
+          <span>Rs. {{ completedInvoiceData.total_amount | number:'1.0-0' }}</span>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="inv-receipt-footer">
+        <div class="inv-footer-tagline">Thank you for your visit! Please come again. 🙏</div>
+        <div class="inv-footer-note">This is a computer-generated invoice and does not require a signature.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- PRINT-ONLY VERSION (shown only on window.print())            -->
+<!-- ============================================================ -->
+<div class="print-only-invoice" *ngIf="completedInvoiceData" id="print-invoice">
+  <div class="prt-header">
+    <div class="prt-salon-name">GEETANJALI SALON</div>
+    <div class="prt-salon-sub">{{ completedInvoiceData.center_detail?.name || selectedCenterName }}</div>
+    <div *ngIf="completedInvoiceData.center_detail?.address" class="prt-salon-sub" style="font-size:10px;">{{ completedInvoiceData.center_detail.address }}</div>
+    <div class="prt-divider"></div>
+    <div class="prt-meta-row">
+      <span><b>Invoice #:</b> {{ completedInvoiceData.id }}</span>
+      <span><b>Date:</b> {{ completedInvoiceData.created_at | date:'dd MMM yyyy, h:mm a' }}</span>
+    </div>
+  </div>
+  <div class="prt-section">
+    <div class="prt-section-title">BILLED TO</div>
+    <div class="prt-client-name">{{ completedInvoiceData.client?.first_name }} {{ completedInvoiceData.client?.last_name }}</div>
+    <div class="prt-client-meta">Ph: {{ completedInvoiceData.client?.phone }}</div>
+  </div>
+  <div class="prt-divider"></div>
+  <table class="prt-table">
+    <thead>
+      <tr>
+        <th style="text-align:left;">ITEM</th>
+        <th style="text-align:center;">QTY</th>
+        <th style="text-align:right;">PRICE</th>
+        <th style="text-align:right;">DISC</th>
+        <th style="text-align:right;">TOTAL</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let item of completedInvoiceData.items">
+        <td>{{ item.description }}</td>
+        <td style="text-align:center;">{{ item.quantity }}</td>
+        <td style="text-align:right;">{{ item.unit_price | number:'1.0-0' }}</td>
+        <td style="text-align:right;">{{ item.discount | number:'1.0-0' }}</td>
+        <td style="text-align:right; font-weight:700;">{{ ((item.unit_price * item.quantity) - item.discount) | number:'1.0-0' }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="prt-divider"></div>
+  <div class="prt-totals">
+    <div class="prt-total-row"><span>Subtotal</span><span>Rs. {{ completedInvoiceData.subtotal | number:'1.0-0' }}</span></div>
+    <div class="prt-total-row" *ngIf="+completedInvoiceData.discount > 0"><span>Discount</span><span>- Rs. {{ completedInvoiceData.discount | number:'1.0-0' }}</span></div>
+    <div class="prt-total-row" *ngIf="+completedInvoiceData.cgst > 0"><span>CGST</span><span>Rs. {{ completedInvoiceData.cgst | number:'1.0-0' }}</span></div>
+    <div class="prt-total-row" *ngIf="+completedInvoiceData.sgst > 0"><span>SGST</span><span>Rs. {{ completedInvoiceData.sgst | number:'1.0-0' }}</span></div>
+    <div class="prt-total-row prt-grand-total"><span>TOTAL</span><span>Rs. {{ completedInvoiceData.total_amount | number:'1.0-0' }}</span></div>
+    <div class="prt-total-row" style="font-size:11px;color:#555;"><span>Paid</span><span>Rs. {{ completedInvoiceData.paid_amount | number:'1.0-0' }}</span></div>
+  </div>
+  <div class="prt-divider"></div>
+  <div class="prt-section" *ngIf="completedInvoiceData.payments?.length">
+    <div class="prt-section-title">PAYMENT</div>
+    <div *ngFor="let pay of completedInvoiceData.payments" class="prt-total-row" style="font-size:12px;">
+      <span>{{ pay.payment_method }}</span><span>Rs. {{ pay.amount | number:'1.0-0' }}</span>
+    </div>
+  </div>
+  <div class="prt-footer">
+    <div class="prt-divider"></div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Thank you for your visit!</div>
+    <div style="font-size:11px;color:#555;">Please visit again</div>
+  </div>
+</div>
+
+<!-- HELD CARTS MODAL -->
+<div class="modal-overlay" *ngIf="showHeldCartsModal">
+  <div class="modal-content" style="max-width: 600px;">
+    <div class="modal-header">
+      <h3 style="margin: 0;">Held Carts ({{heldCarts.length}})</h3>
+      <button class="btn-close" (click)="showHeldCartsModal = false">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 20px;">
+      <div *ngIf="heldCarts.length === 0" style="text-align: center; color: var(--text-secondary); padding: 40px 0;">
+        No carts currently on hold.
+      </div>
+      <div *ngFor="let hc of heldCarts" style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; background: var(--bg-card);">
+        <div>
+          <div style="font-weight: 700; font-size: 15px; color: var(--text-primary);">{{ hc.client?.name || 'Walk-in Client' }} <span *ngIf="hc.client?.contact_number" style="font-weight: 400; font-size: 13px; color: var(--text-secondary);">({{hc.client.contact_number}})</span></div>
+          <div style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">Items: {{ hc.cart.length }} | Total: ₹{{ hc.total | number:'1.0-0' }}</div>
+          <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;"><i class="fa fa-clock-o"></i> Held at {{ hc.time | date:'shortTime' }}</div>
+        </div>
+        <button (click)="resumeCart(hc)" style="background: var(--primary, #007bff); color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 600; cursor: pointer;">Resume</button>
+      </div>
+    </div>
+  </div>
+</div>
+

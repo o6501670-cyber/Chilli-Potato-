@@ -1,0 +1,2084 @@
+<div class="dash-wrap">
+  <!-- ===== HEADER CONTROLS ===== -->
+  <div class="top-bar">
+    <div class="top-bar-left" style="display: flex; align-items: center; gap: 16px;">
+      <!-- Center Filter on left most side -->
+      <app-location-selector
+        [centers]="centers"
+        [hasGlobalAccess]="hasGlobalAccess"
+        [(selectedCenterId)]="selectedFilterLocation"
+        (selectionChange)="onLocationChange()">
+      </app-location-selector>
+
+      <div class="tabs-bar">
+        <button class="tab-btn"
+          *ngIf="isOwner || permissions.finance?.register_summary?.read || permissions.finance?.monthly_sales?.read || permissions.finance?.detailed_revenues?.read || permissions.finance?.refunds?.read || permissions.finance?.procurement?.read"
+          [class.active]="activeMainTab === 'single'" (click)="setMainTab('single')">Single Salon</button>
+        <button class="tab-btn" *ngIf="isOwner || permissions.finance?.multi_salon?.read"
+          [class.active]="activeMainTab === 'multi'" (click)="setMainTab('multi')">Multi Salon</button>
+        <button class="tab-btn" *ngIf="isOwner || permissions.finance?.incentives?.read"
+          [class.active]="activeMainTab === 'incentives'" (click)="setMainTab('incentives')">Incentives</button>
+        <button class="tab-btn" *ngIf="isOwner || permissions.finance?.incentives?.read || permissions.finance?.manage?.read"
+          [class.active]="activeMainTab === 'manage'" (click)="setMainTab('manage')">Manage</button>
+        <button class="tab-btn" *ngIf="isOwner || permissions.finance?.pettycash?.read"
+          [class.active]="activeMainTab === 'pettycash'" (click)="setMainTab('pettycash')">Closing & Petty Cash</button>
+      </div>
+    </div>
+    <div class="top-bar-right">
+      <!-- Single Salon / Petty Cash Date Filter -->
+      <div class="date-range-pill" *ngIf="activeMainTab === 'single' || activeMainTab === 'pettycash'">
+        <i class="fa-regular fa-calendar"></i>
+        <input type="date" [(ngModel)]="startDate" (ngModelChange)="onDateChange()" class="date-inp">
+        <span>-</span>
+        <input type="date" [(ngModel)]="endDate" (ngModelChange)="onDateChange()" class="date-inp">
+        <button class="btn-go" (click)="onApplyFilter()">Apply</button>
+      </div>
+
+      <!-- Multi Salon Date Filter -->
+      <div class="date-range-pill" *ngIf="activeMainTab === 'multi'">
+        <i class="fa-regular fa-calendar"></i>
+        <input type="date" [(ngModel)]="multiStartDate" (ngModelChange)="runMultiSalon()" class="date-inp">
+        <span>-</span>
+        <input type="date" [(ngModel)]="multiEndDate" (ngModelChange)="runMultiSalon()" class="date-inp">
+        <button class="btn-go" (click)="runMultiSalon()">Run</button>
+      </div>
+
+      <!-- Incentives Date Filter -->
+      <div class="date-range-pill" *ngIf="activeMainTab === 'incentives'">
+        <i class="fa-regular fa-calendar"></i>
+        <input type="date" [(ngModel)]="incentiveStartDate" (ngModelChange)="loadIncentives()" class="date-inp">
+        <span>-</span>
+        <input type="date" [(ngModel)]="incentiveEndDate" (ngModelChange)="loadIncentives()" class="date-inp">
+        <button class="btn-go" (click)="loadIncentives()">Run</button>
+      </div>
+      
+      <button class="btn-go" style="background-color: #10b981; margin-left: 10px; border-radius: 20px; padding: 0 16px; height: 36px; border: none; color: white; cursor: pointer; font-size: 13px;" (click)="exportExcel()" *ngIf="activeMainTab === 'single'">
+        <i class="fa-solid fa-file-excel"></i> Export
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ================================================ -->
+  <!-- SINGLE SALON REPORTS                             -->
+  <!-- ================================================ -->
+  <div class="tab-body" *ngIf="activeMainTab === 'single'">
+    <div class="sub-tabs-bar">
+      <button class="sub-tab" *ngIf="isOwner || permissions.finance?.register_summary?.read"
+        [class.active]="activeSingleTab === 'register'" (click)="setSingleTab('register')">Register Summary</button>
+      <button class="sub-tab" *ngIf="isOwner || permissions.finance?.monthly_sales?.read"
+        [class.active]="activeSingleTab === 'monthly'" (click)="setSingleTab('monthly')">Monthly Sales</button>
+      <button class="sub-tab" *ngIf="isOwner || permissions.finance?.detailed_revenues?.read"
+        [class.active]="activeSingleTab === 'detailed'" (click)="setSingleTab('detailed')">Detailed Revenues</button>
+      <button class="sub-tab" *ngIf="isOwner || permissions.finance?.refunds?.read"
+        [class.active]="activeSingleTab === 'refunds'" (click)="setSingleTab('refunds')">Refunds</button>
+      <button class="sub-tab" *ngIf="isOwner || permissions.finance?.procurement?.read"
+        [class.active]="activeSingleTab === 'procurement'" (click)="setSingleTab('procurement')">Procurement</button>
+    </div>
+
+    <!-- Date filter moved to header -->
+
+    <!-- ---- REGISTER SUMMARY ---- -->
+    <div *ngIf="activeSingleTab === 'register'">
+      <div *ngIf="!registerSummaryData" class="empty-state">
+        Select a date range and click <strong>Apply</strong> to generate the register summary.
+      </div>
+
+      <div *ngIf="registerSummaryData">
+        <!-- KPI hero strip -->
+        <div class="kpi-strip">
+          <div class="kpi-tile kpi-dark">
+            <div class="kpi-tile-label">Total Collection (Net)</div>
+            <div class="kpi-tile-amount">{{ formatCurrency(registerSummaryData.revenues.including_tax) }}</div>
+            <div class="kpi-tile-sub">
+              <span class="pill-sm pill-red"><i class="fa-solid fa-bullseye"></i> Including Tax</span>
+            </div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-tile-label">Before Tax</div>
+            <div class="kpi-tile-val blue">{{ formatCurrency(registerSummaryData.revenues.collection_before_tax) }}</div>
+            <div class="kpi-tile-sub"><i class="fa-solid fa-file-invoice-dollar" style="color:#3b82f6;font-size:11px"></i> Net Sales</div>
+          </div>
+          <div class="kpi-tile kpi-red-outline">
+            <div class="kpi-tile-label">Total Tax</div>
+            <div class="kpi-tile-val red">{{ formatCurrency(registerSummaryData.revenues.total_tax) }}</div>
+            <div class="kpi-tile-sub"><i class="fa-solid fa-percent" style="color:#e11d48;font-size:11px"></i> CGST + SGST</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-tile-label">Total Payments</div>
+            <div class="kpi-tile-val green">{{ formatCurrency(registerSummaryData.payment_methods.total_received) }}</div>
+            <div class="kpi-tile-sub"><i class="fa-solid fa-money-bill-wave" style="color:#10b981;font-size:11px"></i> All methods</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-tile-label">Refunds Issued</div>
+            <div class="kpi-tile-val">{{ formatCurrency(registerSummaryData.refunds.refunds_issued) }}</div>
+            <div class="kpi-tile-sub"><i class="fa-solid fa-rotate-left" style="color:#6b7280;font-size:11px"></i> Cancelled Invoices</div>
+          </div>
+        </div>
+
+      <div class="register-grid">
+        <!-- Revenues Card -->
+        <div class="report-card">
+          <div class="card-title"><i class="fa fa-chart-line"></i> Revenues</div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th class="num">Amount</th>
+                <th class="num">Tax</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Services</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.services.amount) }}</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.services.tax) }}</td>
+              </tr>
+              <tr class="neg-row">
+                <td>Service Redemptions</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.service_redemptions.amount) }}</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.service_redemptions.tax) }}</td>
+              </tr>
+              <tr>
+                <td>Products</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.products.amount) }}</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.products.tax) }}</td>
+              </tr>
+              <tr>
+                <td>Value Cards</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.value_cards.amount) }}</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.value_cards.tax) }}</td>
+              </tr>
+              <tr>
+                <td>Gift Cards</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.gift_cards.amount) }}</td>
+                <td class="num">0</td>
+              </tr>
+              <tr>
+                <td>Memberships</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.memberships.amount) }}</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.memberships.tax) }}</td>
+              </tr>
+              <tr>
+                <td>Packages</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.packages.amount) }}</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.packages.tax) }}</td>
+              </tr>
+              <tr>
+                <td>Advances</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.advances.amount) }}</td>
+                <td class="num">0</td>
+              </tr>
+              <tr>
+                <td>Change to Advance</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.change_to_advance.amount) }}</td>
+                <td class="num">0</td>
+              </tr>
+              <tr>
+                <td>Other (Custom)</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.other?.amount) }}</td>
+                <td class="num">0</td>
+              </tr>
+              <tr class="neg-row">
+                <td>Invoice Discounts</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.discounts?.amount) }}</td>
+                <td class="num">0</td>
+              </tr>
+              <tr class="neg-row">
+                <td>Payment Redemptions</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.payment_redemptions.amount) }}</td>
+                <td class="num">0</td>
+              </tr>
+              <tr class="neg-row">
+                <td>Refunds</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.revenues.refunds.amount) }}</td>
+                <td class="num"></td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="total-row">
+                <th>Collection Before Tax</th>
+                <th class="num">{{ formatCurrency(registerSummaryData.revenues.collection_before_tax) }}</th>
+                <th class="num">{{ formatCurrency(registerSummaryData.revenues.total_tax) }}</th>
+              </tr>
+              <tr class="grand-total-row">
+                <th>Including Tax</th>
+                <th class="num">{{ formatCurrency(registerSummaryData.revenues.including_tax) }}</th>
+                <th></th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Payment Methods Card -->
+        <div class="report-card">
+          <div class="card-title"><i class="fa fa-credit-card"></i> Payment Methods</div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th class="num">Amount</th>
+                <th class="num">Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Cash</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.payment_methods.cash.amount) }}</td>
+                <td class="num">{{ registerSummaryData.payment_methods.cash.count }}</td>
+              </tr>
+              <tr>
+                <td>Credit/Debit Card</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.payment_methods.credit_card.amount) }}</td>
+                <td class="num">{{ registerSummaryData.payment_methods.credit_card.count }}</td>
+              </tr>
+              <tr>
+                <td>PayTM</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.payment_methods.paytm.amount) }}</td>
+                <td class="num">{{ registerSummaryData.payment_methods.paytm.count }}</td>
+              </tr>
+              <tr>
+                <td>BharatPe</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.payment_methods.bharat_pe.amount) }}</td>
+                <td class="num">{{ registerSummaryData.payment_methods.bharat_pe.count }}</td>
+              </tr>
+              <tr>
+                <td>Cheque/Net Banking</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.payment_methods.cheque_net_banking.amount) }}</td>
+                <td class="num">{{ registerSummaryData.payment_methods.cheque_net_banking.count }}</td>
+              </tr>
+              <tr>
+                <td>GooglePay</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.payment_methods.google_pay.amount) }}</td>
+                <td class="num">{{ registerSummaryData.payment_methods.google_pay.count }}</td>
+              </tr>
+              <tr>
+                <td>PhonePe</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.payment_methods.phone_pe.amount) }}</td>
+                <td class="num">{{ registerSummaryData.payment_methods.phone_pe.count }}</td>
+              </tr>
+              <tr>
+                <td>UPI</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.payment_methods.upi.amount) }}</td>
+                <td class="num">{{ registerSummaryData.payment_methods.upi.count }}</td>
+              </tr>
+              <tr>
+                <td>NearBuy</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.payment_methods.nearbuy.amount) }}</td>
+                <td class="num">{{ registerSummaryData.payment_methods.nearbuy.count }}</td>
+              </tr>
+              <tr>
+                <td>Other</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.payment_methods.other.amount) }}</td>
+                <td class="num">{{ registerSummaryData.payment_methods.other.count }}</td>
+              </tr>
+              <tr class="neg-row">
+                <td>Value Card (Redeemed)</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.payment_methods.value_card.amount) }}</td>
+                <td class="num">{{ registerSummaryData.payment_methods.value_card.count }}</td>
+              </tr>
+              <tr class="neg-row">
+                <td>Cashback Wallet (Redeemed)</td>
+                <td class="num">{{ formatCurrency(registerSummaryData.payment_methods.cashback_wallet.amount) }}</td>
+                <td class="num">{{ registerSummaryData.payment_methods.cashback_wallet.count }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="grand-total-row">
+                <th>Total Received</th>
+                <th class="num">{{ formatCurrency(registerSummaryData.payment_methods.total_received) }}</th>
+                <th></th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Right column mini cards -->
+        <div class="right-mini-cards">
+          <div class="mini-card">
+            <div class="card-title"><i class="fa fa-tags"></i> Service Redemptions</div>
+            <table class="data-table">
+              <tbody>
+                <tr>
+                  <td>Value Cards</td>
+                  <td class="num">{{ formatCurrency(registerSummaryData.service_redemptions.value_cards) }}</td>
+                </tr>
+                <tr>
+                  <td>Service Balance</td>
+                  <td class="num">{{ formatCurrency(registerSummaryData.service_redemptions.service_balance) }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="grand-total-row">
+                  <th>Total Redeemed</th>
+                  <th class="num">{{ formatCurrency(registerSummaryData.service_redemptions.total) }}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="mini-card">
+            <div class="card-title"><i class="fa fa-gift"></i> Payment Redemptions</div>
+            <table class="data-table">
+              <tbody>
+                <tr>
+                  <td>Gift Cards</td>
+                  <td class="num">{{ formatCurrency(registerSummaryData.payment_redemptions.gift_cards) }}</td>
+                </tr>
+                <tr>
+                  <td>Advance</td>
+                  <td class="num">{{ formatCurrency(registerSummaryData.payment_redemptions.advance) }}</td>
+                </tr>
+                <tr>
+                  <td>Value Card</td>
+                  <td class="num">{{ formatCurrency(registerSummaryData.payment_redemptions.value_card) }}</td>
+                </tr>
+                <tr>
+                  <td>Cashback Wallet</td>
+                  <td class="num">{{ formatCurrency(registerSummaryData.payment_redemptions.cashback) }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="grand-total-row">
+                  <th>Total Redeemed</th>
+                  <th class="num">{{ formatCurrency(registerSummaryData.payment_redemptions.total) }}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="mini-card">
+            <div class="card-title"><i class="fa fa-undo"></i> Refunds</div>
+            <table class="data-table">
+              <tbody>
+                <tr class="neg-row">
+                  <td>Refunds Issued</td>
+                  <td class="num">{{ formatCurrency(registerSummaryData.refunds.refunds_issued) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- ---- MONTHLY SALES ---- -->
+    <div *ngIf="activeSingleTab === 'monthly'">
+      <div *ngIf="monthlySalesData.length === 0" class="empty-state">
+        Select a date range and click <strong>Run</strong> to see monthly sales.
+      </div>
+      <div class="table-scroll-container" *ngIf="monthlySalesData.length > 0">
+        <div class="monthly-header" *ngIf="selectedCenterName !== 'All Locations'">
+          Monthly Report for <strong>{{ selectedCenterName }}</strong>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th class="num">Services</th>
+              <th class="num">Svc. Redemptions</th>
+              <th class="num">Products</th>
+              <th class="num">Value Cards</th>
+              <th class="num">Gift Cards</th>
+              <th class="num">Memberships</th>
+              <th class="num">Packages</th>
+              <th class="num">Advances</th>
+              <th class="num">Change to Advance</th>
+              <th class="num">Other</th>
+              <th class="num neg-col">Discounts</th>
+              <th class="num neg-col">Payment Redemptions</th>
+              <th class="num neg-col">Refunds</th>
+              <th class="num highlight-col">Collection Before Tax</th>
+              <th class="num highlight-col">Including Tax</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of monthlySalesData">
+              <td class="month-cell">{{ row.month }}</td>
+              <td class="num">{{ formatCurrency(row.services) }}</td>
+              <td class="num neg-col">{{ formatCurrency(row.service_redemptions) }}</td>
+              <td class="num">{{ formatCurrency(row.products) }}</td>
+              <td class="num">{{ formatCurrency(row.value_cards) }}</td>
+              <td class="num">{{ formatCurrency(row.gift_cards) }}</td>
+              <td class="num">{{ formatCurrency(row.memberships) }}</td>
+              <td class="num">{{ formatCurrency(row.packages) }}</td>
+              <td class="num">{{ formatCurrency(row.advances) }}</td>
+              <td class="num">{{ formatCurrency(row.change_to_advance) }}</td>
+              <td class="num">{{ formatCurrency(row.other) }}</td>
+              <td class="num neg-col">{{ formatCurrency(row.discounts) }}</td>
+              <td class="num neg-col">{{ formatCurrency(row.payment_redemptions) }}</td>
+              <td class="num neg-col">{{ formatCurrency(row.refunds) }}</td>
+              <td class="num highlight-col">{{ formatCurrency(row.collection_before_tax) }}</td>
+              <td class="num highlight-col">{{ formatCurrency(row.including_tax) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ---- DETAILED REVENUES ---- -->
+    <div *ngIf="activeSingleTab === 'detailed'">
+      <div *ngIf="detailedRevenuesData.length === 0" class="empty-state">
+        Select a date range and click <strong>Run</strong> to see detailed revenues.
+      </div>
+      <div class="table-scroll-container" *ngIf="detailedRevenuesData.length > 0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Salon</th>
+              <th>Bill No.</th>
+              <th>Date/Time</th>
+              <th>Billed By</th>
+              <th>Client</th>
+              <th>GST No.</th>
+              <th class="num">Discount</th>
+              <th class="num">Net</th>
+              <th class="num">CGST</th>
+              <th class="num">SGST</th>
+              <th class="num">Total GST</th>
+              <th class="num highlight-col">Grand Total</th>
+              <th class="num">Services</th>
+              <th class="num">Products</th>
+              <th class="num">Memb. Sold</th>
+              <th class="num">Pkg. Sold</th>
+              <th class="num">V.Cards Sold</th>
+              <th>Applied/Redeemed</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of detailedRevenuesData" [class.cancelled-row]="row.status === 'cancelled'"
+              [class.refunded-row]="row.status === 'refunded'">
+              <td><span class="center-pill">{{ selectedCenterName }}</span></td>
+              <td class="mono">{{ row.bill_no }}</td>
+              <td class="date-cell">{{ row.date_time }}</td>
+              <td>{{ row.billed_by }}</td>
+              <td>{{ row.client }}</td>
+              <td class="mono">{{ row.gst_no || '—' }}</td>
+              <td class="num" [class.neg-col]="row.discount > 0">{{ row.discount || 0 }}</td>
+              <td class="num">{{ formatCurrency(row.net) }}</td>
+              <td class="num">{{ formatCurrency(row.cgst) }}</td>
+              <td class="num">{{ formatCurrency(row.sgst) }}</td>
+              <td class="num">{{ formatCurrency(row.total_gst) }}</td>
+              <td class="num highlight-col">{{ formatCurrency(row.grand_total) }}</td>
+              <td class="num">{{ row.services || '' }}</td>
+              <td class="num">{{ row.products || '' }}</td>
+              <td class="num">{{ row.memberships || '' }}</td>
+              <td class="num">{{ row.packages || '' }}</td>
+              <td class="num">{{ row.value_cards || '' }}</td>
+              <td>{{ row.applied_promo || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ---- REFUNDS ---- -->
+    <div *ngIf="activeSingleTab === 'refunds'">
+      <div *ngIf="!refundsData" class="empty-state">
+        Select a date range and click <strong>Run</strong> to see refunds.
+      </div>
+      <div *ngIf="refundsData">
+        <div class="summary-chips" style="margin-bottom: 16px;">
+          <div class="chip chip-danger">Total Refunded: ₹{{ formatCurrency(refundsData.total_refunded) }}</div>
+          <div class="chip chip-neutral">Count: {{ refundsData.count }}</div>
+        </div>
+        <div class="table-scroll-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Bill No.</th>
+                <th>Date/Time</th>
+                <th>Client</th>
+                <th>Billed By</th>
+                <th class="num">Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of refundsData.refunds">
+                <td class="mono">{{ r.bill_no }}</td>
+                <td>{{ r.date_time }}</td>
+                <td>{{ r.client }}</td>
+                <td>{{ r.billed_by }}</td>
+                <td class="num neg-col">{{ formatCurrency(r.total_amount) }}</td>
+                <td>
+                  <span class="status-pill cancelled" *ngIf="r.status === 'cancelled'">{{ r.status }}</span>
+                  <span class="status-pill refunded" *ngIf="r.status === 'refunded'">{{ r.status }}</span>
+                </td>
+              </tr>
+              <tr *ngIf="refundsData.refunds.length === 0">
+                <td colspan="6" class="empty-cell">No refunds found in this period.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- PROCUREMENT ---- -->
+    <div *ngIf="activeSingleTab === 'procurement'">
+      <div *ngIf="!procurementData" class="empty-state">
+        Select a date range and click <strong>Run</strong> to see procurement data.
+      </div>
+      <div *ngIf="procurementData">
+        <div class="summary-chips" style="margin-bottom: 16px;">
+          <div class="chip chip-primary">Total POs: {{ procurementData.total_pos }}</div>
+          <div class="chip chip-primary">Grand Total: ₹{{ formatCurrency(procurementData.grand_total) }}</div>
+        </div>
+        <div class="table-scroll-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Vendor</th>
+                <th>GST Number</th>
+                <th class="num">N. of POs</th>
+                <th class="num">Taxes</th>
+                <th class="num highlight-col">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let v of procurementData.vendors">
+                <td>{{ v.vendor_name }}</td>
+                <td class="mono">{{ v.gst_number || '—' }}</td>
+                <td class="num">{{ v.num_pos }}</td>
+                <td class="num">Rs. {{ formatCurrency(v.taxes) }}</td>
+                <td class="num highlight-col">Rs. {{ formatCurrency(v.total) }}</td>
+              </tr>
+              <tr *ngIf="procurementData.vendors.length === 0">
+                <td colspan="5" class="empty-cell">No procurement data found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /single salon -->
+
+  <!-- ================================================ -->
+  <!-- MULTI SALON REPORTS                              -->
+  <!-- ================================================ -->
+  <div class="tab-body" *ngIf="activeMainTab === 'multi'">
+    <!-- Date filter moved to header -->
+
+    <div *ngIf="multiSalonData.length === 0" class="empty-state">
+      Click <strong>Run</strong> to compare performance across all salons.
+    </div>
+    <div class="table-scroll-container" *ngIf="multiSalonData.length > 0">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Center</th>
+            <th class="num">Services</th>
+            <th class="num">Products</th>
+            <th class="num">Memberships</th>
+            <th class="num">Packages</th>
+            <th class="num">Value Cards</th>
+            <th class="num">Advances</th>
+            <th class="num">Other</th>
+            <th class="num neg-col">Redemptions</th>
+            <th class="num highlight-col">Collection (Before Tax)</th>
+            <th class="num highlight-col">Including Tax</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of multiSalonData">
+            <td><strong>{{row.display_name || row.center_name}}</strong></td>
+            <td class="num">{{ formatCurrency(row.revenues?.services?.amount || 0) }}</td>
+            <td class="num">{{ formatCurrency(row.revenues?.products?.amount || 0) }}</td>
+            <td class="num">{{ formatCurrency(row.revenues?.memberships?.amount || 0) }}</td>
+            <td class="num">{{ formatCurrency(row.revenues?.packages?.amount || 0) }}</td>
+            <td class="num">{{ formatCurrency(row.revenues?.value_cards?.amount || 0) }}</td>
+            <td class="num">{{ formatCurrency(row.revenues?.advances?.amount || 0) }}</td>
+            <td class="num">{{ formatCurrency(row.revenues?.other?.amount || 0) }}</td>
+            <td class="num neg-col">{{ formatCurrency(row.revenues?.payment_redemptions?.amount || 0) }}</td>
+            <td class="num highlight-col">{{ formatCurrency(row.revenues?.collection_before_tax || 0) }}</td>
+            <td class="num highlight-col">{{ formatCurrency(row.revenues?.including_tax || 0) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- INCENTIVES SUBMODULE (CALCULATION & DRILLDOWN)    -->
+  <!-- ================================================ -->
+  <div class="tab-body" *ngIf="activeMainTab === 'incentives'">
+    <!-- KPI Summary Row -->
+    <div class="incentive-kpi-grid">
+      <div class="inc-kpi-card highlight-revenue">
+        <div class="inc-kpi-icon">💰</div>
+        <div class="inc-kpi-content">
+          <span class="inc-kpi-label">Total {{ incentiveFrequency === 'daily' ? 'Daily' : 'Monthly' }} Sales</span>
+          <span class="inc-kpi-val">{{ formatCurrency(getTotalSalesRevenue()) }}</span>
+        </div>
+      </div>
+      <div class="inc-kpi-card highlight-payout">
+        <div class="inc-kpi-icon">🏆</div>
+        <div class="inc-kpi-content">
+          <span class="inc-kpi-label">Total Incentive Payout</span>
+          <span class="inc-kpi-val text-emerald">{{ formatCurrency(getTotalIncentivePayout()) }}</span>
+        </div>
+      </div>
+      <div class="inc-kpi-card" *ngIf="incentiveFrequency === 'monthly'">
+        <div class="inc-kpi-icon">💳</div>
+        <div class="inc-kpi-content">
+          <span class="inc-kpi-label">Value Cards Sold</span>
+          <span class="inc-kpi-val">{{ getTotalCardsSold() }} <small style="font-size: 13px; font-weight: normal; color: var(--text-secondary);">({{ formatCurrency(getTotalCardsIncentive()) }})</small></span>
+        </div>
+      </div>
+      <div class="inc-kpi-card" *ngIf="incentiveFrequency === 'monthly'">
+        <div class="inc-kpi-icon">🧴</div>
+        <div class="inc-kpi-content">
+          <span class="inc-kpi-label">Products Incentive</span>
+          <span class="inc-kpi-val text-indigo">{{ formatCurrency(getTotalProductIncentive()) }}</span>
+        </div>
+      </div>
+      <div class="inc-kpi-card" *ngIf="incentiveFrequency === 'monthly'">
+        <div class="inc-kpi-icon">✂️</div>
+        <div class="inc-kpi-content">
+          <span class="inc-kpi-label">Services Incentive</span>
+          <span class="inc-kpi-val text-rose">{{ formatCurrency(getTotalServiceIncentive()) }}</span>
+        </div>
+      </div>
+      <div class="inc-kpi-card" *ngIf="incentiveFrequency === 'daily'">
+        <div class="inc-kpi-icon">⚡</div>
+        <div class="inc-kpi-content">
+          <span class="inc-kpi-label">Daily Business Bonus</span>
+          <span class="inc-kpi-val text-rose">{{ formatCurrency(getTotalDailyBonus()) }}</span>
+        </div>
+      </div>
+      <div class="inc-kpi-card" *ngIf="incentiveFrequency === 'daily'">
+        <div class="inc-kpi-icon">✨</div>
+        <div class="inc-kpi-content">
+          <span class="inc-kpi-label">Add-ons & Targets</span>
+          <span class="inc-kpi-val text-indigo">{{ formatCurrency(getTotalAddonIncentive() + getTotalTargetIncentive()) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Bar & Frequency Switcher -->
+    <div class="inc-action-bar">
+      <div class="inc-action-left">
+        <!-- Frequency Selector -->
+        <div class="frequency-toggle-group">
+          <button class="freq-btn" [class.active]="incentiveFrequency === 'monthly'" (click)="onIncentiveFrequencyChange('monthly')">
+            <i class="fa fa-calendar-alt"></i> Monthly Incentives
+          </button>
+          <button class="freq-btn" [class.active]="incentiveFrequency === 'daily'" (click)="onIncentiveFrequencyChange('daily')">
+            <i class="fa fa-clock"></i> Daily Incentives
+          </button>
+        </div>
+
+        <!-- Search Staff -->
+        <div class="inc-search-box">
+          <i class="fa fa-search"></i>
+          <input type="text" placeholder="Search staff member, role, center..." [(ngModel)]="incentiveSearchQuery">
+        </div>
+      </div>
+
+      <div class="inc-action-right">
+        <button class="btn-manage-rules-link" (click)="setMainTab('manage')">
+          <i class="fa fa-sliders"></i> Manage Rules
+        </button>
+        <button class="btn-export-excel" (click)="exportIncentives()" *ngIf="incentivesData.length > 0">
+          <i class="fa fa-file-excel"></i> Export Excel
+        </button>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!isLoading && getFilteredIncentives().length === 0" class="empty-state-modern">
+      <div class="empty-icon">📊</div>
+      <h3>No Staff Incentive Records Found</h3>
+      <p>Ensure sales invoices are recorded for {{ incentiveStartDate }} to {{ incentiveEndDate }}, or click below to configure rules.</p>
+      <button class="btn-primary-glow" (click)="setMainTab('manage')">
+        <i class="fa fa-plus-circle"></i> Configure Incentive Rules
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-state-modern">
+      <div class="spinner-ring"></div>
+      <p>Calculating accurate dynamic {{ incentiveFrequency }} incentives...</p>
+    </div>
+
+    <!-- Staff Incentive Table: MONTHLY MODE -->
+    <div class="table-scroll-container modern-table-wrap" *ngIf="!isLoading && getFilteredIncentives().length > 0 && incentiveFrequency === 'monthly'">
+      <table class="data-table inc-table">
+        <thead>
+          <tr>
+            <th>Staff Member</th>
+            <th>Center</th>
+            <th class="num">Base Salary</th>
+            <th class="num">Total Sales</th>
+            <th class="num">Multiple</th>
+            <th class="num">Net Surplus</th>
+            <th class="num">Services Inc.</th>
+            <th class="num">Products Inc.</th>
+            <th class="num">Cards Payout</th>
+            <th class="num highlight-th">Total Payout</th>
+            <th class="text-center">Breakdown</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of getFilteredIncentives()" class="inc-row">
+            <td>
+              <div class="staff-cell">
+                <div class="staff-avatar">{{ item.staff_name?.charAt(0) || 'S' }}</div>
+                <div class="staff-meta">
+                  <strong>{{ item.staff_name }}</strong>
+                  <span class="staff-role-badge">{{ item.role || 'Staff' }}</span>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="center-pill">{{ item.center }}</span>
+            </td>
+            <td class="num">{{ formatCurrency(item.salary) }}</td>
+            <td class="num font-semibold">
+              {{ formatCurrency(item.revenue) }}
+              <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px; font-weight: normal; white-space: nowrap;">
+                S: {{formatCurrency(item.services_revenue)}} | P: {{formatCurrency(item.products_revenue)}} | C: {{formatCurrency(item.cards_revenue)}}
+              </div>
+            </td>
+            <td class="num">
+              <span class="multiple-badge" [class.high-multiple]="item.salary_multiple >= 5">
+                {{ item.salary_multiple }}×
+              </span>
+            </td>
+            <td class="num">
+              <span [class.text-rose]="(item.revenue - item.salary) < 0" [class.text-emerald]="(item.revenue - item.salary) >= 0" class="font-semibold">
+                {{ formatCurrency(item.revenue - item.salary) }}
+              </span>
+            </td>
+            <td class="num">
+              <span [class.font-semibold]="item.services_incentive > 0">{{ formatCurrency(item.services_incentive) }}</span>
+            </td>
+            <td class="num">
+              <span [class.font-semibold]="item.products_incentive > 0">{{ formatCurrency(item.products_incentive) }}</span>
+            </td>
+            <td class="num">
+              <div *ngIf="(item.cards_count || 0) > 0">
+                <span class="text-emerald font-semibold">{{ formatCurrency(item.cards_incentive) }}</span>
+                <span class="sub-count">({{ item.cards_count }} cards)</span>
+              </div>
+              <span *ngIf="!item.cards_count || item.cards_count === 0" class="text-muted">—</span>
+            </td>
+            <td class="num highlight-td">
+              <span class="payout-pill">{{ formatCurrency(item.incentive_amount) }}</span>
+            </td>
+            <td class="text-center">
+              <button class="btn-inspect" (click)="openStaffBreakdown(item)" title="Inspect itemized breakdown">
+                <i class="fa fa-eye"></i> View Details
+              </button>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr class="total-row-modern">
+            <td colspan="3"><strong>Total ({{ getFilteredIncentives().length }} Staff)</strong></td>
+            <td class="num"><strong>{{ formatCurrency(getTotalSalesRevenue()) }}</strong></td>
+            <td class="num">—</td>
+            <td class="num">—</td>
+            <td class="num text-rose"><strong>{{ formatCurrency(getTotalServiceIncentive()) }}</strong></td>
+            <td class="num text-indigo"><strong>{{ formatCurrency(getTotalProductIncentive()) }}</strong></td>
+            <td class="num text-emerald"><strong>{{ formatCurrency(getTotalCardsIncentive()) }}</strong></td>
+            <td class="num highlight-td"><strong>{{ formatCurrency(getTotalIncentivePayout()) }}</strong></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- Staff Incentive Table: DAILY MODE -->
+    <div class="table-scroll-container modern-table-wrap" *ngIf="!isLoading && getFilteredIncentives().length > 0 && incentiveFrequency === 'daily'">
+      <table class="data-table inc-table">
+        <thead>
+          <tr>
+            <th>Staff Member</th>
+            <th>Role</th>
+            <th>Center</th>
+            <th class="num">Daily Business</th>
+            <th class="num">Daily Bonus</th>
+            <th class="num">Add-on Rewards</th>
+            <th class="num">Vol. Targets</th>
+            <th class="num highlight-th">Total Daily Payout</th>
+            <th class="text-center">Breakdown</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of getFilteredIncentives()" class="inc-row">
+            <td>
+              <div class="staff-cell">
+                <div class="staff-avatar">{{ item.staff_name?.charAt(0) || 'S' }}</div>
+                <div class="staff-meta">
+                  <strong>{{ item.staff_name }}</strong>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="staff-role-badge" [class.role-lhds]="item.role?.toLowerCase()?.includes('lhds') || item.role?.toLowerCase()?.includes('uhds') || item.role?.toLowerCase()?.includes('stylist')">
+                {{ item.role || 'Staff' }}
+              </span>
+            </td>
+            <td>
+              <span class="center-pill">{{ item.center }}</span>
+            </td>
+            <td class="num font-semibold">{{ formatCurrency(item.revenue) }}</td>
+            <td class="num">
+              <div *ngIf="item.daily_bonus > 0">
+                <span class="font-bold text-rose">+{{ formatCurrency(item.daily_bonus) }}</span>
+                <div style="font-size: 10px; color: #64748b; margin-top: 2px; max-width: 120px; white-space: normal; line-height: 1.2;">{{ item.daily_bonus_rule }}</div>
+              </div>
+              <span *ngIf="!item.daily_bonus || item.daily_bonus === 0" class="text-muted">—</span>
+            </td>
+            <td class="num">
+              <span class="font-bold text-indigo" *ngIf="item.service_addon_incentive > 0">+{{ formatCurrency(item.service_addon_incentive) }}</span>
+              <span *ngIf="!item.service_addon_incentive || item.service_addon_incentive === 0" class="text-muted">—</span>
+            </td>
+            <td class="num">
+              <div *ngIf="item.service_target_incentive > 0">
+                <span class="font-bold text-emerald">+{{ formatCurrency(item.service_target_incentive) }}</span>
+                <div *ngIf="item.target_achievements?.length > 0" style="font-size: 10px; color: #10b981; margin-top: 2px;">
+                  {{ item.target_achievements.length }} target(s) hit
+                </div>
+              </div>
+              <span *ngIf="!item.service_target_incentive || item.service_target_incentive === 0" class="text-muted">—</span>
+            </td>
+            <td class="num highlight-td">
+              <span class="payout-pill font-bold">{{ formatCurrency(item.incentive_amount) }}</span>
+            </td>
+            <td class="text-center">
+              <button class="btn-inspect" (click)="openStaffBreakdown(item)" title="Inspect itemized breakdown">
+                <i class="fa fa-eye"></i> View Details
+              </button>
+            </td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr class="total-row-modern">
+            <td colspan="3"><strong>Total ({{ getFilteredIncentives().length }} Staff)</strong></td>
+            <td class="num"><strong>{{ formatCurrency(getTotalSalesRevenue()) }}</strong></td>
+            <td class="num text-rose"><strong>{{ formatCurrency(getTotalDailyBonus()) }}</strong></td>
+            <td class="num text-indigo"><strong>{{ formatCurrency(getTotalAddonIncentive()) }}</strong></td>
+            <td class="num text-emerald"><strong>{{ formatCurrency(getTotalTargetIncentive()) }}</strong></td>
+            <td class="num highlight-td"><strong>{{ formatCurrency(getTotalIncentivePayout()) }}</strong></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- MANAGE SUBMODULE (RULES & STRUCTURE CONFIG)      -->
+  <!-- ================================================ -->
+  <div class="tab-body" *ngIf="activeMainTab === 'manage'">
+    <!-- Manage Submodule Header & Mode Toggle -->
+    <div class="manage-header-card">
+      <div class="manage-title-block">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 12px;">
+          <div>
+            <h3><i class="fa fa-sliders" style="color: #e11d48; margin-right: 8px;"></i> Incentive Structure & Rules Management</h3>
+            <p>Define dynamic salary multipliers, daily business slabs, service add-on rewards, and volume targets.</p>
+          </div>
+
+          <!-- Main Structure Mode Switcher: Monthly vs Daily -->
+          <div class="manage-main-mode-toggle">
+            <button class="mode-toggle-btn" [class.active]="manageViewMode === 'monthly'" (click)="manageViewMode = 'monthly'; loadIncentiveRules()">
+              <i class="fa fa-calendar-alt"></i> Monthly Incentive Structure
+            </button>
+            <button class="mode-toggle-btn" [class.active]="manageViewMode === 'daily'" (click)="manageViewMode = 'daily'; loadIncentiveRules()">
+              <i class="fa fa-bolt"></i> Daily Incentive Structure
+            </button>
+          </div>
+        </div>
+
+        <!-- Daily Subtabs (when Daily mode is selected) -->
+        <div class="manage-subtabs-row" *ngIf="manageViewMode === 'daily'">
+          <button class="subtab-btn" [class.active]="manageDailySubTab === 'business_slabs'" (click)="manageDailySubTab = 'business_slabs'">
+            ⚡ 1. Daily Business Slabs (LHDS / UHDS / MHDS / Beauty)
+          </button>
+          <button class="subtab-btn" [class.active]="manageDailySubTab === 'service_addons_targets'" (click)="manageDailySubTab = 'service_addons_targets'">
+            ✨ 2. Service Add-ons & Volume Targets
+          </button>
+        </div>
+      </div>
+
+      <!-- Action Controls Bar -->
+      <div class="manage-controls-row">
+        <!-- Monthly Category Filter Pills -->
+        <div class="filter-pills-bar" *ngIf="manageViewMode === 'monthly'">
+          <button class="filter-pill" [class.active]="manageCategoryFilter === 'all'" (click)="manageCategoryFilter = 'all'; loadIncentiveRules()">
+            All Categories
+          </button>
+          <button class="filter-pill" [class.active]="manageCategoryFilter === 'services'" (click)="manageCategoryFilter = 'services'; loadIncentiveRules()">
+            ✂️ Services
+          </button>
+          <button class="filter-pill" [class.active]="manageCategoryFilter === 'products'" (click)="manageCategoryFilter = 'products'; loadIncentiveRules()">
+            🧴 Products
+          </button>
+          <button class="filter-pill" [class.active]="manageCategoryFilter === 'value_cards'" (click)="manageCategoryFilter = 'value_cards'; loadIncentiveRules()">
+            💳 Value Cards
+          </button>
+          <button class="filter-pill" [class.active]="manageCategoryFilter === 'memberships'" (click)="manageCategoryFilter = 'memberships'; loadIncentiveRules()">
+            👑 Memberships
+          </button>
+          <button class="filter-pill" [class.active]="manageCategoryFilter === 'packages'" (click)="manageCategoryFilter = 'packages'; loadIncentiveRules()">
+            📦 Packages
+          </button>
+        </div>
+
+        <div class="manage-right-actions">
+          <!-- Center Filter -->
+          <select class="form-select-sm" [(ngModel)]="manageCenterFilter" (change)="loadIncentiveRules()">
+            <option [ngValue]="null">🌐 All Centers</option>
+            <option *ngFor="let c of centers" [ngValue]="c.id">📍 {{ c.display_name || c.center_name }}</option>
+          </select>
+
+          <!-- Search Rule -->
+          <div class="search-input-wrap">
+            <i class="fa fa-search"></i>
+            <input type="text" placeholder="Search rules..." [(ngModel)]="manageSearchQuery">
+          </div>
+
+          <!-- Create Rule CTA -->
+          <button class="btn-create-rule" (click)="openCreateRuleModal(manageViewMode === 'daily' ? 'daily_business' : 'services')">
+            <i class="fa fa-plus"></i> Create Rule
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DAILY INCENTIVES VIEW: SUBTAB 1 (DAILY BUSINESS SLABS) -->
+    <div *ngIf="manageViewMode === 'daily' && manageDailySubTab === 'business_slabs'" class="daily-structure-container">
+      <div class="daily-slabs-grid">
+        <!-- LHDS / UHDS Slabs Card -->
+        <div class="daily-role-slab-card lhds-card">
+          <div class="role-card-header">
+            <div class="role-icon">✂️</div>
+            <div>
+              <h4>FOR LHDS / UHDS</h4>
+              <p>Daily Sales Slabs &amp; Bonuses</p>
+            </div>
+            <button class="btn-edit-role-slabs" (click)="openCreateDailyBusinessModal('lhds_uhds')">
+              <i class="fa fa-plus-circle"></i> + Add / Override Slab
+            </button>
+          </div>
+          <!-- Dynamic slabs from configured rules -->
+          <ng-container *ngIf="getDailyBusinessRules('lhds_uhds').length > 0; else lhdsDefault">
+            <div *ngFor="let r of getDailyBusinessRules('lhds_uhds')">
+              <div style="font-size: 11px; font-weight: 600; color: #64748b; margin: 8px 0 4px; text-transform: uppercase; letter-spacing: 0.4px;">
+                {{ r.name }} <span style="background: #f0fdf4; color: #15803d; padding: 1px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px;">Active</span>
+              </div>
+              <div class="role-slabs-list">
+                <div class="slab-row-item" *ngFor="let t of r.tiers">
+                  <span class="slab-badge">Exceeds Rs.{{ t.min_amount | number }}</span>
+                  <span class="slab-reward text-emerald font-bold" *ngIf="t.bonus_type !== 'percentage'">
+                    Earn Rs.{{ t.bonus_amount }} Daily Bonus
+                  </span>
+                  <span class="slab-reward text-rose font-bold" *ngIf="t.bonus_type === 'percentage'">
+                    FLAT {{ t.bonus_percent }}% BONUS ON FULL SALES
+                  </span>
+                </div>
+              </div>
+              <div class="rule-footer-actions" style="display: flex; gap: 8px; margin-top: 8px;">
+                <button class="chip-btn" (click)="openEditRuleModal(r)" title="Edit"><i class="fa fa-pencil"></i> Edit</button>
+                <button class="chip-btn text-danger" (click)="deleteRule(r.id)" title="Delete"><i class="fa fa-trash"></i> Delete</button>
+              </div>
+            </div>
+          </ng-container>
+          <ng-template #lhdsDefault>
+            <div class="role-slabs-list">
+              <div class="slab-row-item">
+                <span class="slab-badge">Exceeds Rs.8,000</span>
+                <span class="slab-reward text-emerald font-bold">Earn Rs.350 Daily Bonus</span>
+              </div>
+              <div class="slab-row-item">
+                <span class="slab-badge">Exceeds Rs.10,000</span>
+                <span class="slab-reward text-emerald font-bold">Earn Rs.450 Daily Bonus</span>
+              </div>
+              <div class="slab-row-item">
+                <span class="slab-badge">Exceeds Rs.15,000</span>
+                <span class="slab-reward text-emerald font-bold">Earn Rs.700 Daily Bonus</span>
+              </div>
+              <div class="slab-row-item highlight-slab">
+                <span class="slab-badge bg-rose">Exceeds Rs.20,000</span>
+                <span class="slab-reward text-rose font-bold">FLAT 5% BONUS ON FULL SALES</span>
+              </div>
+            </div>
+            <p style="font-size: 11px; color: #94a3b8; margin-top: 8px; font-style: italic;">
+              <i class="fa fa-info-circle"></i> Default slabs shown — click "+ Add / Override Slab" to configure custom slabs.
+            </p>
+          </ng-template>
+        </div>
+
+        <!-- MHDS / BEAUTY Slabs Card -->
+        <div class="daily-role-slab-card mhds-card">
+          <div class="role-card-header">
+            <div class="role-icon">💄</div>
+            <div>
+              <h4>FOR MHDS / BEAUTY</h4>
+              <p>Daily Sales Slabs &amp; Bonuses</p>
+            </div>
+            <button class="btn-edit-role-slabs" (click)="openCreateDailyBusinessModal('mhds_beauty')">
+              <i class="fa fa-plus-circle"></i> + Add / Override Slab
+            </button>
+          </div>
+          <!-- Dynamic slabs from configured rules -->
+          <ng-container *ngIf="getDailyBusinessRules('mhds_beauty').length > 0; else mhdsDefault">
+            <div *ngFor="let r of getDailyBusinessRules('mhds_beauty')">
+              <div style="font-size: 11px; font-weight: 600; color: #64748b; margin: 8px 0 4px; text-transform: uppercase; letter-spacing: 0.4px;">
+                {{ r.name }} <span style="background: #f0fdf4; color: #15803d; padding: 1px 6px; border-radius: 4px; font-size: 10px; margin-left: 4px;">Active</span>
+              </div>
+              <div class="role-slabs-list">
+                <div class="slab-row-item" *ngFor="let t of r.tiers">
+                  <span class="slab-badge">Exceeds Rs.{{ t.min_amount | number }}</span>
+                  <span class="slab-reward text-emerald font-bold" *ngIf="t.bonus_type !== 'percentage'">
+                    Earn Rs.{{ t.bonus_amount }} Daily Bonus
+                  </span>
+                  <span class="slab-reward text-rose font-bold" *ngIf="t.bonus_type === 'percentage'">
+                    FLAT {{ t.bonus_percent }}% BONUS ON FULL SALES
+                  </span>
+                </div>
+              </div>
+              <div class="rule-footer-actions" style="display: flex; gap: 8px; margin-top: 8px;">
+                <button class="chip-btn" (click)="openEditRuleModal(r)" title="Edit"><i class="fa fa-pencil"></i> Edit</button>
+                <button class="chip-btn text-danger" (click)="deleteRule(r.id)" title="Delete"><i class="fa fa-trash"></i> Delete</button>
+              </div>
+            </div>
+          </ng-container>
+          <ng-template #mhdsDefault>
+            <div class="role-slabs-list">
+              <div class="slab-row-item">
+                <span class="slab-badge">Exceeds Rs.6,000</span>
+                <span class="slab-reward text-emerald font-bold">Earn Rs.200 Daily Bonus</span>
+              </div>
+              <div class="slab-row-item">
+                <span class="slab-badge">Exceeds Rs.8,000</span>
+                <span class="slab-reward text-emerald font-bold">Earn Rs.350 Daily Bonus</span>
+              </div>
+              <div class="slab-row-item">
+                <span class="slab-badge">Exceeds Rs.10,000</span>
+                <span class="slab-reward text-emerald font-bold">Earn Rs.450 Daily Bonus</span>
+              </div>
+              <div class="slab-row-item highlight-slab">
+                <span class="slab-badge bg-rose">Exceeds Rs.15,000</span>
+                <span class="slab-reward text-rose font-bold">FLAT 5% BONUS ON FULL SALES</span>
+              </div>
+            </div>
+            <p style="font-size: 11px; color: #94a3b8; margin-top: 8px; font-style: italic;">
+              <i class="fa fa-info-circle"></i> Default slabs shown — click "+ Add / Override Slab" to configure custom slabs.
+            </p>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+
+    <!-- DAILY INCENTIVES VIEW: SUBTAB 2 (SERVICE ADD-ONS & VOLUME TARGETS) -->
+    <div *ngIf="manageViewMode === 'daily' && manageDailySubTab === 'service_addons_targets'" class="daily-addons-container">
+      <!-- Section 1: Specific Service Add-on Bonuses -->
+      <div class="addon-section-card mb-4">
+        <div class="section-card-header">
+          <div>
+            <h4><i class="fa fa-sparkles text-amber"></i> Specific Service Add-on Bonuses</h4>
+            <p>For Pedicurists & K Ambassadors: Fixed cash rewards on performing specific rituals and treatments.</p>
+          </div>
+          <button class="btn-create-rule" (click)="openCreateRuleModal('service_addon')">
+            <i class="fa fa-plus"></i> + Add / Edit Service Add-on Rule
+          </button>
+        </div>
+
+        <div class="table-scroll-container">
+          <table class="data-table addon-table">
+            <thead>
+              <tr>
+                <th>Service / Ritual Name</th>
+                <th>Keyword Match</th>
+                <th class="num">Standard Worth (₹)</th>
+                <th class="num highlight-th">Incentive Reward (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Fusio Dose / Scrub</td><td><code>fusio</code></td><td class="num">—</td><td class="num text-emerald font-bold">+₹100</td></tr>
+              <tr><td>Express Ritual (Fusio Dose +)</td><td><code>express ritual</code></td><td class="num">₹3,600</td><td class="num text-emerald font-bold">+₹150</td></tr>
+              <tr><td>Experience Ritual</td><td><code>experience ritual</code></td><td class="num">₹4,500</td><td class="num text-emerald font-bold">+₹200</td></tr>
+              <tr><td>K Premiere Ritual</td><td><code>premiere ritual</code></td><td class="num">₹5,500</td><td class="num text-emerald font-bold">+₹250</td></tr>
+              <tr><td>Chronologist</td><td><code>chronologist</code></td><td class="num">₹6,000</td><td class="num text-emerald font-bold">+₹300</td></tr>
+              <tr><td>Be Spoke Signature Ritual</td><td><code>be spoke</code></td><td class="num">₹7,000</td><td class="num text-emerald font-bold">+₹400</td></tr>
+              <tr><td>Alga Exquis Mani/Pedi</td><td><code>alga exquis</code></td><td class="num">₹2,500</td><td class="num text-emerald font-bold">+₹200</td></tr>
+              <tr><td>Algae Mani/Pedi</td><td><code>algae</code></td><td class="num">₹1,800</td><td class="num text-emerald font-bold">+₹150</td></tr>
+              <tr><td>Footlogix / Alga Fondu Mani/Pedi</td><td><code>footlogix</code></td><td class="num">—</td><td class="num text-emerald font-bold">+₹50</td></tr>
+              <tr><td>Absolute Repair Molecular</td><td><code>absolute repair</code></td><td class="num">₹2,500</td><td class="num text-emerald font-bold">+₹100</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Section 2: Specific Volume Targets -->
+      <div class="addon-section-card">
+        <div class="section-card-header">
+          <div>
+            <h4><i class="fa fa-bullseye text-rose"></i> Specific Service Volume Targets</h4>
+            <p>Milestone bonuses granted to staff who achieve required service count targets in a day/period.</p>
+          </div>
+          <button class="btn-create-rule" (click)="openCreateRuleModal('service_target')">
+            <i class="fa fa-plus"></i> + Add Target Milestone
+          </button>
+        </div>
+
+        <div class="targets-cards-grid">
+          <div class="target-milestone-card">
+            <div class="target-badge">🎯 Milestone 1</div>
+            <h5 class="target-title">Rituals Target</h5>
+            <div class="target-condition">Staff completes <strong>5+ Rituals</strong></div>
+            <div class="target-payout text-emerald font-bold">+₹500 Bonus</div>
+          </div>
+          <div class="target-milestone-card">
+            <div class="target-badge">🎯 Milestone 2</div>
+            <h5 class="target-title">Mani / Pedi Target</h5>
+            <div class="target-condition">Staff completes <strong>8+ Mani/Pedis</strong></div>
+            <div class="target-payout text-emerald font-bold">+₹400 Bonus</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MONTHLY INCENTIVES VIEW: RULES GRID -->
+    <div class="rules-grid" *ngIf="manageViewMode === 'monthly' && !isLoading && getFilteredRules().length > 0">
+      <div class="rule-card" *ngFor="let rule of getFilteredRules()" [class.rule-inactive]="!rule.is_active">
+        <div class="rule-card-header">
+          <div class="rule-header-left">
+            <span class="rule-category-icon">{{ getCategoryIcon(rule.category) }}</span>
+            <div>
+              <h4 class="rule-title">{{ rule.name }}</h4>
+              <div class="rule-meta-badges">
+                <span class="badge-scope" [class.scope-center]="rule.center">
+                  {{ rule.center_name ? ('📍 ' + rule.center_name) : '🌐 Organisation-Wide' }}
+                </span>
+                <span class="badge-freq">{{ rule.frequency | titlecase }}</span>
+                <span class="badge-role">{{ rule.applicable_role ? ('Role: ' + rule.applicable_role) : 'All Staff' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="rule-header-right">
+            <!-- Active Toggle -->
+            <label class="switch-toggle" title="Toggle Active / Inactive">
+              <input type="checkbox" [checked]="rule.is_active" (change)="toggleRuleStatus(rule)">
+              <span class="slider-round"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="rule-card-body">
+          <div class="rule-timer-badge">
+            <i class="fa fa-calendar-check"></i>
+            <span>Effective: <strong>{{ rule.effective_from }}</strong></span>
+            <span *ngIf="rule.effective_to"> to <strong>{{ rule.effective_to }}</strong></span>
+            <span *ngIf="!rule.effective_to" class="badge-indefinite">to Present (Ongoing)</span>
+          </div>
+
+          <p class="rule-description" *ngIf="rule.description">{{ rule.description }}</p>
+
+          <!-- Multiplier Tiers Table -->
+          <div *ngIf="rule.rule_type === 'multiple' && rule.tiers && rule.tiers.length > 0" class="rule-config-preview">
+            <div class="config-title">Multiplier Thresholds:</div>
+            <div class="tiers-tags-list">
+              <div class="tier-tag" *ngFor="let t of rule.tiers">
+                <span class="tag-multi">≥ {{ t.min_multiple }}×</span>
+                <span class="tag-arrow">➔</span>
+                <span class="tag-pct">{{ t.incentive_percent }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Slabs Table (Value Cards) -->
+          <div *ngIf="rule.rule_type === 'slabs' && rule.slabs && rule.slabs.length > 0" class="rule-config-preview">
+            <div class="config-title">Value Slabs:</div>
+            <div class="slabs-tags-list">
+              <div class="slab-tag" *ngFor="let s of rule.slabs">
+                <span class="slab-name">{{ s.name || 'Slab' }}</span>
+                <span class="slab-range">₹{{ (s.min_amount / 1000) }}k - ₹{{ (s.max_amount / 1000) }}k</span>
+                <span class="slab-payout">+₹{{ s.incentive_amount }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Flat % or Flat Amount -->
+          <div *ngIf="rule.rule_type === 'flat_percentage'" class="rule-config-preview">
+            <span class="flat-badge">Flat {{ rule.flat_percent }}% on qualified sales</span>
+          </div>
+          <div *ngIf="rule.rule_type === 'flat_amount'" class="rule-config-preview">
+            <span class="flat-badge">Flat ₹{{ rule.flat_amount }} per item sold</span>
+          </div>
+        </div>
+
+        <div class="rule-card-footer">
+          <button class="btn-rule-action" (click)="openDuplicateRuleModal(rule)" title="Duplicate to another center with date-isolation">
+            <i class="fa fa-copy"></i> Duplicate
+          </button>
+          <button class="btn-rule-action" (click)="openEditRuleModal(rule)" title="Edit rule configuration">
+            <i class="fa fa-edit"></i> Edit
+          </button>
+          <button class="btn-rule-action text-danger" (click)="deleteRule(rule.id)" title="Delete rule">
+            <i class="fa fa-trash"></i> Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLOSING & PETTY CASH -->
+  <div class="tab-body" *ngIf="activeMainTab === 'pettycash'">
+    <div class="sub-tabs-bar">
+      <button class="sub-tab" [class.active]="activeClosingTab === 'admin'" (click)="setClosingTab('admin')">Admin View</button>
+      <button class="sub-tab" [class.active]="activeClosingTab === 'manager'" (click)="setClosingTab('manager')">Manager View</button>
+    </div>
+
+    <!-- MANAGER VIEW -->
+    <div *ngIf="activeClosingTab === 'manager'" class="split-layout petty-cash-module">
+      
+      <!-- LEFT: PETTY CASH LOG -->
+      <div class="list-column" style="flex: 1.2;">
+        <div class="form-card" style="margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h4 style="margin: 0;">Petty Cash Log</h4>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <select class="form-control" style="width: auto; margin-bottom: 0;" [(ngModel)]="selectedFilterLocation" (change)="onLocationChange()">
+                <option [ngValue]="null" *ngIf="hasGlobalAccess">All Locations</option>
+                <option *ngFor="let c of centers" [ngValue]="c.id">{{ c.display_name || c.center_name }}</option>
+              </select>
+              <!-- Date filter moved to header -->
+            </div>
+          </div>
+          
+          <!-- Entry Form -->
+          <div class="form-row">
+            <input type="text" class="form-control" placeholder="Enter Description" [(ngModel)]="pettyCashForm.description">
+            <input type="number" class="form-control" placeholder="Enter Amount in Rs." [(ngModel)]="pettyCashForm.amount">
+            <input type="text" class="form-control" placeholder="Voucher Number" [(ngModel)]="pettyCashForm.voucher_number">
+          </div>
+          <div class="form-row" style="align-items: flex-start;">
+            <textarea class="form-control" placeholder="Enter Comments (Compulsory)" [(ngModel)]="pettyCashForm.comments" rows="2" style="flex: 2; margin-bottom: 0;"></textarea>
+            <button class="btn btn-primary" (click)="submitPettyCash()" [disabled]="isSaving" style="flex: 1; height: 100%; margin-left: 1rem;">
+              <span *ngIf="isSaving">Saving...</span>
+              <span *ngIf="!isSaving">Spend</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Log Table -->
+        <div class="list-card">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Voucher No.</th>
+                <th class="num">Amount</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let log of pettyCashLogs">
+                <td style="color: var(--primary-color);">{{ log.date | date:'dd-MMM-yyyy HH:mm' }}</td>
+                <td>{{ log.user_name || '—' }}</td>
+                <td>{{ log.description }}</td>
+                <td>{{ log.voucher_number || '—' }}</td>
+                <td class="num" style="color: var(--primary-color);">Rs. {{ log.amount }}</td>
+                <td>
+                  <button class="btn btn-primary" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; margin-right: 0.5rem;" title="Details">ℹ</button>
+                  <button class="btn btn-primary" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; background: var(--surface); color: var(--text-primary); border: 1px solid var(--border);" (click)="editPettyCash(log)">Edit</button>
+                </td>
+              </tr>
+              <tr *ngIf="pettyCashLogs.length === 0">
+                <td colspan="6" class="text-center" style="padding: 2rem; color: var(--text-secondary); text-align: center;">No petty cash entries for this location.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT: DAILY CLOSING -->
+      <div class="form-card" style="flex: 1;">
+        <h3 class="text-center">Daily Closing</h3>
+        
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+          <input type="date" class="form-control" style="width: auto; display: inline-block;" [(ngModel)]="closingDate" (change)="onClosingDateChange()">
+        </div>
+        
+        <div class="empty-state-small" style="color: #ef4444;" *ngIf="noClosingForDate">
+          No Closing saved for this date!
+        </div>
+
+        <!-- CASH section -->
+        <div class="list-card" style="margin-bottom: 1.5rem;">
+          <h4 style="margin-top: 0;">CASH</h4>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Opening Balance</span><span>{{ closingData.opening_balance }}</span></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;">
+            <span>Cash in hand</span>
+            <input type="number" class="form-control" placeholder="Amount" style="width: 120px; margin-bottom: 0; background: #fca5a5; text-align: center;" [(ngModel)]="closingData.cash_in_hand">
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Today's Expenses</span><span style="color: #ef4444;">{{ closingData.todays_expenses || 0 }}</span></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; font-size: 0.9rem;">
+            <span>Cash Deposit</span>
+            <input type="number" class="form-control" placeholder="Amount" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.cash_deposit">
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.9rem; border-top: 1px solid var(--border); padding-top: 0.5rem;"><span>Closing Balance</span><strong>{{ closingBalance > 0 ? formatCurrency(closingBalance) : '-' }}</strong></div>
+        </div>
+
+        <!-- Credit/Debit Card -->
+        <div class="list-card" style="margin-bottom: 1.5rem;">
+          <h4 style="margin-top: 0;">CREDIT/DEBIT CARD</h4>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;">
+            <span>Credit/Debit Card</span>
+            <input type="number" class="form-control" placeholder="Amount" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.credit_card">
+          </div>
+        </div>
+
+        <!-- Other Payment Methods -->
+        <div class="list-card" style="margin-bottom: 1.5rem;">
+          <h4 style="margin-top: 0;">OTHER PAYMENT METHODS</h4>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>PayTM</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.paytm"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Bharat Pay</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.bharat_pe"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Cheque/Net Banking</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.cheque_netbanking"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>GooglePay</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.google_pay"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Phone Pe</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.phone_pe"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>NearBuy</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.nearbuy"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;"><span>Other</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.other"></div>
+        </div>
+
+        <button class="btn btn-primary" (click)="submitClosing()" [disabled]="isSaving" style="width: 100%; padding: 0.75rem;">
+          <span *ngIf="isSaving">Submitting...</span>
+          <span *ngIf="!isSaving">SUBMIT</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ADMIN VIEW -->
+    <div *ngIf="activeClosingTab === 'admin'" class="split-layout">
+      
+      <!-- LEFT: Totals Table & Petty Cash -->
+      <div class="list-column" style="flex: 1.5;">
+        <div style="display: flex; gap: 1rem; align-items: center; font-size: 0.85rem; margin-bottom: 1rem; padding: 0.5rem; background: var(--surface); border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label style="color: var(--text-secondary);">Salon: </label>
+            <select class="form-control" [(ngModel)]="selectedFilterLocation" (change)="loadClosingHistory()" style="width: auto; margin-bottom: 0; padding: 0.3rem 0.5rem;">
+              <option [ngValue]="null" *ngIf="hasGlobalAccess">All Locations</option>
+              <option *ngFor="let c of centers" [ngValue]="c.id">{{c.display_name || c.center_name}}</option>
+            </select>
+          </div>
+          <input type="date" class="form-control" [(ngModel)]="closingStartDate" style="width: auto; margin-bottom: 0; padding: 0.3rem 0.5rem;">
+          <input type="date" class="form-control" [(ngModel)]="closingEndDate" style="width: auto; margin-bottom: 0; padding: 0.3rem 0.5rem;">
+          <button class="btn btn-primary" (click)="loadClosingHistory()" style="padding: 0.35rem 1rem;">Run</button>
+          <button class="btn btn-outline" title="Export Excel" (click)="exportClosingHistory()" style="padding: 0.35rem 1rem; color: #10b981; border-color: #10b981;">
+            <i class="bi bi-file-earmark-excel"></i> Export
+          </button>
+        </div>
+        
+        <div class="list-card" style="margin-bottom: 1.5rem;">
+          <h4 style="margin: 0; padding: 1rem; background: var(--bg-color); border-bottom: 1px solid var(--border-color);">Daily Closings</h4>
+          <table class="data-table">
+            <thead>
+              <tr style="background: var(--bg-3);">
+                <th colspan="8" style="text-align: center;">Totals</th>
+              </tr>
+              <tr style="background: var(--bg-2);">
+                <th></th>
+                <th class="num">{{ formatCurrency(adminTotals.opening) }}</th>
+                <th class="num">{{ formatCurrency(adminTotals.system) }}</th>
+                <th class="num" style="color: #ef4444;">{{ formatCurrency(-adminTotals.expenses) }}</th>
+                <th class="num">{{ formatCurrency(adminTotals.cash_in_hand) }}</th>
+                <th class="num" [ngStyle]="{'color': adminTotals.diff < 0 ? '#ef4444' : 'inherit'}">{{ formatCurrency(adminTotals.diff) }}</th>
+                <th class="num">{{ formatCurrency(adminTotals.deposit) }}</th>
+                <th class="num">{{ formatCurrency(adminTotals.closing) }}</th>
+              </tr>
+              <tr style="background: var(--bg-3);">
+                <th colspan="8" style="text-align: center;">Cash</th>
+              </tr>
+              <tr>
+                <th style="text-align: left;">Closed Type: Date</th>
+                <th class="num">Op. Bal.</th>
+                <th class="num">System</th>
+                <th class="num">Expenses</th>
+                <th class="num">Cash in hand</th>
+                <th class="num">Diff</th>
+                <th class="num">Bank Dep.</th>
+                <th class="num">Cl. Bal.</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of closingHistory" (click)="selectAdminClosing(row)" [style.background]="selectedAdminClosing === row ? 'var(--bg-2)' : 'transparent'" style="cursor: pointer;">
+                <td>{{ row.date | date:'dd-MMM-yyyy' }}</td>
+                <td class="num" style="color: var(--text-secondary);">{{ row.opening_balance }}</td>
+                <td class="num">{{ row.system_cash }}</td>
+                <td class="num" style="color: #ef4444;">-{{ row.todays_expenses }}</td>
+                <td class="num">{{ row.cash_in_hand }}</td>
+                <td class="num" [ngStyle]="{'color': row.difference < 0 ? '#ef4444' : 'inherit'}">{{ row.difference }}</td>
+                <td class="num">{{ row.cash_deposit }}</td>
+                <td class="num" style="color: var(--text-secondary);">{{ row.closing_balance }}</td>
+              </tr>
+              <tr *ngIf="closingHistory.length === 0">
+                <td colspan="8" class="text-center" style="padding: 2rem; color: var(--text-secondary); text-align: center;">No closing records found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="list-card">
+          <h4 style="margin: 0; padding: 1rem; background: var(--bg-color); border-bottom: 1px solid var(--border-color);">Petty Cash Logs</h4>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="text-align: left;">DATE</th>
+                <th>NAME</th>
+                <th>DESCRIPTION</th>
+                <th>VOUCHER NO.</th>
+                <th class="num">AMOUNT</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let log of adminPettyCashLogs">
+                <td>{{ log.date | date:'dd-MMM-yyyy HH:mm' }}</td>
+                <td>{{ log.user_name || '—' }}</td>
+                <td><strong>{{ log.description }}</strong></td>
+                <td>{{ log.voucher_number || '—' }}</td>
+                <td class="num">Rs. {{ log.amount }}</td>
+              </tr>
+              <tr *ngIf="adminPettyCashLogs.length === 0">
+                <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                  No petty cash entries for this location & date range.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT: Selected Date Details -->
+      <div class="list-column" style="flex: 1;" *ngIf="selectedAdminClosing">
+        <h3 class="text-center" style="margin-top: 0;">{{ selectedAdminClosing.date | date:'dd-MMM-yyyy' }}</h3>
+        
+        <div class="list-card" style="margin-bottom: 1.5rem;">
+          <h4 style="margin-top: 0; color: var(--text-secondary);">CASH</h4>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;"><span style="color: var(--text-secondary);">Opening Balance</span><span>{{ selectedAdminClosing.opening_balance }}</span></div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;"><span style="color: var(--text-secondary);">Day's Collection</span><span>{{ selectedAdminClosing.system_cash }}</span></div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;"><span style="color: var(--text-secondary);">Expenses</span><span style="color: #ef4444;">-{{ selectedAdminClosing.todays_expenses }}</span></div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;"><span style="color: var(--text-secondary);">Expected Cash</span><span style="color: #059669;">{{ (parseFloat(selectedAdminClosing.opening_balance) + parseFloat(selectedAdminClosing.system_cash) - parseFloat(selectedAdminClosing.todays_expenses)).toFixed(2) }}</span></div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;"><span style="color: var(--text-secondary);">Cash in Hand</span><span style="color: var(--primary-color);">{{ selectedAdminClosing.cash_in_hand }}</span></div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;"><span style="color: var(--text-secondary);">Difference</span><span [ngStyle]="{'color': selectedAdminClosing.difference < 0 ? '#ef4444' : 'inherit'}">{{ selectedAdminClosing.difference }}</span></div>
+          <div style="display: flex; justify-content: space-between; margin-top: 1rem; font-size: 0.9rem; padding-top: 0.5rem; border-top: 1px solid var(--border);">
+            <span style="color: var(--text-secondary);">Cash for Deposit</span>
+            <span style="display: inline-block; background: var(--bg-2); padding: 0.25rem 1rem; border-radius: 4px;">{{ selectedAdminClosing.cash_deposit }}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.9rem;">
+            <span style="color: var(--text-secondary);">Closing Balance</span>
+            <span style="display: inline-block; background: var(--surface); padding: 0.25rem 1rem; border-radius: 4px; color: var(--primary-color); border: 1px solid var(--border);">{{ selectedAdminClosing.closing_balance }}</span>
+          </div>
+        </div>
+
+        <div class="list-card">
+          <h4 style="margin-top: 0; color: var(--text-secondary);">OTHER PAYMENT METHODS</h4>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Type</th>
+                <th class="num">CARD</th>
+                <th class="num">PayTM</th>
+                <th class="num">BharatPe</th>
+                <th class="num">Cheque/NetBanking</th>
+                <th class="num">Google Pay</th>
+                <th class="num">PhonePe</th>
+                <th class="num">NearBuy</th>
+                <th class="num">Other</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="color: var(--text-secondary);">Collection</td>
+                <td class="num" style="color: var(--primary-color);">{{ selectedAdminClosing.credit_card || 0 }}</td>
+                <td class="num" style="color: var(--primary-color);">{{ selectedAdminClosing.paytm || 0 }}</td>
+                <td class="num" style="color: var(--primary-color);">{{ selectedAdminClosing.bharat_pe || 0 }}</td>
+                <td class="num" style="color: var(--primary-color);">{{ selectedAdminClosing.cheque_netbanking || 0 }}</td>
+                <td class="num" style="color: var(--primary-color);">{{ selectedAdminClosing.google_pay || 0 }}</td>
+                <td class="num" style="color: var(--primary-color);">{{ selectedAdminClosing.phone_pe || 0 }}</td>
+                <td class="num" style="color: var(--primary-color);">{{ selectedAdminClosing.nearbuy || 0 }}</td>
+                <td class="num" style="color: var(--primary-color);">{{ selectedAdminClosing.other || 0 }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================ -->
+  <!-- MODALS (RULES BUILDER, DUPLICATE & AUDIT DRILLDOWN) -->
+  <!-- ================================================ -->
+
+  <!-- 1. INCENTIVE RULE BUILDER MODAL (Create & Edit) -->
+  <div class="modal-overlay" *ngIf="showRuleModal" (click)="showRuleModal = false">
+    <div class="modal-content modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-header-title">
+          <span class="modal-icon-badge">⚙️</span>
+          <div>
+            <h2>{{ currentRule?.id ? 'Edit Incentive Rule' : 'Create Incentive Rule' }}</h2>
+            <p class="modal-subtitle">Define calculation basis, multiplier thresholds, card slabs, and center validity.</p>
+          </div>
+        </div>
+        <button class="close-btn" (click)="showRuleModal = false">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid-2">
+          <!-- Rule Name -->
+          <div class="form-group span-2">
+            <label class="form-label required">Rule Name</label>
+            <input type="text" class="form-control" [(ngModel)]="currentRule.name" placeholder="e.g., Monthly Services Incentive (5x-7x), Elite/Luxe Cards Scheme">
+          </div>
+
+          <!-- Category -->
+          <div class="form-group">
+            <label class="form-label required">Category</label>
+            <select class="form-control" [(ngModel)]="currentRule.category" (change)="onCategoryChangeInModal()">
+              <optgroup label="Monthly Incentive Categories">
+                <option value="services">✂️ Monthly Services</option>
+                <option value="products">🧴 Monthly Products</option>
+                <option value="value_cards">💳 Value Cards</option>
+                <option value="memberships">👑 Memberships</option>
+                <option value="packages">📦 Packages</option>
+              </optgroup>
+              <optgroup label="Daily Incentive Categories">
+                <option value="daily_business">⚡ Daily Business Slabs (LHDS/UHDS/MHDS)</option>
+                <option value="service_addon">✨ Specific Service Add-ons (Rituals/Mani/Pedi)</option>
+                <option value="service_target">🎯 Service Volume Targets (Milestones)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <!-- Frequency -->
+          <div class="form-group">
+            <label class="form-label required">Frequency Calculation</label>
+            <select class="form-control" [(ngModel)]="currentRule.frequency">
+              <option value="monthly">Monthly Cycle</option>
+              <option value="daily">Daily Basis</option>
+            </select>
+          </div>
+
+          <!-- Center Scope -->
+          <div class="form-group">
+            <label class="form-label">Center Scope</label>
+            <select class="form-control" [(ngModel)]="currentRule.center">
+              <option [ngValue]="null">🌐 All Centers (Organisation-Wide Default)</option>
+              <option *ngFor="let c of centers" [ngValue]="c.id">📍 {{ c.display_name || c.center_name }}</option>
+            </select>
+          </div>
+
+          <!-- Applicable Role -->
+          <div class="form-group">
+            <label class="form-label">Applicable Staff Role</label>
+            <input type="text" class="form-control" [(ngModel)]="currentRule.applicable_role" placeholder="e.g. all, lhds, uhds, mhds, beauty, stylist">
+          </div>
+
+          <!-- Calculation Method / Rule Type (when not daily_business or service_addon/target) -->
+          <div class="form-group span-2" *ngIf="currentRule.category !== 'daily_business' && currentRule.category !== 'service_addon' && currentRule.category !== 'service_target'">
+            <label class="form-label required">Calculation Mechanism</label>
+            <div class="rule-type-selector">
+              <label class="radio-card" [class.selected]="currentRule.rule_type === 'multiple'">
+                <input type="radio" name="rule_type" value="multiple" [(ngModel)]="currentRule.rule_type">
+                <div class="radio-content">
+                  <strong>Salary Multipliers (e.g., 5x=3%, 6x=6%, 7x+=7%)</strong>
+                  <span>Calculates percentage on revenue once monthly salary threshold is achieved.</span>
+                </div>
+              </label>
+              <label class="radio-card" [class.selected]="currentRule.rule_type === 'slabs'">
+                <input type="radio" name="rule_type" value="slabs" [(ngModel)]="currentRule.rule_type">
+                <div class="radio-content">
+                  <strong>Value Card / Sales Slabs (e.g., ₹11k-14k: ₹200)</strong>
+                  <span>Fixed incentive payout per tier of card or package sold.</span>
+                </div>
+              </label>
+              <label class="radio-card" [class.selected]="currentRule.rule_type === 'flat_percentage'">
+                <input type="radio" name="rule_type" value="flat_percentage" [(ngModel)]="currentRule.rule_type">
+                <div class="radio-content">
+                  <strong>Flat Percentage (%)</strong>
+                  <span>Fixed commission % across all sales regardless of salary multiple.</span>
+                </div>
+              </label>
+              <label class="radio-card" [class.selected]="currentRule.rule_type === 'flat_amount'">
+                <input type="radio" name="rule_type" value="flat_amount" [(ngModel)]="currentRule.rule_type">
+                <div class="radio-content">
+                  <strong>Flat Amount (₹)</strong>
+                  <span>Flat rupee reward for every item/service performed.</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Dynamic Builder: Multiplier Tiers -->
+          <div class="form-group span-2" *ngIf="currentRule.rule_type === 'multiple' && currentRule.category !== 'daily_business' && currentRule.category !== 'service_addon' && currentRule.category !== 'service_target'">
+            <div class="tier-table-header">
+              <div>
+                <label class="form-label mb-0">Dynamic Multiplier Tiers</label>
+                <p class="form-hint">Staff reaching the salary multiple earn the corresponding incentive % on their qualified revenue.</p>
+              </div>
+              <button class="btn-add-item" (click)="addRuleTier()">+ Add Multiplier Tier</button>
+            </div>
+
+            <table class="data-table builder-table">
+              <thead>
+                <tr>
+                  <th>Min Multiple (×)</th>
+                  <th>Max Multiple (×) <small class="text-muted">(Optional)</small></th>
+                  <th>Incentive Percent (%)</th>
+                  <th style="width: 50px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let tier of currentRule.tiers; let i = index">
+                  <td>
+                    <div class="input-with-suffix">
+                      <input type="number" step="0.1" class="form-control" [(ngModel)]="tier.min_multiple" placeholder="e.g. 5.0">
+                      <span>×</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="input-with-suffix">
+                      <input type="number" step="0.1" class="form-control" [(ngModel)]="tier.max_multiple" placeholder="e.g. 5.99 (or leave blank for +)">
+                      <span>×</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="input-with-suffix">
+                      <input type="number" step="0.5" class="form-control" [(ngModel)]="tier.incentive_percent" placeholder="e.g. 3.0">
+                      <span>%</span>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <button class="btn-icon-danger" (click)="removeRuleTier(i)" title="Remove tier">
+                      <i class="fa fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr *ngIf="!currentRule.tiers || currentRule.tiers.length === 0">
+                  <td colspan="4" class="text-center text-muted py-3">No tiers added. Click "+ Add Multiplier Tier" above.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Dynamic Builder: Value Card / Slabs -->
+          <div class="form-group span-2" *ngIf="currentRule.rule_type === 'slabs' && currentRule.category !== 'daily_business' && currentRule.category !== 'service_addon' && currentRule.category !== 'service_target'">
+            <div class="tier-table-header">
+              <div>
+                <label class="form-label mb-0">Value Slabs & Fixed Incentive (₹)</label>
+                <p class="form-hint">E.g., Elite (₹11k-14k: ₹200), Luxe (₹21k-30k: ₹400), Prestige (₹51k-80k: ₹600), Infinity (₹1.11L-1.8L: ₹800).</p>
+              </div>
+              <button class="btn-add-item" (click)="addRuleSlab()">+ Add Slab</button>
+            </div>
+
+            <table class="data-table builder-table">
+              <thead>
+                <tr>
+                  <th>Slab / Tier Name</th>
+                  <th>Min Price (₹)</th>
+                  <th>Max Price (₹)</th>
+                  <th>Incentive Payout (₹)</th>
+                  <th style="width: 50px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let slab of currentRule.slabs; let i = index">
+                  <td>
+                    <input type="text" class="form-control" [(ngModel)]="slab.name" placeholder="e.g. Elite, Luxe">
+                  </td>
+                  <td>
+                    <div class="input-with-suffix">
+                      <span>₹</span>
+                      <input type="number" step="1000" class="form-control" [(ngModel)]="slab.min_amount" placeholder="11000">
+                    </div>
+                  </td>
+                  <td>
+                    <div class="input-with-suffix">
+                      <span>₹</span>
+                      <input type="number" step="1000" class="form-control" [(ngModel)]="slab.max_amount" placeholder="14000">
+                    </div>
+                  </td>
+                  <td>
+                    <div class="input-with-suffix">
+                      <span>₹</span>
+                      <input type="number" step="50" class="form-control" [(ngModel)]="slab.incentive_amount" placeholder="200">
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <button class="btn-icon-danger" (click)="removeRuleSlab(i)" title="Remove slab">
+                      <i class="fa fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr *ngIf="!currentRule.slabs || currentRule.slabs.length === 0">
+                  <td colspan="5" class="text-center text-muted py-3">No slabs added. Click "+ Add Slab" above.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Dynamic Builder: Daily Business Slabs -->
+          <div class="form-group span-2" *ngIf="currentRule.category === 'daily_business'">
+            <div class="tier-table-header">
+              <div>
+                <label class="form-label mb-0">⚡ Daily Business Slabs & Bonus Thresholds</label>
+                <p class="form-hint">E.g., LHDS: >₹8k (₹350), >₹10k (₹450), >₹15k (₹700), >₹20k (Flat 5% on full sales).</p>
+              </div>
+              <button class="btn-add-item" (click)="addDailyBusinessSlab()">+ Add Daily Slab</button>
+            </div>
+
+            <table class="data-table builder-table">
+              <thead>
+                <tr>
+                  <th>Min Business (₹)</th>
+                  <th>Bonus Type</th>
+                  <th>Reward Value (₹ or %)</th>
+                  <th style="width: 50px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let slab of currentRule.slabs; let i = index">
+                  <td>
+                    <div class="input-with-suffix">
+                      <span>₹</span>
+                      <input type="number" step="1000" class="form-control" [(ngModel)]="slab.min_amount" placeholder="8000">
+                    </div>
+                  </td>
+                  <td>
+                    <select class="form-control" [(ngModel)]="slab.type">
+                      <option value="flat">Fixed Bonus (₹)</option>
+                      <option value="percent">Percentage on Total (%)</option>
+                    </select>
+                  </td>
+                  <td>
+                    <div class="input-with-suffix">
+                      <span *ngIf="slab.type === 'flat'">₹</span>
+                      <input type="number" step="10" class="form-control" [(ngModel)]="slab.incentive_amount" [placeholder]="slab.type === 'percent' ? '5.0' : '350'">
+                      <span *ngIf="slab.type === 'percent'">%</span>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <button class="btn-icon-danger" (click)="removeRuleSlab(i)" title="Remove slab">
+                      <i class="fa fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr *ngIf="!currentRule.slabs || currentRule.slabs.length === 0">
+                  <td colspan="4" class="text-center text-muted py-3">No slabs added. Click "+ Add Daily Slab" above.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Dynamic Builder: Service Add-on Bonuses -->
+          <div class="form-group span-2" *ngIf="currentRule.category === 'service_addon'">
+            <div class="tier-table-header">
+              <div>
+                <label class="form-label mb-0">✨ Specific Service Add-on Incentives</label>
+                <p class="form-hint">E.g., Fusio Dose: ₹100, Express Ritual: ₹150, Experience: ₹200, K Premiere: ₹250, Chronologist: ₹300, Be Spoke: ₹400.</p>
+              </div>
+              <button class="btn-add-item" (click)="addServiceAddonItem()">+ Add Service Add-on</button>
+            </div>
+
+            <table class="data-table builder-table">
+              <thead>
+                <tr>
+                  <th>Service / Ritual Name</th>
+                  <th>Keyword / Search Filter</th>
+                  <th>Worth (₹)</th>
+                  <th>Reward (₹)</th>
+                  <th style="width: 50px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of currentRule.slabs; let i = index">
+                  <td>
+                    <input type="text" class="form-control" [(ngModel)]="item.name" placeholder="e.g. Express Ritual">
+                  </td>
+                  <td>
+                    <input type="text" class="form-control" [(ngModel)]="item.keyword" placeholder="e.g. express ritual, fusio">
+                  </td>
+                  <td>
+                    <div class="input-with-suffix">
+                      <span>₹</span>
+                      <input type="number" step="100" class="form-control" [(ngModel)]="item.worth" placeholder="3600">
+                    </div>
+                  </td>
+                  <td>
+                    <div class="input-with-suffix">
+                      <span>₹</span>
+                      <input type="number" step="50" class="form-control" [(ngModel)]="item.incentive_amount" placeholder="150">
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <button class="btn-icon-danger" (click)="removeRuleSlab(i)" title="Remove item">
+                      <i class="fa fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr *ngIf="!currentRule.slabs || currentRule.slabs.length === 0">
+                  <td colspan="5" class="text-center text-muted py-3">No service add-ons configured. Click "+ Add Service Add-on" above.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Dynamic Builder: Service Volume Targets -->
+          <div class="form-group span-2" *ngIf="currentRule.category === 'service_target'">
+            <div class="tier-table-header">
+              <div>
+                <label class="form-label mb-0">🎯 Service Volume Milestone Targets</label>
+                <p class="form-hint">E.g., 5 Rituals = ₹500 Bonus, 8 Mani/Pedi = ₹400 Bonus.</p>
+              </div>
+              <button class="btn-add-item" (click)="addServiceTargetItem()">+ Add Target Milestone</button>
+            </div>
+
+            <table class="data-table builder-table">
+              <thead>
+                <tr>
+                  <th>Milestone Target Name</th>
+                  <th>Service Keyword</th>
+                  <th>Required Count</th>
+                  <th>Target Reward (₹)</th>
+                  <th style="width: 50px;"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of currentRule.slabs; let i = index">
+                  <td>
+                    <input type="text" class="form-control" [(ngModel)]="item.name" placeholder="e.g. Rituals 5x Target">
+                  </td>
+                  <td>
+                    <input type="text" class="form-control" [(ngModel)]="item.keyword" placeholder="e.g. ritual, mani, pedi">
+                  </td>
+                  <td>
+                    <input type="number" step="1" class="form-control" [(ngModel)]="item.min_amount" placeholder="5">
+                  </td>
+                  <td>
+                    <div class="input-with-suffix">
+                      <span>₹</span>
+                      <input type="number" step="50" class="form-control" [(ngModel)]="item.incentive_amount" placeholder="500">
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <button class="btn-icon-danger" (click)="removeRuleSlab(i)" title="Remove item">
+                      <i class="fa fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr *ngIf="!currentRule.slabs || currentRule.slabs.length === 0">
+                  <td colspan="5" class="text-center text-muted py-3">No target milestones added. Click "+ Add Target Milestone" above.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+
+          <!-- Flat Commission Fields -->
+          <div class="form-group" *ngIf="currentRule.rule_type === 'flat_percentage'">
+            <label class="form-label required">Flat Commission Percentage</label>
+            <div class="input-with-suffix">
+              <input type="number" step="0.5" class="form-control" [(ngModel)]="currentRule.flat_percent" placeholder="e.g. 5.0">
+              <span>%</span>
+            </div>
+          </div>
+          <div class="form-group" *ngIf="currentRule.rule_type === 'flat_amount'">
+            <label class="form-label required">Flat Rupees per Unit</label>
+            <div class="input-with-suffix">
+              <span>₹</span>
+              <input type="number" step="50" class="form-control" [(ngModel)]="currentRule.flat_amount" placeholder="e.g. 200">
+            </div>
+          </div>
+
+          <!-- Time Limit / Effective Timer -->
+          <div class="form-group span-2">
+            <div class="timer-config-box">
+              <div class="timer-icon">⏳</div>
+              <div class="timer-inputs">
+                <label class="form-label required">Rule Validity Timer (Protects Past Reports)</label>
+                <div class="timer-dates-row">
+                  <div class="date-field">
+                    <span class="field-tag">Effective From:</span>
+                    <input type="date" class="form-control" [(ngModel)]="currentRule.effective_from">
+                  </div>
+                  <div class="date-field">
+                    <span class="field-tag">Effective To (Optional):</span>
+                    <input type="date" class="form-control" [(ngModel)]="currentRule.effective_to">
+                  </div>
+                </div>
+                <p class="timer-explanation">
+                  <i class="fa fa-info-circle"></i>
+                  Modifications to this rule will only apply to invoices within this validity date window. Previous period payouts remain permanently locked and historical integrity is strictly preserved.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="form-group span-2">
+            <label class="form-label">Notes & Guidelines</label>
+            <textarea class="form-control" [(ngModel)]="currentRule.description" rows="2" placeholder="Provide notes regarding how and when this rule applies..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="showRuleModal = false">Cancel</button>
+        <button class="btn-save-glow" (click)="saveRule()">
+          <i class="fa fa-check"></i> {{ currentRule?.id ? 'Update Rule' : 'Create & Activate Rule' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. DUPLICATE RULE MODAL -->
+  <div class="modal-overlay" *ngIf="showDuplicateModal" (click)="showDuplicateModal = false">
+    <div class="modal-content modal-md" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-header-title">
+          <span class="modal-icon-badge">📋</span>
+          <div>
+            <h2>Duplicate Incentive Rule</h2>
+            <p class="modal-subtitle">Clone "{{ selectedRuleForDuplicate?.name }}" with clean date isolation.</p>
+          </div>
+        </div>
+        <button class="close-btn" (click)="showDuplicateModal = false">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label required">Target Destination Center</label>
+          <select class="form-control" [(ngModel)]="duplicateTargetCenterId">
+            <option [ngValue]="null">🌐 All Centers (Organisation-Wide)</option>
+            <option *ngFor="let c of centers" [ngValue]="c.id">📍 {{ c.display_name || c.center_name }}</option>
+          </select>
+          <p class="form-hint mt-2">
+            The cloned rule will start with today's date as <code>effective_from</code> so past calculations in the target center are never disturbed.
+          </p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="showDuplicateModal = false">Cancel</button>
+        <button class="btn-save-glow" (click)="confirmDuplicateRule()">
+          <i class="fa fa-copy"></i> Duplicate Rule Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. STAFF INCENTIVE ITEMIZED BREAKDOWN MODAL -->
+  <div class="modal-overlay" *ngIf="showStaffBreakdownModal" (click)="closeStaffBreakdown()">
+    <div class="modal-content modal-xl" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-header-title">
+          <span class="modal-icon-badge">🔍</span>
+          <div>
+            <h2>Staff Incentive Audit: {{ selectedStaffBreakdown?.staff_name }}</h2>
+            <p class="modal-subtitle">
+              Role: <strong>{{ selectedStaffBreakdown?.role || 'Staff' }}</strong> | 
+              Center: <strong>{{ selectedStaffBreakdown?.center }}</strong> | 
+              Period: <strong>{{ incentiveStartDate }} to {{ incentiveEndDate }}</strong> ({{ incentiveFrequency | titlecase }})
+            </p>
+          </div>
+        </div>
+        <button class="close-btn" (click)="closeStaffBreakdown()">&times;</button>
+      </div>
+
+      <div class="modal-body" *ngIf="selectedStaffBreakdown">
+        <!-- Staff Summary Metric Strip -->
+        <div class="audit-summary-strip">
+          <div class="audit-metric">
+            <span class="metric-label">Base Salary</span>
+            <span class="metric-value">{{ formatCurrency(selectedStaffBreakdown.salary) }}</span>
+          </div>
+          <div class="audit-metric">
+            <span class="metric-label">Sales Revenue</span>
+            <span class="metric-value">{{ formatCurrency(selectedStaffBreakdown.revenue) }}</span>
+          </div>
+          <div class="audit-metric">
+            <span class="metric-label">Salary Multiple Achieved</span>
+            <span class="metric-value text-indigo">{{ selectedStaffBreakdown.salary_multiple }}×</span>
+          </div>
+          <div class="audit-metric">
+            <span class="metric-label">Value Cards Sold</span>
+            <span class="metric-value text-emerald">{{ selectedStaffBreakdown.cards_count || 0 }} ({{ formatCurrency(selectedStaffBreakdown.cards_incentive) }})</span>
+          </div>
+          <div class="audit-metric highlight-metric">
+            <span class="metric-label">Total Incentive Credited</span>
+            <span class="metric-value text-emerald font-bold">{{ formatCurrency(selectedStaffBreakdown.incentive_amount) }}</span>
+          </div>
+        </div>
+
+        <!-- Slabs summary if cards sold -->
+        <div *ngIf="selectedStaffBreakdown.card_slabs && selectedStaffBreakdown.card_slabs.length > 0" class="audit-slabs-box">
+          <h5><i class="fa fa-credit-card"></i> Card Slab Breakdown:</h5>
+          <div class="slab-chips-list">
+            <div class="slab-chip" *ngFor="let s of selectedStaffBreakdown.card_slabs">
+              <span class="chip-name">{{ s.slab_name }}</span>
+              <span class="chip-count">{{ s.count }} sold</span>
+              <span class="chip-amt">+{{ formatCurrency(s.total_incentive) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Itemized Sales Items Table -->
+        <h4 class="mt-3 mb-2" style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Itemized Commission Lines ({{ selectedStaffBreakdown.items?.length || 0 }} Entries):</h4>
+        
+        <div class="table-scroll-container modal-table-wrap">
+          <table class="data-table audit-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Invoice #</th>
+                <th>Client</th>
+                <th>Category</th>
+                <th>Item / Description</th>
+                <th class="num">Net Revenue</th>
+                <th class="num">Multiple / Slab Applied</th>
+                <th class="num highlight-th">Incentive Credited</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let entry of selectedStaffBreakdown.items">
+                <td>{{ entry.date }}</td>
+                <td><strong>#{{ entry.invoice_number }}</strong></td>
+                <td>{{ entry.client_name }}</td>
+                <td>
+                  <span class="category-tag category-{{ entry.category }}">
+                    {{ getCategoryIcon(entry.category) }} {{ entry.category | titlecase }}
+                  </span>
+                </td>
+                <td>{{ entry.item_name }}</td>
+                <td class="num font-semibold">{{ formatCurrency(entry.revenue) }}</td>
+                <td class="num">{{ entry.calculation_rule || '—' }}</td>
+                <td class="num highlight-td">
+                  <span class="font-bold text-emerald">+{{ formatCurrency(entry.incentive_amount) }}</span>
+                </td>
+              </tr>
+              <tr *ngIf="!selectedStaffBreakdown.items || selectedStaffBreakdown.items.length === 0">
+                <td colspan="8" class="text-center text-muted py-4">No individual line items found. Total calculated from aggregate revenues.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="closeStaffBreakdown()">Close</button>
+      </div>
+    </div>
+  </div>
+
+</div>

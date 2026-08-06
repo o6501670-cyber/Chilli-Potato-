@@ -1,0 +1,224 @@
+<div class="bills-page">
+  <div class="bills-header">
+    <div class="bills-page-title" style="margin-right: auto;">Services Master</div>
+    <div class="bills-controls" style="margin-bottom: 0;">
+      <div class="control-pill-group">
+        <select class="pill-select" [(ngModel)]="selectedCenter" (change)="onCenterChange()">
+          <option [ngValue]="null" *ngIf="hasGlobalAccess">All Locations</option>
+          <option *ngFor="let c of centers" [ngValue]="c.id">{{c.display_name || c.center_name}}</option>
+        </select>
+      </div>
+
+      <button class="pill-btn outline-btn" (click)="exportExcel()" *ngIf="services.length > 0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        Export
+      </button>
+
+      <button class="pill-btn outline-btn" *ngIf="isOwner || permissions.admin?.services?.create" (click)="downloadTemplate()">
+        Template
+      </button>
+
+      <input type="file" #fileInput (change)="uploadServices($event)" style="display: none;" accept=".csv, .xlsx" />
+      <button class="pill-btn outline-btn" *ngIf="isOwner || permissions.admin?.services?.create" (click)="fileInput.click()">
+        Bulk Upload
+      </button>
+
+      <button class="pill-btn black-btn" *ngIf="isOwner || permissions.admin?.services?.create" (click)="openAddModal()">
+        + New Service
+      </button>
+    </div>
+  </div>
+
+  <div class="bills-layout-grid">
+    <!-- Left Column: Services Table -->
+    <div class="bills-list">
+      <div class="date-divider" *ngIf="services.length > 0">ALL SERVICES</div>
+
+      <table class="modern-bills-table" *ngIf="services.length > 0">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Brand</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Sub Category</th>
+            <th>HSN Code</th>
+            <th>Tax</th>
+            <th>Default Price</th>
+            <th>Duration</th>
+            <th>Centers</th>
+            <th class="center-col-header">{{ centers.find(c=>c.id==selectedCenter)?.display_name || 'Center' }} Price</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of services">
+            <td class="text-secondary">{{s.service_code || '-'}}</td>
+            <td>{{s.brand || '-'}}</td>
+            <td><span class="font-bold">{{s.name}}</span></td>
+            <td><span class="status-badge badge-paid">{{s.category}}</span></td>
+            <td><span class="status-badge badge-paid" *ngIf="s.sub_category">{{s.sub_category}}</span><span *ngIf="!s.sub_category">-</span></td>
+            <td class="text-secondary">{{s.hsn_code || s.sac_code || '-'}}</td>
+            <td class="text-secondary">{{s.tax_percentage}}%</td>
+            <td class="font-bold amount-pop">₹{{s.default_price}}</td>
+            <td>{{s.duration_mins ? s.duration_mins + ' mins' : '-'}}</td>
+            <td>
+              <span *ngIf="s.level === 'Organisation'" style="font-size:11px; background:#dcfce7; color:#166534; padding:2px 8px; border-radius:10px; font-weight:600;">All Centers</span>
+              <span *ngIf="s.level !== 'Organisation' && s.centers?.length" style="font-size:11px;">
+                <span *ngFor="let cid of s.centers; let i=index">{{getCenterName(cid)}}<span *ngIf="i < s.centers.length-1">, </span></span>
+              </span>
+              <span *ngIf="s.level !== 'Organisation' && !s.centers?.length" style="color:#9ca3af; font-size:11px;">Unassigned</span>
+            </td>
+            <td class="center-col-cell" style="padding: 4px;">
+              <input type="number" class="price-input" [value]="s.center_override?.price ?? s.default_price"
+                (input)="onPriceChange(s, $event.target.value)" (blur)="saveOverride(s)" [placeholder]="s.default_price"
+                [readonly]="!isOwner && !permissions.admin?.services?.update" 
+                style="width: 80px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; outline: none; font-size: 12px; font-weight: 600;" />
+            </td>
+            <td>
+              <div style="display: flex; gap: 4px;">
+                <button class="icon-action-btn" title="Edit Service" *ngIf="isOwner || permissions.admin?.services?.update" (click)="editService(s)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                </button>
+                <button class="icon-action-btn" title="Delete Service" style="color: #ef4444;" *ngIf="isOwner || permissions.admin?.services?.delete" (click)="deleteService(s)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="no-bills-msg" *ngIf="services.length === 0">
+        No services found. Click "+ New Service" to create one.
+      </div>
+    </div>
+
+    <!-- Right Column: KPI Snapshot -->
+    <div class="bills-sidebar">
+      <div class="kpi-card-dark">
+        <div class="kpi-label">Total Services</div>
+        <div class="kpi-value">{{ services.length }}</div>
+      </div>
+      
+      <div class="kpi-card-light" style="background: #fffbe8; border-color: #fde047;">
+        <div class="kpi-label" style="color: #a16207;">Instructions</div>
+        <div style="font-size: 11px; color: #854d0e; line-height: 1.4;">
+          - Click on headers to sort<br>
+          - Click on individual center prices to change them<br>
+          - To deactivate a service for a center, delete the price and hit enter<br>
+          - Prices are BEFORE tax
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- Add Service Modal -->
+  <div class="modal" *ngIf="showAddModal">
+    <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+      <button class="close" (click)="showAddModal=false">×</button>
+      <h3 style="margin-top: 0;">{{ isEditing ? 'Edit Service' : 'Add Service' }}</h3>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem;">Service Code (S.No)</label>
+        <input [(ngModel)]="newService.service_code"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;" />
+      </div>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem;">Service Name</label>
+        <input [(ngModel)]="newService.name"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;" />
+      </div>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem;">Brand</label>
+        <input [(ngModel)]="newService.brand"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;" />
+      </div>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem;">Category</label>
+        <input [(ngModel)]="newService.category"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;" />
+      </div>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem;">Sub Category</label>
+        <input [(ngModel)]="newService.sub_category"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;" />
+      </div>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem;">SAC/HSN Code</label>
+        <input [(ngModel)]="newService.hsn_code"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;" />
+      </div>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem;">Tax (%)</label>
+        <input type="number" [(ngModel)]="newService.tax_percentage"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;" />
+      </div>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem;">Default Price
+          (before tax)</label>
+        <input type="number" [(ngModel)]="newService.default_price"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;" />
+      </div>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem;">Duration
+          (minutes)</label>
+        <input type="number" [(ngModel)]="newService.duration_mins"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;" />
+      </div>
+
+      <div class="form-group" style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">Access Level</label>
+        <select [(ngModel)]="newService.level"
+          style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;"
+          [disabled]="!isOwner && !permissions.all_centers">
+          <option value="Organisation">Organisation (Available to All Centers)</option>
+          <option value="Center">Center Specific</option>
+        </select>
+        <small style="color: #6b7280; font-size: 0.8rem; display: block; margin-top: 0.25rem;"
+          *ngIf="!isOwner && !permissions.all_centers">You only have permission to create Center-level services.</small>
+      </div>
+
+      <div class="form-group" *ngIf="newService.level === 'Center'" style="margin-top: 1rem;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem;">Assigned
+          Centers</label>
+
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+          <select #centerSelect style="flex: 1; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;">
+            <option value="">Select a center to add...</option>
+            <option value="all">-- All Centers --</option>
+            <option *ngFor="let c of centers" [value]="c.id">{{ c.center_name || c.display_name }}</option>
+          </select>
+          <button type="button" class="btn btn-outline"
+            (click)="addCenterFromSelect(centerSelect.value); centerSelect.value = ''"
+            style="padding: 0.5rem 1rem;">Add</button>
+        </div>
+
+        <div class="selected-centers-container"
+          style="display: flex; flex-wrap: wrap; gap: 0.5rem; min-height: 40px; padding: 0.5rem; background: #f9fafb; border-radius: 6px; border: 1px dashed #d1d5db;">
+          <div *ngIf="newService.centers.length === 0"
+            style="color: #9ca3af; font-size: 0.85rem; display: flex; align-items: center; width: 100%; justify-content: center;">
+            No centers assigned
+          </div>
+          <div *ngFor="let id of newService.centers" class="center-pill"
+            style="display: inline-flex; align-items: center; background: #e0e7ff; color: #4338ca; padding: 0.25rem 0.75rem; border-radius: 16px; font-size: 0.85rem; font-weight: 500;">
+            {{ getCenterName(id) }}
+            <button type="button" (click)="removeCenter(id)"
+              style="background: none; border: none; color: #4338ca; margin-left: 0.5rem; cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0; display: flex; align-items: center;">&times;</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" style="width: 100%; margin-top: 1.5rem; padding: 0.75rem;" (click)="addService()">{{
+        isEditing ? 'Save Changes' : 'Add Service' }}</button>
+    </div>
+  </div>

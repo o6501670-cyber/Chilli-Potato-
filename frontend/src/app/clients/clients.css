@@ -1,0 +1,1417 @@
+:host {
+  /* Trigger rebuild 4 for extra compact */
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* clients.css */
+.clients-wrapper {
+  --ink: var(--black);
+  --ink-soft: var(--border-strong);
+  --text-primary: var(--text-primary);
+  --text-secondary: var(--text-secondary);
+  --text-muted: var(--text-tertiary);
+  --border: var(--border);
+  --bg-page: transparent;
+  --bg-card: var(--surface);
+  --bg-subtle: var(--bg-2);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --radius-pill: 999px;
+
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  height: 100vh;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+  font-size: 13px;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+/* SUBHEADER */
+.cl-count-badge {
+  background: var(--bg-2);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid var(--border);
+}
+
+/* MAIN LAYOUT */
+.cl-main {
+  display: grid;
+  grid-template-columns: 280px 1fr 340px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* PANELS */
+.cl-list-panel, .cl-detail-panel, .cl-activity-panel {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+}
+
+/* ---------------- LEFT PANEL (LIST) ---------------- */
+.cl-search-row {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+
+.cl-search-input {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  padding: 10px 10px 10px 32px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  outline: none;
+  position: relative;
+}
+
+.cl-search-icon {
+  position: absolute;
+  left: 24px;
+  color: var(--text-muted);
+}
+
+.cl-search-btn {
+  background: var(--bg-inverse);
+  color: #ffffff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cl-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.cl-list-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+.cl-list-item:hover {
+  background: var(--bg-subtle);
+}
+.cl-list-item.active {
+  background: #f0fdf4;
+  border-left: 4px solid #10b981;
+}
+
+.cl-avatar {
+  width: 36px;
+  height: 36px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: var(--ink);
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.cl-list-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cl-list-name {
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.cl-list-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.cl-perk-dots {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 8px;
+}
+.cl-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.cl-dot.membership { background: #f59e0b; }
+.cl-dot.package { background: #8b5cf6; }
+.cl-dot.card { background: #10b981; }
+
+.cl-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ---------------- CENTER PANEL (DETAIL) ---------------- */
+.cl-detail-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.cl-detail-header {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.cl-avatar-lg {
+  width: 72px;
+  height: 72px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--ink);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.cl-detail-hero {
+  flex: 1;
+}
+
+.cl-detail-name {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.cl-detail-phone {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.cl-detail-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.cl-stat strong {
+  color: var(--text-primary);
+}
+
+.cl-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.cl-tab {
+  flex: 1;
+  padding: 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.cl-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-subtle);
+}
+
+.cl-tab.active {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.cl-tab-badge {
+  background: #ef4444;
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.cl-tab-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* FORM GRID */
+.cl-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.cl-fg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cl-fg label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cl-fg input, .cl-fg select {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  font-size: 13px;
+  outline: none;
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+}
+.cl-fg input:focus, .cl-fg select:focus {
+  border-color: var(--ink);
+  background: var(--surface);
+}
+
+.cl-notes-area {
+  width: 100%;
+  height: 200px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.cl-form-actions {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cl-save-btn {
+  background: var(--bg-inverse);
+  color: #ffffff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transition: opacity 0.2s;
+}
+.cl-save-btn:hover {
+  opacity: 0.85;
+}
+
+/* PERKS UI */
+.cl-perk-section {
+  margin-bottom: 32px;
+}
+
+.cl-perk-section-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.cl-perk-empty {
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.cl-balance-card {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: var(--text-primary);
+  padding: 20px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.25);
+}
+.cl-balance-card.zero {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  border: 1px dashed var(--border);
+  box-shadow: none;
+}
+.cl-balance-label {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.cl-balance-amount {
+  font-size: 32px;
+  font-weight: 900;
+  margin-top: 4px;
+}
+.cl-balance-note {
+  font-size: 11px;
+  opacity: 0.75;
+  margin-top: 4px;
+}
+
+.cl-perk-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 12px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.cl-perk-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.cl-perk-name {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.cl-perk-badge-pill {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 800;
+}
+.cl-perk-badge-pill.gold { background: #fef3c7; color: #d97706; }
+.cl-perk-badge-pill.purple { background: #f3e8ff; color: #7e22ce; }
+.cl-perk-badge-pill.green { background: #dcfce7; color: #15803d; }
+.cl-perk-badge-pill.expired { background: #fee2e2; color: #b91c1c; }
+
+.cl-perk-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.cl-perk-prog-bar {
+  height: 6px;
+  background: var(--bg-subtle);
+  border-radius: 999px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+.cl-perk-prog-fill {
+  height: 100%;
+  background: #f59e0b; /* default gold */
+}
+.cl-perk-prog-fill.green {
+  background: #10b981;
+}
+
+.cl-pkg-services {
+  margin-top: 12px;
+  border-top: 1px dashed var(--border);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cl-pkg-svc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.cl-pkg-svc-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cl-pkg-svc-count {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.cl-pkg-svc-num {
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--ink);
+}
+.cl-pkg-svc-count.exhausted .cl-pkg-svc-num {
+  color: #ef4444;
+}
+
+.cl-pkg-svc-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* ---------------- RIGHT PANEL (ACTIVITY) ---------------- */
+.cl-stats-row {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.cl-mini-stat {
+  flex: 1;
+  padding: 16px 12px;
+  text-align: center;
+  border-right: 1px solid var(--border);
+}
+.cl-mini-stat:last-child {
+  border-right: none;
+}
+
+.cl-mini-stat-val {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+.cl-mini-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.cl-timeline-filter {
+  display: flex;
+  padding: 12px;
+  gap: 8px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.cl-tl-btn {
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.cl-tl-btn:hover {
+  background: #f1f5f9;
+}
+.cl-tl-btn.active {
+  background: var(--bg-inverse);
+  color: #ffffff;
+  border-color: var(--ink);
+}
+
+.cl-timeline {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.cl-tl-item {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  position: relative;
+}
+.cl-tl-item::before {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 36px;
+  bottom: -24px;
+  width: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+.cl-tl-item:last-child::before {
+  display: none;
+}
+
+.cl-tl-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  font-size: 14px;
+  z-index: 1;
+  flex-shrink: 0;
+}
+.cl-tl-icon.inv { background: #3b82f6; }
+.cl-tl-icon.adv { background: #10b981; }
+.cl-tl-icon.svc { background: #8b5cf6; }
+
+.cl-tl-content {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.cl-tl-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.cl-tl-title {
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.cl-tl-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.badge-paid { background: #dcfce7; color: #15803d; }
+.badge-partial { background: #fef3c7; color: #b45309; }
+.badge-draft { background: #f3f4f6; color: #4b5563; }
+.badge-cancelled { background: #fee2e2; color: #b91c1c; }
+.badge-refunded { background: #fffbeb; color: #d97706; }
+.badge-blue { background: #e0e7ff; color: #4338ca; }
+
+.cl-tl-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.cl-tl-items {
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.cl-tl-amount {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--ink);
+  text-align: right;
+}
+
+.cl-act-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 13px;
+  height: 100%;
+}
+
+
+/* --- PREMIUM MINIMAL AESTHETICS OVERRIDE --- */
+.clients-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.page-subheader-row {
+  margin-bottom: 24px !important;
+}
+
+.cl-list-panel, .cl-detail-panel, .cl-activity-panel {
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(0,0,0,0.02) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0,0,0,0.05) !important;
+}
+
+.cl-search-row {
+  border-bottom: 1px solid rgba(0,0,0,0.04) !important;
+  padding: 16px !important;
+}
+
+.cl-search-input {
+  background: #f9fafb !important;
+  border: 1px solid rgba(0,0,0,0.05) !important;
+  border-radius: 8px !important;
+}
+
+.cl-search-input:focus {
+  background: #ffffff !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.1) !important;
+}
+
+.cl-search-btn {
+  background: #111827 !important;
+  border-radius: 8px !important;
+}
+
+.cl-list-item {
+  padding: 16px 20px !important;
+  border-bottom: 1px solid rgba(0,0,0,0.03) !important;
+  transition: all 0.2s ease !important;
+  background: transparent !important;
+}
+
+.cl-list-item:hover {
+  background: #f9fafb !important;
+  padding-left: 24px !important; /* lively hover effect */
+}
+
+.cl-list-item.active {
+  background: #fef2f2 !important; 
+  border-left: 4px solid #ef4444 !important;
+}
+
+.cl-list-item.active .cl-list-name {
+  color: #b91c1c !important;
+}
+
+.cl-avatar {
+  background: #fef2f2 !important;
+  color: #ef4444 !important;
+  border: none !important;
+}
+
+.cl-avatar-lg {
+  background: #fef2f2 !important;
+  color: #ef4444 !important;
+  border: none !important;
+}
+
+.cl-detail-header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(0,0,0,0.04) !important;
+}
+
+.cl-tab {
+  color: #6b7280 !important;
+  font-weight: 600 !important;
+  padding: 16px 24px !important;
+  border-bottom: 2px solid transparent !important;
+  transition: all 0.2s !important;
+}
+.cl-tab:hover {
+  color: #374151 !important;
+}
+.cl-tab.active {
+  color: #ef4444 !important;
+  border-bottom: 2px solid #ef4444 !important;
+}
+
+.cl-form-actions {
+  background: transparent !important;
+  border-top: 1px solid rgba(0,0,0,0.04) !important;
+}
+
+.cl-save-btn {
+  background: #111827 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+  transition: all 0.2s !important;
+}
+.cl-save-btn:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15) !important;
+}
+
+/* Pill buttons override for header */
+.page-subheader-row .btn-primary {
+  background: #111827 !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+  border: none !important;
+}
+.page-subheader-row .btn-outline {
+  border-radius: 8px !important;
+}
+.page-subheader-row .btn-secondary {
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.1) !important;
+  color: #111827 !important;
+}
+
+
+/* --- ULTRA COMPACT PRO OVERRIDE --- */
+.clients-wrapper {
+  padding: 8px !important;
+  font-size: 12px !important;
+}
+
+.page-subheader-row {
+  margin-bottom: 12px !important;
+}
+
+.cl-main {
+  gap: 12px !important;
+}
+
+.cl-search-row {
+  padding: 10px 14px !important;
+}
+
+.cl-search-input {
+  padding: 6px 10px 6px 30px !important;
+  font-size: 12px !important;
+}
+
+.cl-search-btn {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+}
+
+.cl-list-item {
+  padding: 10px 14px !important;
+}
+
+.cl-list-item:hover {
+  padding-left: 18px !important;
+}
+
+.cl-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  font-size: 14px !important;
+  margin-right: 10px !important;
+}
+
+.cl-detail-header {
+  padding: 16px !important;
+  gap: 16px !important;
+}
+
+.cl-avatar-lg {
+  width: 54px !important;
+  height: 54px !important;
+  font-size: 20px !important;
+}
+
+.cl-detail-name {
+  font-size: 1.1rem !important;
+}
+
+.cl-detail-stats .cl-stat {
+  font-size: 11px !important;
+  padding: 4px 8px !important;
+}
+
+.cl-tab {
+  padding: 10px 16px !important;
+  font-size: 12px !important;
+}
+
+.cl-tab-body {
+  padding: 16px !important;
+}
+
+.cl-form-grid {
+  gap: 12px !important;
+}
+
+.cl-form-grid .cl-fg label {
+  font-size: 11px !important;
+  margin-bottom: 4px !important;
+}
+
+.cl-form-grid .cl-fg input, .cl-form-grid .cl-fg select, .cl-form-grid .cl-fg textarea {
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+}
+
+.cl-form-actions {
+  padding: 12px 16px !important;
+}
+
+.cl-save-btn {
+  padding: 8px 16px !important;
+  font-size: 12px !important;
+}
+
+/* Timeline/Activity adjustments */
+.cl-tl-item {
+  padding-bottom: 12px !important;
+}
+.cl-tl-header {
+  margin-bottom: 6px !important;
+}
+
+/* Adjust pills in header */
+.page-subheader-row .btn-primary, .page-subheader-row .btn-outline, .page-subheader-row .btn-secondary {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+}
+.location-pill-select {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+}
+.cl-count-badge {
+  padding: 2px 8px !important;
+  font-size: 10px !important;
+}
+
+
+/* --- FIXED NO-SCROLL OVERRIDE --- */
+.clients-wrapper {
+  height: calc(100vh - 200px) !important; /* Forces it to fit exactly within admin content area */
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.cl-main {
+  flex: 1 !important;
+  min-height: 0 !important;
+  display: grid !important;
+}
+
+.cl-list-panel, .cl-detail-panel, .cl-activity-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+.cl-list, .cl-tab-body, .cl-act-list {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  min-height: 0 !important;
+}
+
+/* Let's shrink the avatar and detail header just a tiny bit more for tight screens */
+.cl-detail-header {
+  padding: 12px 16px !important;
+}
+.cl-avatar-lg {
+  width: 48px !important;
+  height: 48px !important;
+  font-size: 18px !important;
+}
+.cl-detail-hero {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+
+/* --- EXTRA COMPACT SIDE CARDS --- */
+.cl-detail-panel .cl-tab-body, .cl-activity-panel .cl-act-list {
+  padding: 10px !important;
+}
+
+.cl-form-grid {
+  gap: 8px !important;
+}
+
+.cl-form-grid .cl-fg label {
+  font-size: 10px !important;
+  margin-bottom: 2px !important;
+  font-weight: 700 !important;
+}
+
+.cl-form-grid .cl-fg input, 
+.cl-form-grid .cl-fg select, 
+.cl-form-grid .cl-fg textarea {
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  height: 28px !important; /* Force small height */
+  min-height: 28px !important;
+}
+
+.cl-detail-stats {
+  padding: 8px 12px !important;
+  margin: 0 12px 12px 12px !important;
+}
+
+.cl-detail-stats .cl-stat {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+}
+
+.cl-detail-stats .cl-stat-val {
+  font-size: 13px !important;
+}
+
+/* Activity Panel */
+.cl-tl-item {
+  padding-bottom: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+.cl-tl-header {
+  margin-bottom: 4px !important;
+}
+
+.cl-tl-title {
+  font-size: 11px !important;
+}
+
+.cl-tl-time {
+  font-size: 9px !important;
+}
+
+.cl-tl-amount {
+  font-size: 12px !important;
+}
+
+.cl-tl-items {
+  font-size: 10px !important;
+  margin-bottom: 4px !important;
+}
+
+.cl-detail-header {
+  gap: 12px !important;
+  padding: 10px 12px !important;
+}
+.cl-avatar-lg {
+  width: 40px !important;
+  height: 40px !important;
+  font-size: 16px !important;
+}
+.cl-detail-name {
+  font-size: 14px !important;
+}
+
+.cl-detail-header {
+  padding: 16px !important;
+  gap: 16px !important;
+}
+
+.cl-avatar-lg {
+  width: 54px !important;
+  height: 54px !important;
+  font-size: 20px !important;
+}
+
+.cl-detail-name {
+  font-size: 1.1rem !important;
+}
+
+.cl-detail-stats .cl-stat {
+  font-size: 11px !important;
+  padding: 4px 8px !important;
+}
+
+.cl-tab {
+  padding: 10px 16px !important;
+  font-size: 12px !important;
+}
+
+.cl-tab-body {
+  padding: 16px !important;
+}
+
+.cl-form-grid {
+  gap: 12px !important;
+}
+
+.cl-form-grid .cl-fg label {
+  font-size: 11px !important;
+  margin-bottom: 4px !important;
+}
+
+.cl-form-grid .cl-fg input, .cl-form-grid .cl-fg select, .cl-form-grid .cl-fg textarea {
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+}
+
+.cl-form-actions {
+  padding: 12px 16px !important;
+}
+
+.cl-save-btn {
+  padding: 8px 16px !important;
+  font-size: 12px !important;
+}
+
+/* Timeline/Activity adjustments */
+.cl-tl-item {
+  padding-bottom: 12px !important;
+}
+.cl-tl-header {
+  margin-bottom: 6px !important;
+}
+
+/* Adjust pills in header */
+.page-subheader-row .btn-primary, .page-subheader-row .btn-outline, .page-subheader-row .btn-secondary {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+}
+.location-pill-select {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+}
+.cl-count-badge {
+  padding: 2px 8px !important;
+  font-size: 10px !important;
+}
+
+
+/* --- FIXED NO-SCROLL OVERRIDE --- */
+.clients-wrapper {
+  height: calc(100vh - 200px) !important; /* Forces it to fit exactly within admin content area */
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.cl-main {
+  flex: 1 !important;
+  min-height: 0 !important;
+  display: grid !important;
+}
+
+.cl-list-panel, .cl-detail-panel, .cl-activity-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+.cl-list, .cl-tab-body, .cl-act-list {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  min-height: 0 !important;
+}
+
+/* Let's shrink the avatar and detail header just a tiny bit more for tight screens */
+.cl-detail-header {
+  padding: 12px 16px !important;
+}
+.cl-avatar-lg {
+  width: 48px !important;
+  height: 48px !important;
+  font-size: 18px !important;
+}
+.cl-detail-hero {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+
+/* --- EXTRA COMPACT SIDE CARDS --- */
+.cl-detail-panel .cl-tab-body, .cl-activity-panel .cl-act-list {
+  padding: 10px !important;
+}
+
+.cl-form-grid {
+  gap: 8px !important;
+}
+
+.cl-form-grid .cl-fg label {
+  font-size: 10px !important;
+  margin-bottom: 2px !important;
+  font-weight: 700 !important;
+}
+
+.cl-form-grid .cl-fg input, 
+.cl-form-grid .cl-fg select, 
+.cl-form-grid .cl-fg textarea {
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  height: 28px !important; /* Force small height */
+  min-height: 28px !important;
+}
+
+.cl-detail-stats {
+  padding: 8px 12px !important;
+  margin: 0 12px 12px 12px !important;
+}
+
+.cl-detail-stats .cl-stat {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+}
+
+.cl-detail-stats .cl-stat-val {
+  font-size: 13px !important;
+}
+
+/* Activity Panel */
+.cl-tl-item {
+  padding-bottom: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+.cl-tl-header {
+  margin-bottom: 4px !important;
+}
+
+.cl-tl-title {
+  font-size: 11px !important;
+}
+
+.cl-tl-time {
+  font-size: 9px !important;
+}
+
+.cl-tl-amount {
+  font-size: 12px !important;
+}
+
+.cl-tl-items {
+  font-size: 10px !important;
+  margin-bottom: 4px !important;
+}
+
+.cl-detail-header {
+  gap: 12px !important;
+  padding: 10px 12px !important;
+}
+.cl-avatar-lg {
+  width: 40px !important;
+  height: 40px !important;
+  font-size: 16px !important;
+}
+.cl-detail-name {
+  font-size: 14px !important;
+}
+.cl-detail-meta {
+  font-size: 11px !important;
+}
+
+/* --- USER REQUESTED TWEAKS --- */
+/* EXTRA Slim Wallet Cards */
+.cl-balance-card {
+  padding: 8px 12px !important;
+  margin-bottom: 4px !important;
+}
+.cl-balance-amount {
+  font-size: 16px !important;
+  margin-top: 2px !important;
+}
+.cl-balance-label {
+  font-size: 10px !important;
+  margin-bottom: 0 !important;
+}
+.cl-balance-note {
+  font-size: 9px !important;
+  margin-top: 2px !important;
+}
+.cl-perk-section-title {
+  margin-bottom: 8px !important;
+  font-size: 13px !important;
+}
+
+/* EXTRA Slim Mini Stats (3 cards) */
+.cl-stats-row {
+  display: flex !important;
+  gap: 8px !important;
+  padding: 10px !important;
+  background: var(--bg-subtle) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.cl-mini-stat {
+  flex: 1 !important;
+  padding: 8px 6px !important;
+  text-align: center !important;
+  background: #ffffff !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
+}
+.cl-mini-stat:last-child {
+  border-right: 1px solid var(--border) !important;
+}
+.cl-mini-stat-val {
+  font-size: 16px !important;
+}
+.cl-mini-stat-label {
+  font-size: 10px !important;
+  margin-top: 2px !important;
+}
+
+/* Table-like Timeline History */
+.cl-timeline {
+  padding: 8px 12px !important;
+}
+.cl-tl-item {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 8px 6px !important;
+  margin-bottom: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: #ffffff !important;
+}
+.cl-tl-item::before {
+  display: none !important;
+}
+.cl-tl-item:last-child {
+  border-bottom: none !important;
+}
+.cl-tl-icon {
+  width: 24px !important;
+  height: 24px !important;
+  font-size: 10px !important;
+}
+.cl-tl-content {
+  display: grid !important;
+  grid-template-columns: 1fr auto !important;
+  gap: 2px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  flex: 1 !important;
+  align-items: center !important;
+}
+.cl-tl-top {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin-bottom: 0 !important;
+  grid-column: 1 !important;
+}
+.cl-tl-title {
+  font-size: 12px !important;
+}
+.cl-tl-meta {
+  grid-column: 1 !important;
+  margin-bottom: 0 !important;
+  font-size: 10px !important;
+}
+.cl-tl-amount {
+  grid-column: 2 !important;
+  grid-row: 1 / 3 !important;
+  font-size: 13px !important;
+  text-align: right !important;
+}
+.cl-tl-items {
+  grid-column: 1 / 3 !important;
+  font-size: 10px !important;
+  margin-top: 2px !important;
+  color: var(--text-secondary) !important;
+  margin-bottom: 0 !important;
+}
+/* Carry Over / Renew Modal */
+.cl-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cl-modal {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  max-width: 90vw;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.cl-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cl-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cl-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.cl-modal-body {
+  padding: 20px;
+}
+
+.cl-modal-footer {
+  padding: 16px 20px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}

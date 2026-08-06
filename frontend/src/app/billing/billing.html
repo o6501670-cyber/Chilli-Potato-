@@ -1,0 +1,1154 @@
+<div class="billing-page">
+
+  <!-- Unified Header -->
+  <div class="billing-subheader-row" style="padding: 16px 0; background: transparent; box-shadow: none; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; margin-bottom: 16px;">
+    
+    <!-- Left: Center Name -->
+    <div class="subheader-left" style="display: flex; align-items: center; gap: 8px;">
+
+      <app-location-selector
+        [centers]="centers"
+        [hasGlobalAccess]="hasGlobalAccess"
+        [(selectedCenterId)]="selectedCenterId"
+        (selectionChange)="onCenterChange()">
+      </app-location-selector>
+    </div>
+    
+    <!-- Middle: Tabs -->
+    <div class="main-tabs-row" style="display: flex; gap: 32px; margin: 0;">
+      <div class="main-tab" [class.active]="viewMode === 'new-invoice'" (click)="setViewMode('new-invoice')" style="padding-bottom: 4px; cursor: pointer; font-weight: 700; font-size: 14px; border-bottom: 2px solid transparent;" [style.color]="viewMode === 'new-invoice' ? '#e11d48' : '#64748b'" [style.borderBottomColor]="viewMode === 'new-invoice' ? '#e11d48' : 'transparent'">New Invoice</div>
+      <div class="main-tab" [class.active]="viewMode === 'landing'" (click)="setViewMode('landing')" style="padding-bottom: 4px; cursor: pointer; font-weight: 600; font-size: 14px; border-bottom: 2px solid transparent;" [style.color]="viewMode === 'landing' ? '#e11d48' : '#64748b'" [style.borderBottomColor]="viewMode === 'landing' ? '#e11d48' : 'transparent'">Drafts & History</div>
+    </div>
+
+    <!-- Right: Action Buttons -->
+    <div class="subheader-right" style="display: flex; gap: 12px; align-items: center;">
+      <button class="btn-open-invoices" (click)="setViewMode('landing')"
+        style="background: #fff; color: #64748b; border: 1px solid #e2e8f0; border-radius: 20px; padding: 8px 16px; font-weight: 600; cursor: pointer;"
+        title="View open/draft bills saved to the server">
+        <i class="fa fa-file-text-o" style="margin-right:5px;"></i>Draft Bills ({{ globalInvoices.length }})
+      </button>
+      <button class="btn-open-invoices" *ngIf="heldCarts.length > 0" (click)="showHeldCartsModal = true"
+        style="background: #f59e0b; color: #fff; border-radius: 20px; padding: 8px 16px; border: none; cursor: pointer;"
+        title="Resume a cart that was placed on hold (saved locally only)">
+        <i class="fa fa-pause-circle"></i> On Hold ({{ heldCarts.length }})
+      </button>
+      <button class="btn-new-invoice" *ngIf="isOwner || permissions.billing?.new_invoice?.read"
+        (click)="openNewInvoice()" style="background: #e11d48; color: #fff; font-weight: 600; border: none; border-radius: 20px; padding: 8px 16px; cursor: pointer;">+ New Invoice</button>
+    </div>
+  </div>
+
+  <!-- LANDING VIEW -->
+  <div class="billing-body landing-view" *ngIf="viewMode === 'landing'">
+    <app-billing-landing [globalInvoices]="globalInvoices" [appointments]="appointments" [staffActivity]="staffActivity"
+      [staffMembers]="staffMembers" [activityFeed]="activityFeed" (onInvoiceClick)="loadInvoice($event)" (onDeleteInvoice)="deleteDraftInvoice($event)">
+    </app-billing-landing>
+  </div>
+
+
+  <!-- NEW INVOICE VIEW -->
+  <div class="billing-body new-invoice-view" *ngIf="viewMode === 'new-invoice'">
+
+    <!-- Left Column: Client -->
+    <div class="panel-card col-client">
+      <div class="client-search-container" style="position: relative; z-index: 50;">
+        <div class="client-search-input-wrapper" style="height: 32px; padding: 0 8px;">
+          <i class="fa fa-search search-icon" style="font-size: 12px; margin-right: 6px;"></i>
+          <input class="premium-search-input" placeholder="Search Client..." [(ngModel)]="searchPhone"
+            (ngModelChange)="onSearchPhoneChange()" (keyup.enter)="searchClients()" style="font-size: 11px;">
+          <button class="btn-premium-add-client" (click)="newClient()" title="Add New Client"
+            style="width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <button class="btn-premium-add-client" (click)="setAnonymousClient()" title="Walk-in / Anonymous Client"
+            style="width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-left: 4px; background-color: #64748b; color: #ffffff;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="premium-search-results" *ngIf="!client && searchPhone && clients.length > 0">
+          <div *ngFor="let c of clients" class="premium-result-item" (mousedown)="selectClient(c)" style="padding: 8px 10px;">
+            <div class="client-avatar" style="width: 28px; height: 28px; font-size: 12px; margin-right: 8px;">{{ c.first_name ? c.first_name.charAt(0).toUpperCase() : '?' }}</div>
+            <div class="client-info">
+              <strong class="client-name" style="font-size: 12px; margin-bottom: 2px;">{{c.first_name}} {{c.last_name}}</strong>
+              <span class="client-phone" style="font-size: 11px;"><i class="fa fa-phone" style="font-size: 9px; opacity: 0.7;"></i>
+                {{c.phone}}</span>
+            </div>
+            <div class="client-action-icon">
+              <i class="fa fa-chevron-right" style="font-size: 10px;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="!client && (!searchPhone || clients.length === 0)"
+        style="padding: 14px 8px; text-align: center; color: var(--text-muted); font-size: 10.5px;">
+        Start typing a name or phone number...
+      </div>
+
+      <div *ngIf="client && !client.is_anonymous" class="client-profile-card">
+        <!-- Client Header -->
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+          <div
+            style="width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #1e293b, #4f46e5); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;">
+            {{ client.first_name ? client.first_name.charAt(0).toUpperCase() : '?' }}
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; gap: 4px;">
+              <input type="text" placeholder="First Name" [(ngModel)]="client.first_name" class="premium-inline-input"
+                style="font-weight: 700; font-size: 11px; width: 50%; padding: 1px 0; border-bottom: 1px solid #e2e8f0;">
+              <input type="text" placeholder="Last Name" [(ngModel)]="client.last_name" class="premium-inline-input"
+                style="font-weight: 700; font-size: 11px; width: 50%; padding: 1px 0; border-bottom: 1px solid #e2e8f0;">
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px; margin-top: 1px;">
+              <i class="fa fa-phone" style="font-size: 8.5px; color: var(--text-muted);"></i>
+              <input type="text" placeholder="Phone" [(ngModel)]="client.phone" class="premium-inline-input"
+                style="font-size: 10px; color: var(--text-secondary); width: 100%; padding: 1px 0; border-bottom: 1px solid #e2e8f0;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Client Details Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 4px;">
+          <div class="client-input-group m-0">
+            <input placeholder="Email" [(ngModel)]="client.email" style="font-size: 10px; padding: 2px 5px; height: 22px; border-radius: 4px;">
+          </div>
+          <div class="client-input-group m-0">
+            <input type="date" placeholder="Birthday" [(ngModel)]="client.birthday" style="font-size: 10px; padding: 2px 5px; height: 22px; border-radius: 4px;">
+          </div>
+        </div>
+
+        <div class="client-input-group" style="margin-bottom: 3px;">
+          <textarea placeholder="Internal notes..." [(ngModel)]="client.notes" rows="1"
+            style="resize: none; height: 22px; min-height: 22px; font-size: 9.5px; padding: 2px 5px; border-radius: 4px;"></textarea>
+        </div>
+
+        <div class="gender-toggle" style="margin-top: 2px; margin-bottom: 4px; padding: 2px; height: 22px;">
+          <button [class.active]="client.gender === 'male'" (click)="client.gender = 'male'" style="padding: 2px; font-size: 9px; line-height: 1;">Male</button>
+          <button [class.active]="client.gender !== 'male'" (click)="client.gender = 'female'" style="padding: 2px; font-size: 9px; line-height: 1;">Female</button>
+        </div>
+
+        <button class="btn-save-client" (click)="saveClient()" style="padding: 4px; font-size: 9.5px; border-radius: 4px;">
+          <i class="fa fa-save" style="margin-right: 3px;"></i> Save Changes
+        </button>
+      </div>
+
+      <div *ngIf="client && client.is_anonymous" class="client-profile-card">
+        <div style="padding: 14px 8px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 8px;">
+           <i class="fa fa-user-secret" style="font-size: 22px; margin-bottom: 6px; color: #94a3b8; display: block;"></i>
+           <div style="margin: 0 0 4px 0; font-size: 12px; color: #1e293b; font-weight: 700;">Anonymous Walk-in</div>
+           <p style="margin: 0; font-size: 10px; line-height: 1.3; color: #64748b;">Invoice recorded without client profile.</p>
+        </div>
+      </div>
+
+      <!-- Accordions -->
+      <div *ngIf="client && client.id">
+        <!-- MEMBERSHIPS -->
+        <div class="accordion-header mt-2" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Memberships</span>
+          <span *ngIf="client?.active_memberships?.length"
+            style="background:#10b981;color: var(--surface);border-radius:20px;padding:1px 8px;font-size:10px;font-weight:700;">{{
+            client.active_memberships.length }} Active</span>
+        </div>
+        <div class="accordion-body" style="padding:0;">
+          <div *ngIf="!client || !client.active_memberships?.length"
+            style="padding:10px 12px;font-size:12px;color:#94a3b8;font-style:italic;">No active memberships</div>
+          <div *ngFor="let am of client?.active_memberships"
+            style="padding:8px 12px;border-bottom:1px solid #f1f5f9;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-weight:700;font-size:12px;color: var(--text-primary);">👑 {{ am.membership_detail?.name
+                }}</span>
+              <span style="font-size:11px;font-weight:600;color:#10b981;">{{ am.membership_detail?.discount_percent }}%
+                OFF</span>
+            </div>
+            <div style="font-size:10px;color: var(--text-secondary);">Expires: {{ am.expiry_date | date:'dd MMM yyyy' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- BALANCES -->
+        <div class="accordion-header">Balances</div>
+        <div class="accordion-body" style="padding:0;">
+          <!-- Advance/Wallet -->
+          <div
+            style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #f1f5f9;">
+            <span style="font-size:12px;color: var(--text-secondary);font-weight:600;"><svg width="14" height="14"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;">
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg> Advance/Wallet</span>
+            <span [style.color]="clientAdvanceBalance > 0 ? '#10b981' : '#94a3b8'"
+              style="font-weight:700;font-size:13px;">Rs. {{ clientAdvanceBalance | number:'1.2-2' }}</span>
+          </div>
+          <!-- Cashback Wallet -->
+          <div
+            style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #f1f5f9;">
+            <span style="font-size:12px;color: var(--text-secondary);font-weight:600;"><svg width="14" height="14"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+              </svg> Cashback Wallet</span>
+            <span [style.color]="clientCashbackBalance > 0 ? '#10b981' : '#94a3b8'"
+              style="font-weight:700;font-size:13px;">Rs. {{ clientCashbackBalance | number:'1.2-2' }}</span>
+          </div>
+          <!-- Value Cards -->
+          <div *ngIf="client?.active_value_cards?.length"
+            style="padding:6px 12px 2px;font-size:10px;color:#94a3b8;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">
+            Value Cards</div>
+          <div *ngFor="let vc of client?.active_value_cards"
+            style="display:flex;justify-content:space-between;align-items:center;padding:6px 12px;border-bottom:1px solid #f1f5f9;">
+            <span style="font-size:12px;color: var(--text-secondary);">💳 {{ vc.value_card_detail?.title }}</span>
+            <div style="text-align:right;">
+              <div style="font-weight:700;font-size:12px;color:#3b82f6;">Rs. {{ vc.balance | number:'1.2-2' }}</div>
+              <div style="font-size:10px;color:#94a3b8;">Exp: {{ vc.expiry_date | date:'dd MMM yyyy' }}</div>
+            </div>
+          </div>
+          <div *ngIf="!client?.active_value_cards?.length"
+            style="padding:6px 12px;font-size:12px;color:#94a3b8;font-style:italic;">No active value cards</div>
+        </div>
+
+        <!-- PACKAGES -->
+        <div class="accordion-header" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Active Packages</span>
+          <span *ngIf="client?.active_packages?.length"
+            style="background:#6366f1;color: var(--surface);border-radius:20px;padding:1px 8px;font-size:10px;font-weight:700;">{{
+            client.active_packages.length }}</span>
+        </div>
+        <div class="accordion-body" style="padding:0;">
+          <div *ngIf="!client || !client.active_packages?.length"
+            style="padding:10px 12px;font-size:12px;color:#94a3b8;font-style:italic;">No active packages</div>
+          <div *ngFor="let ap of client?.active_packages" style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-weight:700;font-size:12px;color: var(--text-primary);">📦 {{ ap.package_detail?.name ||
+                'Custom Package' }}</span>
+              <span [style.color]="isExpired(ap.expiry_date) ? '#ef4444' : '#64748b'" style="font-size:10px;">Exp: {{
+                ap.expiry_date | date:'dd MMM yyyy' }}</span>
+            </div>
+            <!-- Services Remaining -->
+            <div style="padding:4px 0 2px 0;">
+              <ng-container *ngFor="let svcId of getPackageServiceKeys(ap)">
+                <div
+                  style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color: var(--text-secondary);padding:2px 0;">
+                  <span>{{ getServiceName(+svcId) }}</span>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-weight:700;"
+                      [style.color]="ap.services_remaining[svcId] > 0 ? '#10b981' : '#ef4444'">{{
+                      ap.services_remaining[svcId] }} left</span>
+                    <button *ngIf="ap.services_remaining[svcId] > 0 && !isExpired(ap.expiry_date)" class="btn-link"
+                      style="padding:0;font-size:11px;font-weight:700;color:#3b82f6;border:none;background:none;cursor:pointer;"
+                      (click)="addRedeemableServiceToCart(svcId, ap)">REDEEM</button>
+                  </div>
+                </div>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+
+        <!-- CLIENT HISTORY (Invoices & Advances) -->
+        <div class="accordion-header">Client History</div>
+        <div class="accordion-body p-0">
+          <div style="max-height: 280px; overflow-y: auto;">
+            <table class="data-table" style="width: 100%;">
+              <thead>
+                <tr style="position: sticky; top: 0; background: var(--bg-2); z-index:1;">
+                  <th style="padding: 6px 8px; font-size:10px; color: var(--text-secondary); text-transform:uppercase;">
+                    Date</th>
+                  <th style="padding: 6px 8px; font-size:10px; color: var(--text-secondary); text-transform:uppercase;">
+                    Type</th>
+                  <th style="padding: 6px 8px; font-size:10px; color: var(--text-secondary); text-transform:uppercase;">
+                    ID</th>
+                  <th
+                    style="padding: 6px 8px; font-size:10px; color: var(--text-secondary); text-transform:uppercase; text-align:right;">
+                    Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let h of clientHistory" style="border-bottom: 1px solid #f1f5f9; cursor:default;"
+                  [style.background]="h.type === 'Invoice' ? '#fff' : '#f0fdf4'">
+                  <td style="padding: 7px 8px; font-size: 11px; color: var(--text-secondary); white-space:nowrap;">{{
+                    h.date | date:'dd MMM yy' }}</td>
+                  <td style="padding: 7px 8px; font-size: 11px;">
+                    <span [style.color]="h.type === 'Invoice' ? '#3b82f6' : '#10b981'" style="font-weight:700;">{{
+                      h.type }}</span>
+                    <span *ngIf="h.status" style="margin-left:4px;font-size:9px;color:#94a3b8;">{{ h.status }}</span>
+                  </td>
+                  <td style="padding: 7px 8px; font-size: 11px; color: var(--text-secondary);">#{{ h.ref }}</td>
+                  <td style="padding: 7px 8px; font-size: 12px; font-weight:700; text-align:right;"
+                    [style.color]="h.type === 'Advance' && +h.amount < 0 ? '#ef4444' : '#1e293b'">
+                    Rs. {{ h.amount | number:'1.0-0' }}
+                  </td>
+                </tr>
+                <tr *ngIf="!clientHistory || clientHistory.length === 0">
+                  <td colspan="4" style="text-align: center; padding: 30px 10px; color: #94a3b8; font-size: 12px;">
+                    <i class="fa fa-clock-o"
+                      style="font-size: 22px; margin-bottom: 8px; display: block; opacity: 0.4;"></i>
+                    No history yet
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Middle Column: Master Search & Tabs -->
+    <div class="panel-card col-middle">
+      <div class="middle-top-bar" style="margin-bottom: 6px;">
+        <div class="search-blocks-container" style="display: flex; gap: 6px; margin-bottom: 4px; position: relative; z-index: 105;">
+          <!-- Services Search -->
+          <div class="search-input-wrap" style="flex:1; border-radius: var(--radius-pill); display: flex; align-items: center; position: relative; background: #f1f5f9; padding: 0 8px; height: 26px;">
+            <i class="fa fa-search" style="font-size: 10px; color: #94a3b8; margin-right: 4px;"></i>
+            <input type="text" placeholder="Services..." [(ngModel)]="serviceSearchTerm" (focus)="showServiceDropdown = true; activeTab = 'search'" style="width: 100%; border: none; outline: none; background: transparent; padding: 2px 0; font-size: 10.5px;">
+            <div *ngIf="showServiceDropdown && filteredServicesDropdown.length > 0" style="position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; max-height: 220px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-top: 2px;">
+               <div style="padding: 4px 8px; font-weight: 700; font-size: 9px; color: #64748b; background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-transform: uppercase;">Services</div>
+               <div *ngFor="let s of filteredServicesDropdown" (click)="openConfig(s, 'service')" style="padding: 5px 8px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                 <div style="font-size: 10.5px; font-weight: 600; color: #0f172a;" [style.color]="s.name?.includes('[Redeem]') ? '#10b981' : '#0f172a'">{{s.name}}</div>
+                 <div style="font-size: 10.5px; font-weight: 700;">Rs. {{getEffectivePrice(s)}}</div>
+               </div>
+            </div>
+          </div>
+          
+          <!-- Products Search -->
+          <div class="search-input-wrap" style="flex:1; border-radius: var(--radius-pill); display: flex; align-items: center; position: relative; background: #f1f5f9; padding: 0 8px; height: 26px;">
+            <i class="fa fa-shopping-bag" style="font-size: 10px; color: #94a3b8; margin-right: 4px;"></i>
+            <input type="text" placeholder="Products..." [(ngModel)]="productSearchTerm" (focus)="showProductDropdown = true; activeTab = 'search'" style="width: 100%; border: none; outline: none; background: transparent; padding: 2px 0; font-size: 10.5px;">
+            <div *ngIf="showProductDropdown && filteredProductsDropdown.length > 0" style="position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; max-height: 220px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-top: 2px;">
+               <div style="padding: 4px 8px; font-weight: 700; font-size: 9px; color: #64748b; background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-transform: uppercase;">Products</div>
+               <div *ngFor="let p of filteredProductsDropdown" (click)="openConfig(p, 'product')" style="padding: 5px 8px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;" [style.opacity]="p.current_stock <= 0 ? '0.5' : '1'">
+                 <div style="font-size: 10.5px; font-weight: 600; color: #0f172a;">
+                   {{p.name}}
+                   <span *ngIf="p.current_stock <= 0" style="margin-left: 4px; background: #fee2e2; color: #dc2626; font-size: 8px; padding: 1px 3px; border-radius: 3px;">OUT</span>
+                 </div>
+                 <div style="font-size: 10.5px; font-weight: 700;">Rs. {{getEffectivePrice(p)}}</div>
+               </div>
+            </div>
+          </div>
+        </div>
+        <div class="pill-tabs-row"
+          style="display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px;">
+          <button class="pill-tab" *ngIf="!client?.is_anonymous" [class.active]="activeTab === 'cards'" (click)="setActiveTab('cards')" style="padding: 2px 8px; font-size: 9.5px;">Cards</button>
+          <button class="pill-tab" *ngIf="!client?.is_anonymous" [class.active]="activeTab === 'packages'"
+            (click)="setActiveTab('packages')" style="padding: 2px 8px; font-size: 9.5px;">Packages</button>
+          <button class="pill-tab" *ngIf="!client?.is_anonymous" [class.active]="activeTab === 'memberships'"
+            (click)="setActiveTab('memberships')" style="padding: 2px 8px; font-size: 9.5px;">Memberships</button>
+          <button class="pill-tab" *ngIf="!client?.is_anonymous" [class.active]="activeTab === 'advance'"
+            (click)="setActiveTab('advance')" style="padding: 2px 8px; font-size: 9.5px;">Advance</button>
+        </div>
+      </div>
+
+      <!-- STATES for middle column -->
+      <!-- 1. Selection List (If nothing is configuring) -->
+      <div *ngIf="!selectedItemForConfig" class="master-items-container">
+
+        <div *ngIf="activeTab === 'search'">
+          <div *ngIf="filteredServices.length === 0 && filteredProducts.length === 0"
+            class="empty-message text-center mt-3" style="font-size: 10.5px;">
+            Search for a service or product.
+          </div>
+          <div class="addable-list" style="gap: 2px;">
+            <div *ngFor="let s of filteredServices; let i = index" class="addable-item"
+              [style.background]="s.name?.includes('[Redeem]') ? '#f0fdf4' : '#f8fafc'" 
+              style="display: flex; align-items: center; padding: 4px 8px; border-radius: 5px; border: 1px solid #f1f5f9; cursor: pointer; transition: all 0.15s ease;"
+              (click)="openConfig(s, 'service')">
+              <span style="font-size: 8.5px; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 1px 4px; border-radius: 3px; margin-right: 6px; flex-shrink: 0;">Svc</span>
+              <div style="font-weight: 600; font-size: 11px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" [style.color]="s.name?.includes('[Redeem]') ? '#10b981' : '#0f172a'">{{ s.name }}</div>
+              <div style="font-weight: 700; font-size: 10.5px; margin-left: 6px; flex-shrink: 0;" [style.color]="s.name?.includes('[Redeem]') ? '#10b981' : '#0f172a'">Rs. {{ getEffectivePrice(s) }}</div>
+            </div>
+            <div *ngFor="let p of filteredProducts; let i = index" class="addable-item"
+              [class.out-of-stock-item]="p.current_stock <= 0" 
+              style="display: flex; align-items: center; padding: 4px 8px; border-radius: 5px; border: 1px solid #f1f5f9; background: #f8fafc; cursor: pointer; transition: all 0.15s ease;"
+              (click)="openConfig(p, 'product')">
+              <span style="font-size: 8.5px; font-weight: 700; background: #fef3c7; color: #b45309; padding: 1px 4px; border-radius: 3px; margin-right: 6px; flex-shrink: 0;">Prod</span>
+              <div style="font-weight: 600; font-size: 11px; color: #0f172a; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                {{ p.name }}
+                <span *ngIf="p.current_stock <= 0" style="display: inline-block; margin-left: 4px; background: #fee2e2; color: #dc2626; font-size: 8px; padding: 1px 3px; border-radius: 3px; font-weight: 600;">OUT</span>
+                <span *ngIf="p.current_stock > 0 && p.current_stock <= 5" style="display: inline-block; margin-left: 4px; background: #fef3c7; color: #d97706; font-size: 8px; padding: 1px 3px; border-radius: 3px; font-weight: 600;">LOW: {{p.current_stock}}</span>
+              </div>
+              <div style="font-weight: 700; font-size: 10.5px; color: #0f172a; margin-left: 6px; flex-shrink: 0;">Rs. {{ getEffectivePrice(p) }}</div>
+            </div>
+          </div>
+
+        </div>
+
+        <div *ngIf="activeTab === 'cards'">
+          <div class="addable-list" style="gap: 2px;">
+            <div *ngFor="let card of filteredCards; let i = index" class="addable-item" (click)="openConfig(card, 'card')"
+              style="display: flex; align-items: center; padding: 4px 8px; border-radius: 5px; border: 1px solid #f1f5f9; background: #f8fafc; cursor: pointer; transition: all 0.15s ease;" [style.border-color]="client?.active_value_cards?.length ? '#c7d2fe' : '#f1f5f9'">
+              <span style="font-size: 8.5px; font-weight: 700; background: #ede9fe; color: #6d28d9; padding: 1px 4px; border-radius: 3px; margin-right: 6px; flex-shrink: 0;">Card</span>
+              <div style="font-weight: 600; font-size: 11px; color: #0f172a; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ card.name || card.title }}</div>
+              <div style="font-weight: 700; font-size: 10.5px; color: #0f172a; margin-left: 6px; flex-shrink: 0;">Rs. {{ card.price || card.value }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="activeTab === 'packages'">
+          <div class="addable-list" style="gap: 2px;">
+            <div *ngFor="let pkg of filteredPackages; let i = index" class="addable-item" (click)="openConfig(pkg, 'package')"
+              style="display: flex; align-items: center; padding: 4px 8px; border-radius: 5px; border: 1px solid #f1f5f9; background: #f8fafc; cursor: pointer; transition: all 0.15s ease;">
+              <span style="font-size: 8.5px; font-weight: 700; background: #fce7f3; color: #be185d; padding: 1px 4px; border-radius: 3px; margin-right: 6px; flex-shrink: 0;">Pkg</span>
+              <div style="font-weight: 600; font-size: 11px; color: #0f172a; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ pkg.name }}</div>
+              <div style="font-weight: 700; font-size: 10.5px; color: #0f172a; margin-left: 6px; flex-shrink: 0;">Rs. {{ pkg.price }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="activeTab === 'memberships'">
+          <div class="addable-list" style="gap: 2px;">
+            <div *ngFor="let membership of filteredMemberships; let i = index" class="addable-item"
+              (click)="openConfig(membership, 'membership')"
+              style="display: flex; align-items: center; padding: 4px 8px; border-radius: 5px; border: 1px solid #f1f5f9; background: #f8fafc; cursor: pointer; transition: all 0.15s ease;">
+              <span style="font-size: 8.5px; font-weight: 700; background: #dcfce7; color: #15803d; padding: 1px 4px; border-radius: 3px; margin-right: 6px; flex-shrink: 0;">Mbr</span>
+              <div style="font-weight: 600; font-size: 11px; color: #0f172a; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ membership.name }}</div>
+              <div style="font-weight: 700; font-size: 10.5px; color: #0f172a; margin-left: 6px; flex-shrink: 0;">Rs. {{ membership.price }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="activeTab === 'advance'" style="display: none;">
+          <!-- Advance moved to config container -->
+        </div>
+      </div>
+
+      <!-- 2. Configuration View -->
+      <div *ngIf="selectedItemForConfig" class="config-container">
+
+        <!-- ADVANCE CONFIG -->
+        <ng-container *ngIf="configType === 'advance'">
+          <div class="config-container" style="max-width: 550px; margin: 20px auto; text-align: center;">
+            <div style="font-size: 18px; margin-bottom: 30px;">Current Advance Balance: <strong>Rs. {{
+                clientAdvanceBalance || 0 }}</strong></div>
+
+            <div class="config-form-grid-large" style="grid-template-columns: 180px auto;">
+              <label>Add to Advance (Rs.)</label>
+              <input type="number" placeholder="Enter amount in Rupees" [(ngModel)]="advanceAmount"
+                class="input-grey-center">
+
+              <label>Description</label>
+              <textarea placeholder="Enter description" rows="4" [(ngModel)]="advanceDescription"
+                class="input-grey-center" style="text-align: left; padding: 12px; resize: none;"></textarea>
+
+              <label>Sold By (Staff)</label>
+              <div
+                style="max-height: 150px; overflow-y: auto; padding: 5px; border-radius: 8px; display: flex; flex-wrap: wrap; background: #fafafa; border: 1px dashed #ccc; min-height: 40px; align-items: center; justify-content: flex-start; text-align: left;">
+                <div *ngIf="staffMembers.length === 0"
+                  style="color: var(--text-tertiary); font-size: 12px; font-style: italic;">No active staff found</div>
+                <div *ngFor="let s of staffMembers" class="staff-pill" [class.selected]="isStaffSelected(s.id)"
+                  (mousedown)="toggleStaffSelection(s.id)" style="margin: 2px;">
+                  {{s.first_name}} {{s.last_name}}
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: center; margin-top: 20px;">
+              <button class="btn-green-teal" (click)="confirmAddToCart()" style="width: auto; min-width: 250px;">ADD TO
+                INVOICE</button>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- SERVICE CONFIG -->
+        <ng-container *ngIf="configType === 'service' || configType === 'product'">
+          <div class="config-title">{{ selectedItemForConfig.name }}</div>
+
+          <div class="config-form-grid">
+            <label>{{ configType === 'service' ? 'Service' : 'Product' }} Price before tax:</label>
+            <input type="number" disabled [value]="finalConfigPrice">
+            <button class="btn-link" (click)="resetConfig()">Reset</button>
+
+            <label>Memberships:</label>
+            <span *ngIf="selectedPromotion" style="color: #10B981; font-weight: 600;">
+              {{ selectedPromotion.name }} applied ({{ selectedPromotion.discount_percent }}% off)
+            </span>
+            <span *ngIf="!selectedPromotion" style="color: #94a3b8; font-style: italic;">No Membership/Promo
+              Applied</span>
+            <span></span>
+
+            <label>Manager Discount:</label>
+            <div style="display: flex; gap: 5px; align-items: center;">
+              % <input type="number" [(ngModel)]="managerDiscountPercent" (ngModelChange)="recalcConfigPrice()"
+                style="width: 50px;">
+              Rs. <input type="number" [(ngModel)]="managerDiscountAmount" (ngModelChange)="recalcConfigPrice()"
+                style="width: 70px;">
+            </div>
+            <span></span>
+          </div>
+
+          <div class="final-price-row">
+            Final Price: <span>Rs. {{ finalConfigPrice | number:'1.2-2' }}</span>
+          </div>
+
+          <div class="config-form-grid" style="margin-bottom: 0;">
+            <label>{{ configType === 'service' ? 'Service By:' : 'Sold By:' }} (Select Multiple)</label>
+            <div
+              style="max-height: 150px; overflow-y: auto; padding: 5px; border-radius: 8px; display: flex; flex-wrap: wrap; background: #fafafa; border: 1px dashed #ccc; min-height: 40px; align-items: center; justify-content: center;">
+              <div *ngIf="staffMembers.length === 0"
+                style="color: var(--text-tertiary); font-size: 12px; font-style: italic;">No active staff found for this
+                center</div>
+              <div *ngFor="let s of staffMembers" class="staff-pill" [class.selected]="isStaffSelected(s.id)"
+                (mousedown)="toggleStaffSelection(s.id)">
+                {{s.first_name}} {{s.last_name}}
+              </div>
+            </div>
+          </div>
+          <table class="data-table"
+            style="width: 300px; margin: 10px auto; background: var(--surface); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+            <tr
+              style="background: var(--bg-2); color: var(--text-secondary); border-bottom: 1px solid var(--border-color);">
+              <th style="padding: 8px;">Staff Name</th>
+              <th style="padding: 8px;">Allocation</th>
+            </tr>
+            <tr *ngFor="let sid of configStaffIds"
+              style="background: var(--surface); color: var(--text-primary); border-bottom: 1px solid #eee;">
+              <td style="padding: 8px; font-size: 12px;">{{ getStaffName(sid) }}</td>
+              <td style="padding: 8px; font-size: 12px;">Rs. {{ (finalConfigPrice / configStaffIds.length) |
+                number:'1.2-2' }}</td>
+            </tr>
+            <tr *ngIf="configStaffIds.length === 0">
+              <td colspan="2" style="text-align: center; padding: 10px; font-size: 11px; color: var(--text-tertiary);">
+                No staff selected</td>
+            </tr>
+          </table>
+
+
+
+          <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button class="btn-green-teal" (click)="confirmAddToCart()"
+              style="flex: 2; margin: 0; padding: 12px; font-size: 14px;">ADD TO INVOICE</button>
+            <button class="btn-gray" (click)="setActiveTab(activeTab || 'search')"
+              style="flex: 1; background: #94a3b8; color: var(--surface); margin: 0; padding: 12px; font-size: 14px;">CANCEL</button>
+          </div>
+
+        </ng-container>
+
+        <!-- CARD CONFIG -->
+        <ng-container *ngIf="configType === 'card'">
+          <div class="config-form-grid-large">
+            <label>Select Value Card</label>
+            <select [(ngModel)]="selectedItemForConfig" (ngModelChange)="onConfigSelectionChange()">
+              <option *ngFor="let card of cards" [ngValue]="card">{{ card.name || card.title }}</option>
+            </select>
+            <span></span>
+
+            <label></label>
+            <div style="text-align: center;"><a href="javascript:void(0)" style="color: #007eb5; font-size: 16px;">{{
+                selectedItemForConfig.name || selectedItemForConfig.title }}</a></div>
+            <span></span>
+
+            <label style="margin-top: 30px;">Card Cost</label>
+            <input type="text" disabled [value]="finalConfigPrice" class="input-grey-center" style="margin-top: 30px;">
+            <button class="btn-link" (click)="resetConfig()" style="margin-top: 30px;">Reset</button>
+
+            <label>Card Balance (Rs.):</label>
+            <input type="text" disabled [value]="selectedItemForConfig.value" class="input-grey-center">
+            <span></span>
+
+            <label>Card Expiry:</label>
+            <div style="text-align: center; padding: 4px; font-size: 16px;">06-Apr-2027</div>
+            <span></span>
+
+
+            <label>Sold By: (Select Multiple)</label>
+            <div
+              style="max-height: 150px; overflow-y: auto; padding: 5px; border-radius: 8px; display: flex; flex-wrap: wrap; background: #fafafa; border: 1px dashed #ccc; min-height: 40px; align-items: center; justify-content: center;">
+              <div *ngIf="staffMembers.length === 0"
+                style="color: var(--text-tertiary); font-size: 12px; font-style: italic;">No active staff found for this
+                center</div>
+              <div *ngFor="let s of staffMembers" class="staff-pill" [class.selected]="isStaffSelected(s.id)"
+                (mousedown)="toggleStaffSelection(s.id)">
+                {{s.first_name}} {{s.last_name}}
+              </div>
+            </div>
+            <span></span>
+            <div style="grid-column: 1 / -1;">
+              <table class="data-table"
+                style="width: 300px; margin: 10px auto; background: var(--surface); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                <tr
+                  style="background: var(--bg-2); color: var(--text-secondary); border-bottom: 1px solid var(--border-color);">
+                  <th style="padding: 8px;">Staff Name</th>
+                  <th style="padding: 8px;">Allocation</th>
+                </tr>
+                <tr *ngFor="let sid of configStaffIds"
+                  style="background: var(--surface); color: var(--text-primary); border-bottom: 1px solid #eee;">
+                  <td style="padding: 8px; font-size: 12px;">{{ getStaffName(sid) }}</td>
+                  <td style="padding: 8px; font-size: 12px;">Rs. {{ (finalConfigPrice / configStaffIds.length) |
+                    number:'1.2-2' }}</td>
+                </tr>
+                <tr *ngIf="configStaffIds.length === 0">
+                  <td colspan="2"
+                    style="text-align: center; padding: 10px; font-size: 11px; color: var(--text-tertiary);">No staff
+                    selected</td>
+                </tr>
+              </table>
+            </div>
+
+            <label></label>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+              <button class="btn-green-teal" (click)="confirmAddToCart()"
+                style="flex: 2; margin: 0; padding: 12px; font-size: 14px;">ADD TO INVOICE</button>
+              <button class="btn-gray" (click)="setActiveTab(activeTab || 'search')"
+                style="flex: 1; background: #94a3b8; color: var(--surface); margin: 0; padding: 12px; font-size: 14px;">CANCEL</button>
+            </div>
+
+            <span></span>
+          </div>
+        </ng-container>
+
+        <!-- PACKAGE CONFIG -->
+        <ng-container *ngIf="configType === 'package'">
+          <div class="config-form-grid-large" style="margin-bottom: 20px;">
+            <label>Select Package Type</label>
+            <select [(ngModel)]="selectedItemForConfig" (ngModelChange)="onPackageSelectionChange()">
+              <option [ngValue]="customPackageObj">Custom Package</option>
+              <option *ngFor="let p of filteredPackages" [ngValue]="p">{{p.name}}</option>
+            </select>
+            <span></span>
+
+            <ng-container *ngIf="!selectedItemForConfig?.id">
+              <label>Select Services to add:</label>
+              <div class="search-input-wrap"
+                style="position: relative; border: none; border-radius: 4px; overflow: visible; background: #e4e4e4; display: flex;">
+                <input type="text" placeholder="Search Services" [(ngModel)]="packageSearchTerm"
+                  style="background: transparent; border: none; padding: 6px 10px; width: 100%;">
+                <button style="background: #4a4a4a; color: var(--surface); padding: 0 10px;"><i
+                    class="fa fa-search"></i></button>
+                <div *ngIf="packageFilteredServices.length > 0"
+                  style="position: absolute; top: 100%; left: 0; right: 0; background: var(--surface); border: 1px solid #ccc; max-height: 150px; overflow-y: auto; z-index: 10; text-align: left;">
+                  <div *ngFor="let s of packageFilteredServices" (mousedown)="addServiceToPackage(s)"
+                    style="padding: 8px; cursor: pointer; border-bottom: 1px solid #eee; font-size: 14px;">
+                    {{s.name}} (Rs. {{s.price}})
+                  </div>
+                </div>
+              </div>
+              <span></span>
+            </ng-container>
+            <ng-container *ngIf="selectedItemForConfig?.id">
+              <label></label>
+              <div style="font-size: 14px; color: var(--text-secondary); text-align: left; padding: 6px;">Pre-defined
+                package services</div>
+              <span></span>
+            </ng-container>
+          </div>
+
+          <div
+            style="border: 1px solid #ddd; min-height: 80px; max-height: 150px; overflow-y: auto; width: 100%; margin-bottom: 10px; background: var(--surface); padding: 10px;">
+            <div *ngIf="packageSelectedServices.length === 0"
+              style="color: #aaa; text-align: center; margin-top: 15px;">No services added</div>
+            <div *ngFor="let s of packageSelectedServices; let i = index"
+              style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+              <span>{{s.name}} (x{{s.pkgQty || 1}})</span>
+              <div>
+                <span>Rs. {{s.price}}</span>
+                <i *ngIf="!selectedItemForConfig?.id" class="fa fa-trash"
+                  style="color: red; cursor: pointer; margin-left: 10px;" (click)="removeServiceFromPackage(i)"></i>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="!selectedItemForConfig?.id" style="text-align: center; margin-bottom: 20px; font-size: 14px;">Add
+            Packages Above</div>
+          <div *ngIf="selectedItemForConfig?.id" style="text-align: center; margin-bottom: 20px; font-size: 14px;">
+            Included Services</div>
+
+          <div class="config-form-grid-large">
+            <label>Selling Price (Rs.)</label>
+            <input type="number" [(ngModel)]="finalConfigPrice" placeholder="Enter price in Rupees"
+              class="input-grey-center">
+            <span></span>
+
+            <label>Expiry Date</label>
+            <input type="text" value="Select Date" class="input-grey-center" style="color: var(--text-secondary);"
+              disabled>
+            <span></span>
+
+
+            <label>Sold By: (Select Multiple)</label>
+            <div
+              style="max-height: 150px; overflow-y: auto; padding: 5px; border-radius: 8px; display: flex; flex-wrap: wrap; background: #fafafa; border: 1px dashed #ccc; min-height: 40px; align-items: center; justify-content: center;">
+              <div *ngIf="staffMembers.length === 0"
+                style="color: var(--text-tertiary); font-size: 12px; font-style: italic;">No active staff found for this
+                center</div>
+              <div *ngFor="let s of staffMembers" class="staff-pill" [class.selected]="isStaffSelected(s.id)"
+                (mousedown)="toggleStaffSelection(s.id)">
+                {{s.first_name}} {{s.last_name}}
+              </div>
+            </div>
+            <span></span>
+            <div style="grid-column: 1 / -1;">
+              <table class="data-table"
+                style="width: 300px; margin: 10px auto; background: var(--surface); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                <tr
+                  style="background: var(--bg-2); color: var(--text-secondary); border-bottom: 1px solid var(--border-color);">
+                  <th style="padding: 8px;">Staff Name</th>
+                  <th style="padding: 8px;">Allocation</th>
+                </tr>
+                <tr *ngFor="let sid of configStaffIds"
+                  style="background: var(--surface); color: var(--text-primary); border-bottom: 1px solid #eee;">
+                  <td style="padding: 8px; font-size: 12px;">{{ getStaffName(sid) }}</td>
+                  <td style="padding: 8px; font-size: 12px;">Rs. {{ (finalConfigPrice / configStaffIds.length) |
+                    number:'1.2-2' }}</td>
+                </tr>
+                <tr *ngIf="configStaffIds.length === 0">
+                  <td colspan="2"
+                    style="text-align: center; padding: 10px; font-size: 11px; color: var(--text-tertiary);">No staff
+                    selected</td>
+                </tr>
+              </table>
+            </div>
+
+            <label></label>
+            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+              <button class="btn-green-teal" (click)="confirmAddToCart()" style="margin: 0; width: 100%;">ADD TO
+                INVOICE</button>
+              <button class="btn-gray" (click)="setActiveTab('search')"
+                style="background: #888; color: var(--surface); margin: 0; width: 100%;">CANCEL</button>
+            </div>
+            <span></span>
+          </div>
+        </ng-container>
+
+        <!-- MEMBERSHIP CONFIG -->
+        <ng-container *ngIf="configType === 'membership'">
+          <div class="config-form-grid-large">
+            <label>Select Membership</label>
+            <select [(ngModel)]="selectedItemForConfig" (ngModelChange)="onConfigSelectionChange()">
+              <option *ngFor="let m of filteredMemberships" [ngValue]="m">{{ m.name }}</option>
+            </select>
+            <span></span>
+
+            <label>Membership Price (Rs.)</label>
+            <input type="text" disabled [value]="finalConfigPrice" class="input-grey-center">
+            <button class="btn-link" (click)="resetConfig()">Reset</button>
+
+            <label>Membership Days</label>
+            <input type="text" disabled [value]="365" class="input-grey-center">
+            <span></span>
+          </div>
+
+          <div style="text-align: center; color: #007eb5; margin: 15px 0; font-size: 14px;">You don't have any
+            memberships</div>
+
+          <div class="config-form-grid-large">
+            <label>Membership Expiry</label>
+            <input type="text" disabled value="11-Jul-2027" class="input-grey-center">
+            <span></span>
+
+
+            <label>Sold By: (Select Multiple)</label>
+            <div
+              style="max-height: 150px; overflow-y: auto; padding: 5px; border-radius: 8px; display: flex; flex-wrap: wrap; background: #fafafa; border: 1px dashed #ccc; min-height: 40px; align-items: center; justify-content: center;">
+              <div *ngIf="staffMembers.length === 0"
+                style="color: var(--text-tertiary); font-size: 12px; font-style: italic;">No active staff found for this
+                center</div>
+              <div *ngFor="let s of staffMembers" class="staff-pill" [class.selected]="isStaffSelected(s.id)"
+                (mousedown)="toggleStaffSelection(s.id)">
+                {{s.first_name}} {{s.last_name}}
+              </div>
+            </div>
+            <span></span>
+            <div style="grid-column: 1 / -1;">
+              <table class="data-table"
+                style="width: 300px; margin: 10px auto; background: var(--surface); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                <tr
+                  style="background: var(--bg-2); color: var(--text-secondary); border-bottom: 1px solid var(--border-color);">
+                  <th style="padding: 8px;">Staff Name</th>
+                  <th style="padding: 8px;">Allocation</th>
+                </tr>
+                <tr *ngFor="let sid of configStaffIds"
+                  style="background: var(--surface); color: var(--text-primary); border-bottom: 1px solid #eee;">
+                  <td style="padding: 8px; font-size: 12px;">{{ getStaffName(sid) }}</td>
+                  <td style="padding: 8px; font-size: 12px;">Rs. {{ (finalConfigPrice / configStaffIds.length) |
+                    number:'1.2-2' }}</td>
+                </tr>
+                <tr *ngIf="configStaffIds.length === 0">
+                  <td colspan="2"
+                    style="text-align: center; padding: 10px; font-size: 11px; color: var(--text-tertiary);">No staff
+                    selected</td>
+                </tr>
+              </table>
+            </div>
+
+            <label></label>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+              <button class="btn-green-teal" (click)="confirmAddToCart()"
+                style="flex: 2; margin: 0; padding: 12px; font-size: 14px;">ADD TO INVOICE</button>
+              <button class="btn-gray" (click)="setActiveTab(activeTab || 'search')"
+                style="flex: 1; background: #94a3b8; color: var(--surface); margin: 0; padding: 12px; font-size: 14px;">CANCEL</button>
+            </div>
+
+            <span></span>
+          </div>
+        </ng-container>
+
+      </div>
+    </div>
+
+    <!-- Right Column: Invoice Summary -->
+    <div class="panel-card col-invoice p-0">
+      <div class="invoice-brand-header">
+        <h4>GEETANJALI</h4>
+        <div style="font-size: 10px; color: var(--text-secondary);">SALON</div>
+        <div style="font-size: 11px; margin-top: 5px;">{{ selectedCenterName }}</div>
+      </div>
+
+      <div class="invoice-meta">
+        Billed for: <strong>{{ client?.first_name || 'Customer' }}</strong>, Ph: <strong>{{ client?.phone || 'N/A'
+          }}</strong> at <strong>{{ cart.length > 0 ? (cart[0].time || 'Now') : 'Now' }}</strong>
+      </div>
+
+      <div class="cart-items-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 35%;">ITEMS</th>
+              <th>PRICE</th>
+              <th>DISC</th>
+              <th>QTY</th>
+              <th>TAX %</th>
+              <th>TAX AMT</th>
+              <th>TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let it of cart; let i = index" style="border-bottom: 1px dashed var(--border);">
+              <td style="padding: 6px 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <i *ngIf="it.content_type === 'services.servicemaster'" class="fa fa-scissors"
+                      style="color: #6366F1; font-size: 11px;"></i>
+                    <i *ngIf="it.content_type === 'inventory.product'" class="fa fa-shopping-bag"
+                      style="color: #F59E0B; font-size: 11px;"></i>
+                    <i *ngIf="it.content_type === 'marketing.package'" class="fa fa-gift" style="color: #EC4899; font-size: 11px;"></i>
+                    <i *ngIf="it.content_type === 'marketing.membership'" class="fa fa-star"
+                      style="color: #10B981; font-size: 11px;"></i>
+                    <i *ngIf="it.content_type === 'marketing.valuecard'" class="fa fa-credit-card"
+                      style="color: #8B5CF6; font-size: 11px;"></i>
+                    <i *ngIf="it.content_type === 'advance'" class="fa fa-money" style="color: #14B8A6; font-size: 11px;"></i>
+                    <span style="font-weight: 600; font-size: 11.5px; color: #0f172a;">{{ it.description }}</span>
+                  </div>
+                  <button type="button" class="btn-icon-danger" (click)="removeFromCart(i)"
+                    *ngIf="currentInvoiceStatus === 'draft'" title="Remove Item"
+                    style="padding: 2px 4px; background: transparent; border: none; color: #ef4444; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                  </button>
+                </div>
+                <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;" *ngIf="it.staff_members?.length">
+                  <i class="fa fa-user-circle" style="margin-right: 2px;"></i> By: <span
+                    *ngFor="let s of it.staff_members; let last=last">{{ getStaffName(s) }}{{last ? '' : ', '}}</span>
+                </div>
+              </td>
+              <td style="vertical-align: middle; padding: 6px 4px; font-size: 11px;">{{ it.unit_price | number:'1.2-2' }}</td>
+              <td style="vertical-align: middle; padding: 6px 4px; font-size: 11px;">{{ it.discount | number:'1.2-2' }}</td>
+              <td style="vertical-align: middle; padding: 6px 4px;">
+                <div style="display: flex; align-items: center; gap: 3px;" *ngIf="currentInvoiceStatus === 'draft'">
+                  <button type="button" (click)="updateQuantity(i, -1)" [disabled]="it.quantity <= 1"
+                    style="width: 20px; height: 20px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); cursor: pointer; color: var(--text-primary); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">-</button>
+                  <input type="number" min="1" [(ngModel)]="it.quantity" (ngModelChange)="onQuantityDirectChange(i)"
+                    style="width: 32px; height: 20px; text-align: center; font-weight: 700; font-size: 11px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text-primary); padding: 0; outline: none;" />
+                  <button type="button" (click)="updateQuantity(i, 1)"
+                    style="width: 20px; height: 20px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); cursor: pointer; color: var(--text-primary); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">+</button>
+                </div>
+                <span *ngIf="currentInvoiceStatus !== 'draft'" style="font-size: 11px;">{{ it.quantity }}</span>
+              </td>
+              <td style="vertical-align: middle; text-align:center;">
+                <span *ngIf="it.tax_percentage" style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">{{ it.tax_percentage }}%</span>
+                <span *ngIf="!it.tax_percentage" style="color:#94a3b8;font-size:10px;">—</span>
+              </td>
+              <td style="vertical-align: middle; text-align:right; color:#92400e; font-size:11px;">
+                {{ getItemTaxAmount(it) | number:'1.2-2' }}
+              </td>
+              <td style="vertical-align: middle;"><strong>{{ ( (it.unit_price * it.quantity) - it.discount + getItemTaxAmount(it) ) |
+                  number:'1.2-2' }}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="invoice-summary-block mt-auto" style="padding: 10px 12px;">
+
+        <div style="display: flex; gap: 8px; margin-bottom: 10px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 10px; align-items: center;">
+          <label style="font-size: 11px; font-weight: bold; color: var(--text-primary); white-space: nowrap; margin: 0;">Promo/Membership:</label>
+          <select [(ngModel)]="selectedPromotion" (ngModelChange)="applyPromotion()"
+            style="flex: 1; padding: 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 11px; background: white;">
+            <option [ngValue]="null">No Promotion</option>
+            <option *ngFor="let p of filteredPromotions" [ngValue]="p">{{p.name}}</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 11px; color: var(--text-secondary);">
+           <div style="display: flex; justify-content: space-between;">
+              <span>Sub-total:</span>
+              <span style="font-weight: 600;">Rs. {{ subtotalAmount | number:'1.2-2' }}</span>
+           </div>
+           <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span>CGST:</span>
+              <span style="display: flex; align-items: center; gap: 2px;">
+                Rs. <input type="number" [(ngModel)]="invoiceCGST" style="width: 40px; background: transparent; border: 1px solid transparent; color: inherit; text-align: right; font-size: 11px; outline: none; padding: 0;">
+              </span>
+           </div>
+           <div style="display: flex; justify-content: space-between;">
+              <span>Discount:</span>
+              <span style="font-weight: 600; color: #ef4444;">- Rs. {{ totalItemDiscount | number:'1.2-2' }}</span>
+           </div>
+           <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span>SGST:</span>
+              <span style="display: flex; align-items: center; gap: 2px;">
+                Rs. <input type="number" [(ngModel)]="invoiceSGST" style="width: 40px; background: transparent; border: 1px solid transparent; color: inherit; text-align: right; font-size: 11px; outline: none; padding: 0;">
+              </span>
+           </div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e2e8f0; font-size: 16px; font-weight: 800; color: var(--ink);">
+          <span>Total Invoice Amount</span>
+          <span>Rs. {{ finalTotalAmount | number:'1.2-2' }}</span>
+        </div>
+      </div>
+
+      <div class="invoice-actions">
+        <button class="btn-discard" (click)="discardInvoice()">Discard</button>
+        <button class="btn-save" (click)="saveInvoice(true)" *ngIf="currentInvoiceStatus === 'draft'">Hold / Save Draft</button>
+        <button class="btn-finalise" *ngIf="cart.length > 0 && currentInvoiceStatus === 'draft'"
+          (click)="openCheckoutModal()"><i class="fa fa-check-circle" style="margin-right:8px;"></i>Finalise
+          [F2]</button>
+      </div>
+    </div>
+  </div>
+
+
+
+
+  <!-- Toast Notification -->
+  <div class="toast-notification" [class.show]="toastVisible" [ngClass]="toastType">
+    <i class="fa"
+      [ngClass]="{'fa-check-circle': toastType === 'success', 'fa-exclamation-circle': toastType === 'error', 'fa-info-circle': toastType === 'info'}"
+      style="margin-right: 8px;"></i>
+    {{ toastMessage }}
+  </div>
+
+
+  <!-- Checkout Drawer (Split Payments) -->
+  <div class="modal-overlay" *ngIf="showCheckoutModal" (click)="closeCheckoutModal()"
+    style="display: flex; justify-content: flex-end; background: rgba(0,0,0,0.4); position: fixed; inset: 0; z-index: 2000; backdrop-filter: blur(2px);">
+    <div class="drawer-content" (click)="$event.stopPropagation()"
+      style="background: var(--bg-card); padding: 0; width: 500px; max-width: 100%; height: 100%; box-shadow: -10px 0 25px rgba(0,0,0,0.1); overflow-y: auto; display: flex; flex-direction: column;">
+
+      <!-- Header -->
+      <div
+        style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface);">
+        <h2 style="margin: 0; font-size: 18px; font-weight: 800; color: var(--text-primary);">Checkout & Payment</h2>
+        <button (click)="closeCheckoutModal()"
+          style="background: none; border: none; font-size: 26px; cursor: pointer; color: var(--text-muted); line-height: 1;">&times;</button>
+      </div>
+
+      <!-- Body -->
+      <div style="padding: 24px; flex: 1;">
+        <div
+          style="background: var(--bg-subtle); padding: 20px; border-radius: var(--radius-md); margin-bottom: 24px; text-align: center; border: 1px solid var(--border);">
+          <div
+            style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+            Total Bill Amount</div>
+          <div style="font-size: 30px; font-weight: 800; color: var(--ink); margin-top: 6px;">Rs. {{ finalTotalAmount |
+            number:'1.2-2' }}</div>
+        </div>
+
+        <div
+          style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">
+            Add Tip (Optional)
+          </div>
+          <div style="position: relative; width: 120px;">
+            <span
+              style="position: absolute; left: 12px; top: 12px; color: var(--text-secondary); font-weight: 600; font-size: 13px;">Rs.</span>
+            <input type="number" [(ngModel)]="checkoutTipAmount" (ngModelChange)="calcCheckoutRemaining()"
+              style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-sizing: border-box; background: white; outline: none;">
+          </div>
+        </div>
+
+        <h4
+          style="margin-top: 0; font-size: 13px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
+          Split Payments</h4>
+
+        <div *ngFor="let p of checkoutPayments; let i = index"
+          style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center;">
+          <select [(ngModel)]="p.method" (ngModelChange)="calcCheckoutRemaining()"
+            style="flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--bg-card); color: var(--text-primary); outline: none;">
+            <option value="Cash">Cash</option>
+            <option value="Card">Card</option>
+            <option value="UPI">UPI</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Advance">Advance/Wallet (Bal: Rs. {{clientAdvanceBalance}})</option>
+            <option value="Cashback Wallet">Cashback Wallet (Bal: Rs. {{clientCashbackBalance}})</option>
+            <!-- Value Cards -->
+            <option *ngFor="let vc of client?.active_value_cards" [value]="'Value Card ' + vc.id">
+              ?? {{ vc.value_card_detail?.title }} (Bal: ?{{ vc.balance | number:'1.2-2' }})
+            </option>
+          </select>
+
+          <div style="position: relative; flex: 1;">
+            <span
+              style="position: absolute; left: 12px; top: 12px; color: var(--text-secondary); font-weight: 600; font-size: 13px;">Rs.</span>
+            <input type="number" [(ngModel)]="p.amount" (ngModelChange)="calcCheckoutRemaining()"
+              style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-sizing: border-box; background: var(--bg-card); color: var(--text-primary); outline: none;">
+          </div>
+
+          <button (click)="removePaymentRow(i)" *ngIf="checkoutPayments.length > 1" class="btn-icon-danger"
+            style="padding: 10px;"><i class="fa fa-trash"></i></button>
+        </div>
+
+        <button (click)="addPaymentRow()"
+          style="background: transparent; border: 1px dashed var(--border-strong, #c7cad3); width: 100%; padding: 12px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-secondary); font-weight: 600; font-size: 12.5px; margin-bottom: 24px; transition: all 0.2s;"
+          onmouseover="this.style.background='var(--bg-subtle)'; this.style.color='var(--ink)'"
+          onmouseout="this.style.background='transparent'; this.style.color='var(--text-secondary)'">
+          + Add Another Payment Method
+        </button>
+
+        <div
+          style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0 0 0; border-top: 1px solid var(--border);">
+          <div style="font-size: 13px; font-weight: 600;">
+            <span style="color: var(--text-secondary);">Remaining to pay:</span>
+            <strong [style.color]="checkoutRemaining > 0 ? '#ef4444' : (checkoutRemaining < 0 ? '#d97706' : '#10b981')"
+              style="font-size: 16px; margin-left: 8px;">Rs. {{ checkoutRemaining | number:'1.2-2' }}</strong>
+          </div>
+          <button (click)="saveInvoice(false)" [disabled]="!canCompleteSale"
+            [style.opacity]="!canCompleteSale ? '0.5' : '1'"
+            style="background: var(--ink); color: white; border: none; padding: 14px 28px; border-radius: var(--radius-pill); font-weight: 700; font-size: 13px; cursor: pointer; transition: opacity 0.2s;">
+            {{ isSaving ? 'SAVING...' : 'COMPLETE SALE' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <!-- ============================================================ -->
+    <!-- FULL INVOICE RECEIPT MODAL (auto-shows after sale complete)  -->
+    <!-- ============================================================ -->
+    <div class="inv-receipt-overlay" *ngIf="showSuccessModal && completedInvoiceData" id="invoice-receipt-modal" style="flex-direction: column;">
+      
+      <div class="classic-receipt-paper" id="print-invoice">
+        <div class="prt-header">
+          <div class="prt-salon-name">GEETANJALI SALON</div>
+          <div class="prt-salon-sub">{{ completedInvoiceData.center_detail?.name || selectedCenterName }}</div>
+          <div *ngIf="completedInvoiceData.center_detail?.address" class="prt-salon-sub" style="font-size:10px;">{{
+            completedInvoiceData.center_detail.address }}</div>
+          <div class="prt-divider"></div>
+          <div class="prt-meta-row">
+            <span><b>Invoice #:</b> {{ completedInvoiceData.id }}</span>
+            <span><b>Date:</b> {{ completedInvoiceData.created_at | date:'dd MMM yyyy, h:mm a' }}</span>
+          </div>
+        </div>
+        <div class="prt-section">
+          <div class="prt-section-title">BILLED TO</div>
+          <div class="prt-client-name">{{ completedInvoiceData.client?.first_name }} {{
+            completedInvoiceData.client?.last_name }}</div>
+          <div class="prt-client-meta">Ph: {{ completedInvoiceData.client?.phone }}</div>
+        </div>
+        <div class="prt-divider"></div>
+        <table class="prt-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">ITEM</th>
+              <th style="text-align:center;">QTY</th>
+              <th style="text-align:right;">PRICE</th>
+              <th style="text-align:right;">DISC</th>
+              <th style="text-align:right;">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of completedInvoiceData.items">
+              <td>{{ item.description }}</td>
+              <td style="text-align:center;">{{ item.quantity }}</td>
+              <td style="text-align:right;">{{ item.unit_price | number:'1.0-0' }}</td>
+              <td style="text-align:right;">{{ item.discount | number:'1.0-0' }}</td>
+              <td style="text-align:right; font-weight:700;">{{ ((item.unit_price * item.quantity) - item.discount) |
+                number:'1.0-0' }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="prt-divider"></div>
+        <div class="prt-totals">
+          <div class="prt-total-row"><span>Subtotal</span><span>Rs. {{ completedInvoiceData.subtotal | number:'1.0-0'
+              }}</span></div>
+          <div class="prt-total-row" *ngIf="+completedInvoiceData.discount > 0"><span>Discount</span><span>- Rs. {{
+              completedInvoiceData.discount | number:'1.0-0' }}</span></div>
+          <div class="prt-total-row" *ngIf="+completedInvoiceData.cgst > 0"><span>CGST</span><span>Rs. {{
+              completedInvoiceData.cgst | number:'1.0-0' }}</span></div>
+          <div class="prt-total-row" *ngIf="+completedInvoiceData.sgst > 0"><span>SGST</span><span>Rs. {{
+              completedInvoiceData.sgst | number:'1.0-0' }}</span></div>
+          <div class="prt-total-row prt-grand-total"><span>TOTAL</span><span>Rs. {{ completedInvoiceData.total_amount |
+              number:'1.0-0' }}</span></div>
+          <div class="prt-total-row" style="font-size:11px;color:#555;"><span>Paid</span><span>Rs. {{
+              completedInvoiceData.paid_amount | number:'1.0-0' }}</span></div>
+        </div>
+        <div class="prt-divider"></div>
+        <div class="prt-section" *ngIf="completedInvoiceData.payments?.length">
+          <div class="prt-section-title">PAYMENT</div>
+          <div *ngFor="let pay of completedInvoiceData.payments" class="prt-total-row" style="font-size:12px;">
+            <span>{{ pay.payment_method }}</span><span>Rs. {{ pay.amount | number:'1.0-0' }}</span>
+          </div>
+        </div>
+        <div class="prt-footer">
+          <div class="prt-divider"></div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Thank you for your visit!</div>
+          <div style="font-size:11px;color:#555;">Please visit again</div>
+        </div>
+      </div>
+      
+      <div class="classic-receipt-actions">
+        <button (click)="printInvoice()" title="Print receipt (Ctrl+P)">
+          <i class="fa fa-print"></i> Print
+        </button>
+        <button class="primary" (click)="closeSuccessModal()">
+          <i class="fa fa-check"></i> Done
+        </button>
+      </div>
+
+    </div>
+
+    <!-- HELD CARTS MODAL -->
+    <div class="modal-overlay" *ngIf="showHeldCartsModal">
+      <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+          <h3 style="margin: 0;">Held Carts ({{heldCarts.length}})</h3>
+          <button class="btn-close" (click)="showHeldCartsModal = false">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+          <div *ngIf="heldCarts.length === 0"
+            style="text-align: center; color: var(--text-secondary); padding: 40px 0;">
+            No carts currently on hold.
+          </div>
+          <div *ngFor="let hc of heldCarts"
+            style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; background: var(--bg-card);">
+            <div>
+              <div style="font-weight: 700; font-size: 15px; color: var(--text-primary);">{{ hc.client?.name || 'Walk-in
+                Client' }} <span *ngIf="hc.client?.contact_number"
+                  style="font-weight: 400; font-size: 13px; color: var(--text-secondary);">({{hc.client.contact_number}})</span>
+              </div>
+              <div style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">Items: {{ hc.cart.length }} |
+                Total: ₹{{ hc.total | number:'1.0-0' }}</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;"><i class="fa fa-clock-o"></i>
+                Held at {{ hc.time | date:'shortTime' }}</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button (click)="deleteHeldCart(hc)"
+                style="background: #fee2e2; color: #ef4444; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;" title="Delete held cart"><i class="fa fa-trash"></i></button>
+              <button (click)="resumeCart(hc)"
+                style="background: var(--primary, #007bff); color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 600; cursor: pointer;">Resume</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>

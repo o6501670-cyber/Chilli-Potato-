@@ -1,0 +1,222 @@
+<div class="audit-container">
+  
+  <!-- Header -->
+  <div class="audit-header">
+    <div class="audit-kicker">AUDIT LOG</div>
+    <div class="audit-title">Admin-only enterprise activity feed</div>
+  </div>
+
+  <!-- Filters Row 1: Pills -->
+  <div class="audit-filters-pills">
+    <!-- We adapt the Module filter into these pills for aesthetics -->
+    <div class="audit-pill" [class.active]="selectedModule === ''" (click)="onPillChange('')">
+      All activity
+    </div>
+    <div class="audit-pill" [class.active]="selectedModule === 'AUTH'" (click)="onPillChange('AUTH')">
+      <span class="dot dot-green"></span> Security
+    </div>
+    <div class="audit-pill" [class.active]="selectedModule === 'STAFF' || selectedModule === 'CLIENTS'" (click)="onPillChange('STAFF')">
+      <span class="dot dot-yellow"></span> Accounts
+    </div>
+    <div class="audit-pill" [class.active]="selectedModule === 'BILLING'" (click)="onPillChange('BILLING')">
+      <span class="dot dot-red"></span> Finance
+    </div>
+  </div>
+
+  <!-- Filters Row 2: Search inputs -->
+  <div class="audit-filters-search">
+    <div class="audit-search-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" [(ngModel)]="searchQuery" (keyup.enter)="onFilterChange()" placeholder="Search by user, IP, or ID..." />
+    </div>
+    
+    <div class="audit-search-box">
+      <select [(ngModel)]="selectedAction" (change)="onFilterChange()">
+        <option value="">Action contains...</option>
+        <option value="LOGIN">Login</option>
+        <option value="CREATE">Create</option>
+        <option value="UPDATE">Update</option>
+        <option value="DELETE">Delete</option>
+        <option value="REFUND">Refund</option>
+        <option value="PAYMENT">Payment</option>
+      </select>
+    </div>
+
+    <div class="audit-search-box" style="flex: 0.5;">
+      <span style="font-size: 11px; color: #9ca3af; margin-right: 6px;">From:</span>
+      <input type="date" [(ngModel)]="pendingStartDate" />
+    </div>
+    <div class="audit-search-box" style="flex: 0.5;">
+      <span style="font-size: 11px; color: #9ca3af; margin-right: 6px;">To:</span>
+      <input type="date" [(ngModel)]="pendingEndDate" />
+    </div>
+
+    <button class="audit-apply-btn" (click)="onFilterChange()">Apply</button>
+    <button class="audit-clear-btn" *ngIf="hasActiveFilters || pendingStartDate || pendingEndDate" (click)="clearFilters()">Clear</button>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="audit-body-grid">
+    
+    <!-- Left: Timeline -->
+    <div class="audit-timeline-card">
+      <div *ngIf="loading" class="audit-loading">Loading activity feed...</div>
+      
+      <div *ngIf="!loading && logs.length === 0" class="audit-empty">
+        No activity found matching your criteria.
+      </div>
+
+      <ng-container *ngIf="!loading && logs.length > 0">
+        <div class="audit-date-header">
+          {{ startDate && endDate ? startDate + ' to ' + endDate : startDate ? 'Since ' + startDate : endDate ? 'Until ' + endDate : 'RECENT ACTIVITY' }}
+        </div>
+        
+        <div class="audit-table-wrapper">
+          <table class="audit-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Action & Module</th>
+                <th>Details</th>
+                <th>Device & IP</th>
+                <th>Location</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let log of logs" [class.active-log]="selectedLog?.id === log.id" (click)="selectLog(log)" style="cursor: pointer;">
+                <td>
+                  <div style="font-weight: 600; color: #111827;">{{ log.user_name || log.user_email || 'System' }}</div>
+                </td>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="audit-tl-icon" style="margin: 0; width: 24px; height: 24px;">
+                      <svg *ngIf="log.action === 'CREATE'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                      <svg *ngIf="log.action === 'UPDATE'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      <svg *ngIf="log.action === 'DELETE'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      <svg *ngIf="log.action === 'LOGIN' || log.action === 'LOGOUT'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      <svg *ngIf="log.action !== 'CREATE' && log.action !== 'UPDATE' && log.action !== 'DELETE' && log.action !== 'LOGIN' && log.action !== 'LOGOUT'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div>
+                      <div style="font-weight: 600; font-size: 12px; color: #374151;">{{ log.action }}</div>
+                      <div style="font-size: 11px; color: #6b7280;">{{ MODULE_LABELS[log.module] || log.module }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div style="font-size: 12px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;" [title]="log.human_description">
+                    {{ log.human_description || '-' }}
+                  </div>
+                  <div style="font-size: 11px; color: #6b7280;" *ngIf="log.entity_id">ID: {{ log.entity_id }}</div>
+                </td>
+                <td>
+                  <div style="font-size: 12px; color: #374151; display: flex; align-items: center; gap: 4px;">
+                    <i class="fa fa-desktop" *ngIf="log.device_type === 'desktop'"></i>
+                    <i class="fa fa-mobile" *ngIf="log.device_type === 'mobile'"></i>
+                    <i class="fa fa-tablet" *ngIf="log.device_type === 'tablet'"></i>
+                    {{ log.device_type | titlecase }}
+                  </div>
+                  <div style="font-size: 11px; color: #6b7280;">{{ log.ip_address || 'Unknown IP' }}</div>
+                </td>
+                <td>
+                  <div style="font-size: 12px; color: #374151;">
+                    {{ log._countryFlag || '🌐' }} {{ log.geo_country || 'Unknown' }}
+                  </div>
+                  <div style="font-size: 11px; color: #6b7280;">
+                    {{ log.geo_city ? log.geo_city + (log.geo_region ? ', ' + log.geo_region : '') : (log.geo_region || '-') }}
+                  </div>
+                </td>
+                <td>
+                  <div style="font-size: 12px; color: #374151; font-weight: 500;">
+                    {{ log.timestamp | date:'shortDate' }}
+                  </div>
+                  <div style="font-size: 11px; color: #6b7280;">
+                    {{ log.timestamp | date:'shortTime' }}
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="audit-pagination">
+          <button (click)="goPrev()" [disabled]="!hasPrev || loading">Prev</button>
+          <span>Page {{ currentPage }} &nbsp;·&nbsp; {{ totalCount | number }} total</span>
+          <button (click)="goNext()" [disabled]="!hasNext || loading">Next</button>
+        </div>
+      </ng-container>
+
+    </div>
+
+    <!-- Right: Stats Sidebar -->
+    <div class="audit-sidebar">
+      
+      <div class="audit-stat-box box-dark">
+        <div class="audit-stat-label">Total Events</div>
+        <div class="audit-stat-val">{{ totalCount | number }}</div>
+      </div>
+      
+      <div class="audit-stat-box box-light">
+        <div class="audit-stat-label">Showing</div>
+        <div class="audit-stat-val">{{ logs.length }} of {{ totalCount | number }}</div>
+      </div>
+      
+      <div class="audit-stat-box box-outline" *ngIf="!selectedLog">
+        <div class="audit-outline-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+        </div>
+        <div class="audit-stat-label" style="text-align:center; margin-top:8px; color: #94a3b8;">
+          Select an entry to see full details
+        </div>
+      </div>
+
+      <!-- Selected Log Details Panel -->
+      <div class="audit-details-panel" *ngIf="selectedLog">
+        <div class="audit-details-header">
+          <h4 style="margin: 0; font-size: 14px; color: #111827;">Activity Details</h4>
+          <button (click)="selectedLog = null" style="background: none; border: none; cursor: pointer; color: #9ca3af;">✕</button>
+        </div>
+        
+        <div class="audit-details-body">
+          <div class="detail-row">
+            <span class="detail-label">User</span>
+            <span class="detail-val">{{ selectedLog.user_name || selectedLog.user_email || 'System' }}</span>
+          </div>
+          <div class="detail-row" *ngIf="selectedLog.center_name">
+            <span class="detail-label">Center</span>
+            <span class="detail-val">{{selectedLog.display_name || selectedLog.center_name}}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Action</span>
+            <span class="detail-val" style="font-weight: 600;">{{ selectedLog.action }} on {{ selectedLog.module }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Description</span>
+            <span class="detail-val">{{ selectedLog.human_description || selectedLog.description || '—' }}</span>
+          </div>
+          <div class="detail-row" *ngIf="selectedLog.ip_address">
+            <span class="detail-label">IP Address</span>
+            <span class="detail-val">{{ selectedLog.ip_address }}</span>
+          </div>
+          <div class="detail-row" *ngIf="selectedLog.device_type">
+            <span class="detail-label">Device</span>
+            <span class="detail-val">{{ selectedLog.device_type }} / {{ selectedLog.browser }}</span>
+          </div>
+          <div class="detail-row" *ngIf="selectedLog.geo_city">
+            <span class="detail-label">Location</span>
+            <span class="detail-val">{{ selectedLog.geo_city }}, {{ selectedLog.geo_region }}, {{ selectedLog.geo_country }}</span>
+          </div>
+          <div class="detail-row" style="flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 8px;">
+            <span class="detail-label">Payload Data</span>
+            <div style="background: #f1f5f9; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 10px; color: #334155; width: 100%; word-break: break-all;">
+              {{ selectedLog._payloadText || 'No payload data' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>

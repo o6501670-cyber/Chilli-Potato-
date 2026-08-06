@@ -1,0 +1,1501 @@
+nohup: ignoring input
+
+Warning: This is a simple server for use in testing or debugging Angular applications
+locally. It hasn't been reviewed for security issues.
+
+Binding this server to an open connection can result in compromising your application or
+computer. Using a different host than the one passed to the "--host" flag might result in
+websocket connection issues.
+    
+❯ Building...
+✔ Building...
+Initial chunk files | Names         |  Raw size
+main.js             | main          | 681.50 kB | 
+styles.css          | styles        |   6.49 kB | 
+
+                    | Initial total | 687.99 kB
+
+Application bundle generation complete. [7.011 seconds] - 2026-07-06T09:38:52.851Z
+
+Watch mode enabled. Watching for file changes...
+NOTE: Raw file sizes do not reflect development server per-request transformations.
+  ➜  Local:   http://localhost:8092/
+  ➜  Network: http://10.40.52.10:8092/
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names         |  Raw size
+main.js             | main          | 738.45 kB | 
+styles.css          | styles        |   6.51 kB | 
+
+                    | Initial total | 744.97 kB
+
+Application bundle generation complete. [5.393 seconds] - 2026-07-06T10:14:22.529Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 738.45 kB | 
+
+Application bundle generation complete. [4.581 seconds] - 2026-07-06T10:15:41.715Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 739.11 kB | 
+
+Application bundle generation complete. [0.599 seconds] - 2026-07-06T18:03:19.020Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 743.92 kB | 
+
+Application bundle generation complete. [1.517 seconds] - 2026-07-06T18:17:00.312Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 744.43 kB | 
+
+Application bundle generation complete. [1.422 seconds] - 2026-07-06T18:27:49.231Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 744.44 kB | 
+
+Application bundle generation complete. [1.390 seconds] - 2026-07-06T18:35:43.893Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 743.18 kB | 
+
+Application bundle generation complete. [1.145 seconds] - 2026-07-06T18:39:16.897Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 742.71 kB | 
+
+Application bundle generation complete. [1.500 seconds] - 2026-07-06T18:41:38.617Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names         |  Raw size
+main.js             | main          | 742.71 kB | 
+styles.css          | styles        |   6.51 kB | 
+
+                    | Initial total | 749.22 kB
+
+Application bundle generation complete. [1.287 seconds] - 2026-07-06T18:49:55.899Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 742.94 kB | 
+
+Application bundle generation complete. [0.470 seconds] - 2026-07-06T18:49:57.125Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Application bundle generation failed. [0.289 seconds] - 2026-07-06T18:58:30.425Z
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mNG5002: Unexpected closing tag "select". It may happen when the tag has already been closed by another tag. For more info see https://www.w3.org/TR/html5/syntax.html#closing-elements-that-have-implied-end-tags[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:10:6:
+[37m      10 │       [32m</select>[37m
+         ╵       [32m~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Application bundle generation failed. [1.162 seconds] - 2026-07-06T18:58:32.520Z
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mNG5002: Unexpected closing tag "select". It may happen when the tag has already been closed by another tag. For more info see https://www.w3.org/TR/html5/syntax.html#closing-elements-that-have-implied-end-tags[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:10:6:
+[37m      10 │       [32m</select>[37m
+         ╵       [32m~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Application bundle generation failed. [1.297 seconds] - 2026-07-06T19:06:59.494Z
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mNG5002: Unexpected closing tag "select". It may happen when the tag has already been closed by another tag. For more info see https://www.w3.org/TR/html5/syntax.html#closing-elements-that-have-implied-end-tags[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:10:6:
+[37m      10 │       [32m</select>[37m
+         ╵       [32m~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'canManageAllCenters' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:67:15:
+[37m      67 │       if (this.[32mcanManageAllCenters[37m) {
+         ╵                [32m~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'loadData' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:74:11:
+[37m      74 │       this.[32mloadData[37m();
+         ╵            [32m~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2552: Cannot find name 'onCenterChange'. Did you mean 'oncuechange'?[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:78:2:
+[37m      78 │   [32monCenterChange[37m() {
+         ╵   [32m~~~~~~~~~~~~~~[0m
+
+  'oncuechange' is declared here.
+
+    node_modules/typescript/lib/lib.dom.d.ts:43854:12:
+[37m      43854 │ declare var [32moncuechange[37m: ((this: Window, ev: Event) => any) | n...
+            ╵             [32m~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:78:19:
+[37m      78 │   onCenterChange() [32m{[37m
+         ╵                    [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'loadData' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:79:9:
+[37m      79 │     this.[32mloadData[37m();
+         ╵          [32m~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'setTab'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:82:2:
+[37m      82 │   [32msetTab[37m(tab: string) {
+         ╵   [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'tab'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:82:9:
+[37m      82 │   setTab([32mtab[37m: string) {
+         ╵          [32m~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:82:12:
+[37m      82 │   setTab(tab[32m:[37m string) {
+         ╵             [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'string' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:82:14:
+[37m      82 │   setTab(tab: [32mstring[37m) {
+         ╵               [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:82:22:
+[37m      82 │   setTab(tab: string) [32m{[37m
+         ╵                       [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'tab'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:83:21:
+[37m      83 │     this.activeTab = [32mtab[37m;
+         ╵                      [32m~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'loadData'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:86:2:
+[37m      86 │   [32mloadData[37m() {
+         ╵   [32m~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:86:13:
+[37m      86 │   loadData() [32m{[37m
+         ╵              [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'onVendorSelect'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:113:2:
+[37m      113 │   [32monVendorSelect[37m() {
+          ╵   [32m~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:113:19:
+[37m      113 │   onVendorSelect() [32m{[37m
+          ╵                    [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'addPOItem'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:121:2:
+[37m      121 │   [32maddPOItem[37m() {
+          ╵   [32m~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:121:14:
+[37m      121 │   addPOItem() [32m{[37m
+          ╵               [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'removePOItem'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:131:2:
+[37m      131 │   [32mremovePOItem[37m(index: number) {
+          ╵   [32m~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'index'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:131:15:
+[37m      131 │   removePOItem([32mindex[37m: number) {
+          ╵                [32m~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:131:20:
+[37m      131 │   removePOItem(index[32m:[37m number) {
+          ╵                     [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'number' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:131:22:
+[37m      131 │   removePOItem(index: [32mnumber[37m) {
+          ╵                       [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:131:30:
+[37m      131 │   removePOItem(index: number) [32m{[37m
+          ╵                               [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'index'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:132:28:
+[37m      132 │     this.newPO.items.splice([32mindex[37m, 1);
+          ╵                             [32m~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'onProductSelect'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:135:2:
+[37m      135 │   [32monProductSelect[37m(item: any) {
+          ╵   [32m~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:135:18:
+[37m      135 │   onProductSelect([32mitem[37m: any) {
+          ╵                   [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:135:22:
+[37m      135 │   onProductSelect(item[32m:[37m any) {
+          ╵                       [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'any' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:135:24:
+[37m      135 │   onProductSelect(item: [32many[37m) {
+          ╵                         [32m~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:135:29:
+[37m      135 │   onProductSelect(item: any) [32m{[37m
+          ╵                              [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:136:8:
+[37m      136 │     if ([32mitem[37m.product_id) {
+          ╵         [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:137:51:
+[37m      137 │       const prod = this.products.find(p => p.id == [32mitem[37m.product_id);
+          ╵                                                    [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:139:8:
+[37m      139 │         [32mitem[37m.rate = prod.price;
+          ╵         [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'calculateItemTotal'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:2:
+[37m      144 │   [32mcalculateItemTotal[37m(item: any): number {
+          ╵   [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:21:
+[37m      144 │   calculateItemTotal([32mitem[37m: any): number {
+          ╵                      [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:25:
+[37m      144 │   calculateItemTotal(item[32m:[37m any): number {
+          ╵                          [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'any' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:27:
+[37m      144 │   calculateItemTotal(item: [32many[37m): number {
+          ╵                            [32m~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:31:
+[37m      144 │   calculateItemTotal(item: any)[32m:[37m number {
+          ╵                                [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1434: Unexpected keyword or identifier.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:33:
+[37m      144 │   calculateItemTotal(item: any): [32mnumber[37m {
+          ╵                                  [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'number' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:33:
+[37m      144 │   calculateItemTotal(item: any): [32mnumber[37m {
+          ╵                                  [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:145:17:
+[37m      145 │     const base = [32mitem[37m.quantity * item.rate;
+          ╵                  [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:145:33:
+[37m      145 │     const base = item.quantity * [32mitem[37m.rate;
+          ╵                                  [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:146:35:
+[37m      146 │     const discountAmount = base * ([32mitem[37m.discount_percent / 100);
+          ╵                                    [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:148:34:
+[37m      148 │     const taxAmount = subtotal * ([32mitem[37m.tax_percent / 100);
+          ╵                                   [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'calculatePOTotal'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:152:2:
+[37m      152 │   [32mcalculatePOTotal[37m(): number {
+          ╵   [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:152:20:
+[37m      152 │   calculatePOTotal()[32m:[37m number {
+          ╵                     [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1434: Unexpected keyword or identifier.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:152:22:
+[37m      152 │   calculatePOTotal(): [32mnumber[37m {
+          ╵                       [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'number' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:152:22:
+[37m      152 │   calculatePOTotal(): [32mnumber[37m {
+          ╵                       [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'calculateItemTotal' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:155:20:
+[37m      155 │       total += this.[32mcalculateItemTotal[37m(item);
+          ╵                     [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'createPurchaseOrder'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:160:2:
+[37m      160 │   [32mcreatePurchaseOrder[37m() {
+          ╵   [32m~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:160:24:
+[37m      160 │   createPurchaseOrder() [32m{[37m
+          ╵                         [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'calculatePOTotal' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:173:25:
+[37m      173 │       total_amount: this.[32mcalculatePOTotal[37m(),
+          ╵                          [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'calculateItemTotal' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:181:26:
+[37m      181 │         total_price: this.[32mcalculateItemTotal[37m(i)
+          ╵                           [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'loadData' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:191:13:
+[37m      191 │         this.[32mloadData[37m();
+          ╵              [32m~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'addProduct'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:202:2:
+[37m      202 │   [32maddProduct[37m() {
+          ╵   [32m~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:202:15:
+[37m      202 │   addProduct() [32m{[37m
+          ╵                [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'loadData' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:210:13:
+[37m      210 │         this.[32mloadData[37m();
+          ╵              [32m~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'addVendor'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:219:2:
+[37m      219 │   [32maddVendor[37m() {
+          ╵   [32m~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:219:14:
+[37m      219 │   addVendor() [32m{[37m
+          ╵               [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'loadData' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:227:13:
+[37m      227 │         this.[32mloadData[37m();
+          ╵              [32m~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: '}' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:236:0:
+[37m      236 │ [32m[37m
+          ╵ [32m^[0m
+
+
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Application bundle generation failed. [0.513 seconds] - 2026-07-06T19:19:00.314Z
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'onCenterChange' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:5:78:
+[37m      5 │ ...select" [(ngModel)]="selectedCenterId" (change)="[32monCenterChange[37m()">
+        ╵                                                     [32m~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'setTab' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:19:21:
+[37m      19 │             (click)="[32msetTab[37m(tab)">
+         ╵                      [32m~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2551: Property 'addProduct' does not exist on type 'InventoryComponent'. Did you mean 'products'?[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:30:44:
+[37m      30 │ ...rm class="action-form" (ngSubmit)="[32maddProduct[37m()" ngNativeValidate>
+         ╵                                       [32m~~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'addVendor' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:90:44:
+[37m      90 │ ...orm class="action-form" (ngSubmit)="[32maddVendor[37m()" ngNativeValidate>
+         ╵                                        [32m~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'onVendorSelect' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:180:107:
+[37m      180 │ ...00px;" [(ngModel)]="newPO.vendor_id" (change)="[32monVendorSelect[37m()">
+          ╵                                                   [32m~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'addPOItem' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:227:62:
+[37m      227 │ ...btn btn-outline btn-sm" (click)="[32maddPOItem[37m()">+ Add Item</button>
+          ╵                                     [32m~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'onProductSelect' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:247:89:
+[37m      247 │ ..." [(ngModel)]="item.product_id" (change)="[32monProductSelect[37m(item)">
+          ╵                                              [32m~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'calculateItemTotal' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:268:52:
+[37m      268 │ ...ext-right"><strong>{{ [32mcalculateItemTotal[37m(item) | currency:'INR...
+          ╵                          [32m~~~~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'removePOItem' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:269:56:
+[37m      269 │ ... class="icon-btn" (click)="[32mremovePOItem[37m(i)">🗑️</button></td>
+          ╵                               [32m~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2551: Property 'createPurchaseOrder' does not exist on type 'InventoryComponent'. Did you mean 'purchaseOrders'?[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:275:99:
+[37m      275 │ ...-top: 2rem;" (click)="[32mcreatePurchaseOrder[37m()">CREATE ORDER</but...
+          ╵                          [32m~~~~~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'calculatePOTotal' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.html:278:23:
+[37m      278 │                 <h2>{{ [32mcalculatePOTotal[37m() | currency:'INR' }}</h2>
+          ╵                        [32m~~~~~~~~~~~~~~~~[0m
+
+  Error occurs in the template of component InventoryComponent.
+
+    src/app/inventory/inventory.ts:9:15:
+[37m      9 │   templateUrl: [32m'./inventory.html'[37m,
+        ╵                [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'loadData' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:74:11:
+[37m      74 │       this.[32mloadData[37m();
+         ╵            [32m~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2552: Cannot find name 'onCenterChange'. Did you mean 'oncuechange'?[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:78:2:
+[37m      78 │   [32monCenterChange[37m() {
+         ╵   [32m~~~~~~~~~~~~~~[0m
+
+  'oncuechange' is declared here.
+
+    node_modules/typescript/lib/lib.dom.d.ts:43854:12:
+[37m      43854 │ declare var [32moncuechange[37m: ((this: Window, ev: Event) => any) | n...
+            ╵             [32m~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:78:19:
+[37m      78 │   onCenterChange() [32m{[37m
+         ╵                    [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'loadData' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:79:9:
+[37m      79 │     this.[32mloadData[37m();
+         ╵          [32m~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'setTab'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:82:2:
+[37m      82 │   [32msetTab[37m(tab: string) {
+         ╵   [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'tab'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:82:9:
+[37m      82 │   setTab([32mtab[37m: string) {
+         ╵          [32m~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:82:12:
+[37m      82 │   setTab(tab[32m:[37m string) {
+         ╵             [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'string' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:82:14:
+[37m      82 │   setTab(tab: [32mstring[37m) {
+         ╵               [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:82:22:
+[37m      82 │   setTab(tab: string) [32m{[37m
+         ╵                       [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'tab'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:83:21:
+[37m      83 │     this.activeTab = [32mtab[37m;
+         ╵                      [32m~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'loadData'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:86:2:
+[37m      86 │   [32mloadData[37m() {
+         ╵   [32m~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:86:13:
+[37m      86 │   loadData() [32m{[37m
+         ╵              [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'onVendorSelect'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:113:2:
+[37m      113 │   [32monVendorSelect[37m() {
+          ╵   [32m~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:113:19:
+[37m      113 │   onVendorSelect() [32m{[37m
+          ╵                    [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'addPOItem'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:121:2:
+[37m      121 │   [32maddPOItem[37m() {
+          ╵   [32m~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:121:14:
+[37m      121 │   addPOItem() [32m{[37m
+          ╵               [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'removePOItem'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:131:2:
+[37m      131 │   [32mremovePOItem[37m(index: number) {
+          ╵   [32m~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'index'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:131:15:
+[37m      131 │   removePOItem([32mindex[37m: number) {
+          ╵                [32m~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:131:20:
+[37m      131 │   removePOItem(index[32m:[37m number) {
+          ╵                     [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'number' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:131:22:
+[37m      131 │   removePOItem(index: [32mnumber[37m) {
+          ╵                       [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:131:30:
+[37m      131 │   removePOItem(index: number) [32m{[37m
+          ╵                               [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'index'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:132:28:
+[37m      132 │     this.newPO.items.splice([32mindex[37m, 1);
+          ╵                             [32m~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'onProductSelect'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:135:2:
+[37m      135 │   [32monProductSelect[37m(item: any) {
+          ╵   [32m~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:135:18:
+[37m      135 │   onProductSelect([32mitem[37m: any) {
+          ╵                   [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:135:22:
+[37m      135 │   onProductSelect(item[32m:[37m any) {
+          ╵                       [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'any' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:135:24:
+[37m      135 │   onProductSelect(item: [32many[37m) {
+          ╵                         [32m~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:135:29:
+[37m      135 │   onProductSelect(item: any) [32m{[37m
+          ╵                              [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:136:8:
+[37m      136 │     if ([32mitem[37m.product_id) {
+          ╵         [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:137:51:
+[37m      137 │       const prod = this.products.find(p => p.id == [32mitem[37m.product_id);
+          ╵                                                    [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:139:8:
+[37m      139 │         [32mitem[37m.rate = prod.price;
+          ╵         [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'calculateItemTotal'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:2:
+[37m      144 │   [32mcalculateItemTotal[37m(item: any): number {
+          ╵   [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:21:
+[37m      144 │   calculateItemTotal([32mitem[37m: any): number {
+          ╵                      [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ',' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:25:
+[37m      144 │   calculateItemTotal(item[32m:[37m any): number {
+          ╵                          [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'any' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:27:
+[37m      144 │   calculateItemTotal(item: [32many[37m): number {
+          ╵                            [32m~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:31:
+[37m      144 │   calculateItemTotal(item: any)[32m:[37m number {
+          ╵                                [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1434: Unexpected keyword or identifier.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:33:
+[37m      144 │   calculateItemTotal(item: any): [32mnumber[37m {
+          ╵                                  [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'number' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:144:33:
+[37m      144 │   calculateItemTotal(item: any): [32mnumber[37m {
+          ╵                                  [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:145:17:
+[37m      145 │     const base = [32mitem[37m.quantity * item.rate;
+          ╵                  [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:145:33:
+[37m      145 │     const base = item.quantity * [32mitem[37m.rate;
+          ╵                                  [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:146:35:
+[37m      146 │     const discountAmount = base * ([32mitem[37m.discount_percent / 100);
+          ╵                                    [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'item'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:148:34:
+[37m      148 │     const taxAmount = subtotal * ([32mitem[37m.tax_percent / 100);
+          ╵                                   [32m~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'calculatePOTotal'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:152:2:
+[37m      152 │   [32mcalculatePOTotal[37m(): number {
+          ╵   [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:152:20:
+[37m      152 │   calculatePOTotal()[32m:[37m number {
+          ╵                     [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1434: Unexpected keyword or identifier.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:152:22:
+[37m      152 │   calculatePOTotal(): [32mnumber[37m {
+          ╵                       [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2693: 'number' only refers to a type, but is being used as a value here.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:152:22:
+[37m      152 │   calculatePOTotal(): [32mnumber[37m {
+          ╵                       [32m~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'calculateItemTotal' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:155:20:
+[37m      155 │       total += this.[32mcalculateItemTotal[37m(item);
+          ╵                     [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'createPurchaseOrder'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:160:2:
+[37m      160 │   [32mcreatePurchaseOrder[37m() {
+          ╵   [32m~~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:160:24:
+[37m      160 │   createPurchaseOrder() [32m{[37m
+          ╵                         [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'calculatePOTotal' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:173:25:
+[37m      173 │       total_amount: this.[32mcalculatePOTotal[37m(),
+          ╵                          [32m~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'calculateItemTotal' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:181:26:
+[37m      181 │         total_price: this.[32mcalculateItemTotal[37m(i)
+          ╵                           [32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'loadData' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:191:13:
+[37m      191 │         this.[32mloadData[37m();
+          ╵              [32m~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'addProduct'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:202:2:
+[37m      202 │   [32maddProduct[37m() {
+          ╵   [32m~~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:202:15:
+[37m      202 │   addProduct() [32m{[37m
+          ╵                [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'loadData' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:210:13:
+[37m      210 │         this.[32mloadData[37m();
+          ╵              [32m~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2304: Cannot find name 'addVendor'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:219:2:
+[37m      219 │   [32maddVendor[37m() {
+          ╵   [32m~~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: ';' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:219:14:
+[37m      219 │   addVendor() [32m{[37m
+          ╵               [32m^[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2339: Property 'loadData' does not exist on type 'InventoryComponent'.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:227:13:
+[37m      227 │         this.[32mloadData[37m();
+          ╵              [32m~~~~~~~~[0m
+
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS1005: '}' expected.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/inventory/inventory.ts:236:0:
+[37m      236 │ [32m[37m
+          ╵ [32m^[0m
+
+
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names         |  Raw size
+main.js             | main          | 742.51 kB | 
+styles.css          | styles        |   6.51 kB | 
+
+                    | Initial total | 749.02 kB
+
+Application bundle generation complete. [0.535 seconds] - 2026-07-06T19:23:28.782Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names         |  Raw size
+main.js             | main          | 742.51 kB | 
+styles.css          | styles        |   6.51 kB | 
+
+                    | Initial total | 749.02 kB
+
+Application bundle generation complete. [0.554 seconds] - 2026-07-06T19:23:34.128Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 742.34 kB | 
+
+Application bundle generation complete. [0.993 seconds] - 2026-07-06T19:31:45.479Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 777.53 kB | 
+
+Application bundle generation complete. [0.498 seconds] - 2026-07-07T07:55:57.806Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 778.35 kB | 
+
+Application bundle generation complete. [2.014 seconds] - 2026-07-07T08:15:01.397Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 778.72 kB | 
+
+Application bundle generation complete. [0.568 seconds] - 2026-07-07T08:17:17.354Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 779.57 kB | 
+
+Application bundle generation complete. [1.153 seconds] - 2026-07-07T08:24:53.213Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 778.72 kB | 
+
+Application bundle generation complete. [1.360 seconds] - 2026-07-07T08:27:16.839Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 780.77 kB | 
+
+Application bundle generation complete. [1.024 seconds] - 2026-07-07T08:29:52.190Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 780.78 kB | 
+
+Application bundle generation complete. [1.302 seconds] - 2026-07-07T08:36:50.744Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 789.18 kB | 
+
+Application bundle generation complete. [0.615 seconds] - 2026-07-07T08:41:31.409Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 789.21 kB | 
+
+Application bundle generation complete. [0.652 seconds] - 2026-07-07T08:43:52.355Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 786.28 kB | 
+
+Application bundle generation complete. [0.494 seconds] - 2026-07-07T08:46:22.512Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 786.27 kB | 
+
+Application bundle generation complete. [1.397 seconds] - 2026-07-07T09:04:37.388Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Application bundle generation failed. [0.830 seconds] - 2026-07-07T09:12:21.106Z
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mTS2554: Expected 0-1 arguments, but got 2.[0m [1m[35m[plugin angular-compiler][0m
+
+    src/app/staff/staff.ts:93:42:
+[37m      93 │ ...ice.getStaffMembers(filter, [32mthis.showInactive[37m).subscribe(data => {
+         ╵                                [32m~~~~~~~~~~~~~~~~~[0m
+
+
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names         |  Raw size
+main.js             | main          | 786.67 kB | 
+styles.css          | styles        |   6.51 kB | 
+
+                    | Initial total | 793.18 kB
+
+Application bundle generation complete. [0.477 seconds] - 2026-07-07T09:12:22.898Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 787.20 kB | 
+
+Application bundle generation complete. [0.947 seconds] - 2026-07-07T09:40:38.236Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 787.83 kB | 
+
+Application bundle generation complete. [0.987 seconds] - 2026-07-07T09:43:59.375Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names  | Raw size
+styles.css          | styles |  8.98 kB | 
+
+Application bundle generation complete. [0.010 seconds] - 2026-07-07T09:52:20.937Z
+
+Stylesheet update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names  | Raw size
+styles.css          | styles | 95 bytes | 
+
+Application bundle generation complete. [0.008 seconds] - 2026-07-07T09:53:39.041Z
+
+Stylesheet update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names  | Raw size
+styles.css          | styles |  6.51 kB | 
+
+Application bundle generation complete. [0.008 seconds] - 2026-07-07T09:53:40.059Z
+
+Stylesheet update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 777.22 kB | 
+
+Application bundle generation complete. [0.384 seconds] - 2026-07-07T10:10:00.864Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 791.12 kB | 
+
+Application bundle generation complete. [0.379 seconds] - 2026-07-07T10:10:01.435Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 787.83 kB | 
+
+Application bundle generation complete. [0.369 seconds] - 2026-07-07T10:11:50.696Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 777.22 kB | 
+
+Application bundle generation complete. [0.498 seconds] - 2026-07-07T10:17:43.027Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 789.23 kB | 
+
+Application bundle generation complete. [0.339 seconds] - 2026-07-07T10:17:43.406Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 790.55 kB | 
+
+Application bundle generation complete. [0.373 seconds] - 2026-07-07T10:25:06.786Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 790.53 kB | 
+
+Application bundle generation complete. [0.332 seconds] - 2026-07-07T10:25:08.920Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 790.55 kB | 
+
+Application bundle generation complete. [0.359 seconds] - 2026-07-07T10:25:41.049Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 789.23 kB | 
+
+Application bundle generation complete. [0.405 seconds] - 2026-07-07T10:25:43.017Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 787.83 kB | 
+
+Application bundle generation complete. [0.355 seconds] - 2026-07-07T10:26:41.930Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 787.83 kB | 
+
+Application bundle generation complete. [0.429 seconds] - 2026-07-07T10:29:12.240Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 801.97 kB | 
+
+Application bundle generation complete. [3.259 seconds] - 2026-07-07T12:08:57.680Z
+
+Page reload sent to client(s).
+5:39:00 PM [vite] (client) ✨ new dependencies optimized: rxjs/operators
+5:39:00 PM [vite] (client) ✨ optimized dependencies changed. reloading
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names         |  Raw size
+main.js             | main          | 801.97 kB | 
+styles.css          | styles        |   6.51 kB | 
+
+                    | Initial total | 808.49 kB
+
+Application bundle generation complete. [1.415 seconds] - 2026-07-07T12:19:03.331Z
+
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 744.01 kB | 
+
+Application bundle generation complete. [0.172 seconds] - 2026-07-07T12:19:03.504Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 801.97 kB | 
+
+Application bundle generation complete. [0.564 seconds] - 2026-07-07T12:19:04.411Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 761.22 kB | 
+
+Application bundle generation complete. [0.517 seconds] - 2026-07-07T12:19:04.931Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 802.26 kB | 
+
+Application bundle generation complete. [1.793 seconds] - 2026-07-07T12:19:21.447Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names         |  Raw size
+main.js             | main          | 802.26 kB | 
+styles.css          | styles        |   6.51 kB | 
+
+                    | Initial total | 808.78 kB
+
+Application bundle generation complete. [0.458 seconds] - 2026-07-07T12:24:13.585Z
+
+Component update sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 802.64 kB | 
+
+Application bundle generation complete. [0.230 seconds] - 2026-07-07T12:37:56.394Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 808.78 kB | 
+
+Application bundle generation complete. [0.270 seconds] - 2026-07-07T12:48:31.621Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 809.61 kB | 
+
+Application bundle generation complete. [0.331 seconds] - 2026-07-07T12:50:58.865Z
+
+Page reload sent to client(s).
+❯ Changes detected. Rebuilding...
+✔ Changes detected. Rebuilding...
+Initial chunk files | Names |  Raw size
+main.js             | main  | 787.83 kB | 
+
+Application bundle generation complete. [3.051 seconds] - 2026-07-07T12:52:29.878Z
+
+Page reload sent to client(s).

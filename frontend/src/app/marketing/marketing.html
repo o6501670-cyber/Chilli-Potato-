@@ -1,0 +1,1576 @@
+<div class="marketing-layout">
+
+  <div class="sticky-tabs-container">
+    <div class="page-subheader-row" *ngIf="activeTab === 'WhatsApp'">
+      <div class="subheader-left">
+        <div style="display: flex; align-items: center; gap: 8px;">
+
+      <app-location-selector
+        [centers]="centers"
+        [hasGlobalAccess]="isOwner"
+        [(selectedCenterId)]="selectedFilterCenterId"
+        (selectionChange)="onFilterCenterChange()">
+      </app-location-selector>
+    </div>
+      </div>
+    </div>
+
+    <!-- Top Level Tabs -->
+    <div class="tabs-bar">
+      <button class="tab-btn" *ngIf="isOwner || permissions.marketing?.campaigns?.read"
+        [class.active]="activeTab === 'Campaigns'" (click)="setTab('Campaigns')">Campaigns</button>
+      <button class="tab-btn" *ngIf="isOwner || permissions.marketing?.whatsapp?.read"
+        [class.active]="activeTab === 'WhatsApp'" (click)="setTab('WhatsApp')">WhatsApp</button>
+      <button class="tab-btn" *ngIf="isOwner || permissions.marketing?.usage?.read" [class.active]="activeTab === 'Usage'"
+        (click)="setTab('Usage')">Usage</button>
+    </div>
+
+    <!-- Campaign Sub Tabs -->
+    <div class="sub-tabs" *ngIf="activeTab === 'Campaigns'">
+      <button class="sub-tab-btn" [class.active]="campaignTab === 'Promotions'"
+        (click)="setCampaignTab('Promotions')">Promotions</button>
+      <button class="sub-tab-btn" [class.active]="campaignTab === 'Cards'"
+        (click)="setCampaignTab('Cards')">Cards</button>
+      <button class="sub-tab-btn" [class.active]="campaignTab === 'Memberships'"
+        (click)="setCampaignTab('Memberships')">Memberships</button>
+      <button class="sub-tab-btn" [class.active]="campaignTab === 'Packages'"
+        (click)="setCampaignTab('Packages')">Packages</button>
+    </div>
+  </div>
+
+  <div class="tab-content" *ngIf="activeTab === 'Campaigns'">
+
+
+
+
+
+    <!-- Promotions -->
+
+    <div class="campaign-content" *ngIf="campaignTab === 'Promotions'">
+
+      <div class="split-layout">
+        <div class="form-card" *ngIf="isOwner || permissions.marketing?.campaigns?.create">
+
+          <h3 style="color: var(--primary-color); margin-top:0;">Create New Promotion</h3>
+
+          <select class="form-control" [(ngModel)]="newPromotion.promo_type"
+            style=" font-weight:500;">
+
+            <option value="Discount">Discount on Bill/items</option>
+
+            <option value="FlatPrice">Flat Price on items</option>
+
+            <option value="Trigger">Trigger Deals</option>
+
+            <option value="Cashback">Cashback Cards</option>
+
+          </select>
+
+
+
+          <div class="segmented-control">
+
+            <label><input type="radio" name="promo_lvl" value="Organisation" [(ngModel)]="newPromotion.level">
+
+              Organisation Level</label>
+
+            <label><input type="radio" name="promo_lvl" value="Center" [(ngModel)]="newPromotion.level"> Center
+
+              Specific</label>
+
+          </div>
+
+          <select *ngIf="newPromotion.level === 'Center'" class="form-control" [(ngModel)]="selectedCenterId"
+            style="margin-bottom:1rem;">
+
+            <option [value]="null">Select Center</option>
+
+            <option *ngFor="let c of centers" [value]="c.id">{{ c.display_name || c.center_name }}</option>
+
+          </select>
+
+
+
+          <div class="form-row">
+
+            <input type="text" class="form-control" placeholder="Promotion Name" [(ngModel)]="newPromotion.name">
+
+          </div>
+
+          <div class="form-row">
+
+            <input type="date" class="form-control" [(ngModel)]="newPromotion.start_date">
+
+            <input type="date" class="form-control" [(ngModel)]="newPromotion.end_date">
+
+          </div>
+
+          <textarea class="form-control" rows="3" placeholder="Promotion description"
+            [(ngModel)]="newPromotion.description"></textarea>
+
+
+
+          <div style="display: flex; align-items: center; justify-content: space-between; ">
+
+            
+
+            <input type="number" class="form-control" style="width: 120px; margin-bottom: 0;"
+              placeholder="Max Usage/Client" [(ngModel)]="newPromotion.max_usage_per_client">
+
+          </div>
+
+
+
+          <!-- Dynamic Configuration Section -->
+
+          <div
+            style="background: transparent; border: 1px solid var(--border); padding: 0.5rem 0.75rem; border-top: 3px solid var(--primary-color); border-radius: 6px;">
+
+
+
+            <!-- Type 1: Discount -->
+
+            <div *ngIf="newPromotion.promo_type === 'Discount'">
+
+              <h4
+                style="color: var(--primary-color); margin-top: 0; font-size: 0.9rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+
+                Discount Configuration</h4>
+
+              <div class="form-row" style="margin-top: 0.5rem;">
+
+                <select class="form-control" [(ngModel)]="newPromotion.config.discount_type">
+
+                  <option value="Percentage">Percentage</option>
+
+                  <option value="Flat">Flat Amount</option>
+
+                </select>
+
+                <input type="number" class="form-control" placeholder="Discount Value"
+                  [(ngModel)]="newPromotion.config.discount_value">
+
+              </div>
+
+              <div class="segmented-control" style="color: var(--primary-color); font-size: 0.8rem; margin: 0.5rem 0;">
+
+                <label><input type="radio" name="disc_target" value="Overall Bill"
+                    [(ngModel)]="newPromotion.config.target"> Overall Bill</label>
+
+                <label><input type="radio" name="disc_target" value="Specific Service"
+                    [(ngModel)]="newPromotion.config.target"> Specific Service</label>
+
+              </div>
+
+              <div *ngIf="newPromotion.config.target === 'Specific Service'" style="margin-bottom: 1rem;">
+
+                <select class="form-control" [(ngModel)]="newPromotion.config.specific_service">
+
+                  <option value="">Select Service</option>
+
+                  <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
+
+                </select>
+
+              </div>
+
+              <p style="color: var(--text-secondary); font-size: 0.75rem; margin-bottom: 0.25rem;">Minimum bill amount
+                for validity:</p>
+
+              <input type="number" class="form-control" placeholder="Min bill amount"
+                [(ngModel)]="newPromotion.config.min_bill_amount">
+
+            </div>
+
+
+
+            <!-- Type 2: Flat Price -->
+
+            <div *ngIf="newPromotion.promo_type === 'FlatPrice'">
+
+              <h4
+                style="color: var(--primary-color); margin-top: 0; font-size: 0.9rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+
+                Flat Price Configuration</h4>
+
+              <select class="form-control" style="margin-top: 0.5rem;"
+                [(ngModel)]="newPromotion.config.specific_service">
+
+                <option value="">Select Service</option>
+
+                <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
+
+              </select>
+
+              <input type="number" class="form-control" placeholder="Flat Price"
+                [(ngModel)]="newPromotion.config.flat_price">
+
+            </div>
+
+
+
+            <!-- Type 3: Trigger Deals -->
+
+            <div *ngIf="newPromotion.promo_type === 'Trigger'">
+
+              <h4
+                style="color: var(--primary-color); margin-top: 0; font-size: 0.9rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+
+                Trigger Deal Configuration</h4>
+
+              <select class="form-control" style="margin-top: 0.5rem;"
+                [(ngModel)]="newPromotion.config.trigger_services[0]">
+
+                <option value="" disabled selected hidden>Select Service 1</option>
+
+                <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
+
+              </select>
+
+              <select class="form-control" [(ngModel)]="newPromotion.config.trigger_services[1]">
+
+                <option value="" disabled selected hidden>Select Service 2</option>
+
+                <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
+
+              </select>
+
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+
+                <input type="number" class="form-control" style="margin-bottom: 0;" placeholder="Discount %"
+                  [(ngModel)]="newPromotion.config.trigger_discount">
+
+                <span style="color: var(--text-secondary); font-size: 0.75rem; white-space: nowrap;">(e.g. 20 for
+                  20%)</span>
+
+              </div>
+
+            </div>
+
+
+
+            <!-- Type 4: Cashback Cards -->
+
+            <div *ngIf="newPromotion.promo_type === 'Cashback'">
+
+              <h4
+                style="color: var(--primary-color); margin-top: 0; font-size: 0.9rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+
+                Cashback Configuration</h4>
+
+              <input type="number" class="form-control" style="margin-top: 0.5rem;" placeholder="Minimum Bill Amount"
+                [(ngModel)]="newPromotion.config.cashback_min_bill">
+
+              <input type="number" class="form-control" placeholder="Discount in %"
+                [(ngModel)]="newPromotion.config.cashback_discount">
+
+              <div class="form-row">
+
+                <input type="number" class="form-control" placeholder="Valid Days"
+                  [(ngModel)]="newPromotion.config.cashback_validity_days">
+
+                <input type="date" class="form-control" placeholder="Specific Date"
+                  [(ngModel)]="newPromotion.config.cashback_specific_date">
+
+              </div>
+
+            </div>
+
+
+
+          </div>
+
+
+
+          <button class="btn btn-primary" (click)="addPromotion()"
+            style="background: var(--primary-color); padding: 0.5rem 2rem;" [disabled]="isSaving">
+
+            <span *ngIf="isSaving">Adding...</span>
+
+            <span *ngIf="!isSaving">Add Promotion</span>
+
+          </button>
+
+        </div>
+
+
+
+        <div class="list-column">
+
+          <div class="filter-bar">
+            <label><input type="checkbox" [(ngModel)]="showExpired"> Show Expired</label>
+            <label><input type="checkbox" [(ngModel)]="showInactive"> Show Inactive</label>
+            <label><input type="checkbox" [(ngModel)]="showOrgOnly"> Show Org Level only</label>
+          </div>
+
+          <div class="list-card">
+
+            <div class="list-card-header">
+              <h4 class="card-title">Organisation Level Promotions</h4>
+            </div>
+
+            <div class="empty-state-small" *ngIf="orgPromotions.length === 0">No organisation promotions yet.</div>
+
+            <div class="table-responsive">
+            <table class="data-table" *ngIf="orgPromotions.length > 0">
+
+              <thead>
+
+                <tr>
+
+                  <th>TYPE</th>
+
+                  <th>NAME</th>
+
+                  <th>START</th>
+
+                  <th>END</th>
+
+                  
+
+                  <th>LIMIT</th>
+
+                  <th>ACTIVE?</th>
+
+                  <th>ACTIONS</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                <tr *ngFor="let p of orgPromotions">
+
+                  <td style="color: var(--text-secondary);">{{ p.promo_type === 'Discount' ? 'Discount' : (p.promo_type
+                    === 'FlatPrice' ? 'Flat' : (p.promo_type === 'Trigger' ? 'Trigger' : 'Cashback')) }}</td>
+
+                  <td>{{ p.name }}</td>
+
+                  <td>{{ p.start_date | date:'dd-MMM-yyyy' }}</td>
+
+                  <td>{{ p.end_date | date:'dd-MMM-yyyy' }}</td>
+
+                  
+
+                  <td>{{ p.max_usage_per_client ?? 'âˆž' }}</td>
+
+                  <td>
+
+                    <span [style.color]="p.is_active ? 'green' : 'red'">{{ p.is_active ? 'Yes' : 'No' }}</span>
+
+                  </td>
+
+                  <td>
+
+                    <button class="action-icon-btn" title="Edit" (click)="openEditModal(p, 'promotion')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+
+                    <button class="action-icon-btn" [class.danger]="p.is_active" [title]="p.is_active ? 'Deactivate' : 'Activate'" (click)="toggleStatus(p, 'promotion')">
+                      <ng-container *ngIf="p.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></ng-container>
+                      <ng-container *ngIf="!p.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></ng-container>
+                    </button>
+
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+          </div>
+
+          </div>
+
+          <div class="list-card" style="margin-top: 1.5rem;">
+
+            <div class="list-card-header">
+              <h4 class="card-title">Center Specific Promotions</h4>
+            </div>
+
+            <div class="empty-state-small" *ngIf="centerPromotions.length === 0">No center promotions yet.</div>
+
+            <div class="table-responsive">
+            <table class="data-table" *ngIf="centerPromotions.length > 0">
+
+              <thead>
+
+                <tr>
+
+                  <th>TYPE</th>
+
+                  <th>NAME</th>
+
+                  <th>START</th>
+
+                  <th>END</th>
+
+                  
+
+                  <th>LIMIT</th>
+
+                  <th>ACTIVE?</th>
+
+                  <th>ACTIONS</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                <tr *ngFor="let p of centerPromotions">
+
+                  <td style="color: var(--text-secondary);">{{ p.promo_type === 'Discount' ? 'Discount' : (p.promo_type
+                    === 'FlatPrice' ? 'Flat' : (p.promo_type === 'Trigger' ? 'Trigger' : 'Cashback')) }}</td>
+
+                  <td>{{ p.name }}</td>
+
+                  <td>{{ p.start_date | date:'dd-MMM-yyyy' }}</td>
+
+                  <td>{{ p.end_date | date:'dd-MMM-yyyy' }}</td>
+
+                  
+
+                  <td>{{ p.max_usage_per_client ?? 'âˆž' }}</td>
+
+                  <td>
+
+                    <span [style.color]="p.is_active ? 'green' : 'red'">{{ p.is_active ? 'Yes' : 'No' }}</span>
+
+                  </td>
+
+                  <td>
+
+                    <button class="action-icon-btn" title="Edit" (click)="openEditModal(p, 'promotion')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+
+                    <button class="action-icon-btn" [class.danger]="p.is_active" [title]="p.is_active ? 'Deactivate' : 'Activate'" (click)="toggleStatus(p, 'promotion')">
+                      <ng-container *ngIf="p.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></ng-container>
+                      <ng-container *ngIf="!p.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></ng-container>
+                    </button>
+
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+          </div>
+
+          </div>
+
+
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- Cards -->
+
+    <div class="campaign-content" *ngIf="campaignTab === 'Cards'">
+
+      <div class="split-layout">
+
+        <div class="form-card compact-form" *ngIf="isOwner || permissions.marketing?.campaigns?.create">
+
+          <h3>Add New Card</h3>
+
+          <div class="segmented-control">
+
+            <label><input type="radio" name="card_lvl" value="Organisation" [(ngModel)]="newCard.level"> Organisation
+
+              Level</label>
+
+            <label><input type="radio" name="card_lvl" value="Center" [(ngModel)]="newCard.level"> Center
+
+              Specific</label>
+
+          </div>
+
+          <select *ngIf="newCard.level === 'Center'" class="form-control" [(ngModel)]="selectedCenterId">
+
+            <option [value]="null">Select Center</option>
+
+            <option *ngFor="let c of centers" [value]="c.id">{{ c.display_name || c.center_name }}</option>
+
+          </select>
+
+
+
+          <input type="text" class="form-control" placeholder="Card Title" [(ngModel)]="newCard.title">
+
+          <input type="number" class="form-control" placeholder="Post tax Price" [(ngModel)]="newCard.post_tax_price" (ngModelChange)="calculateCardPreTax()">
+
+          <input type="number" class="form-control" placeholder="Pre Tax Price" [(ngModel)]="newCard.pre_tax_price" (ngModelChange)="calculateCardPostTax()">
+
+          <input type="number" class="form-control" placeholder="Value" [(ngModel)]="newCard.value" (ngModelChange)="calculateCardBenefit()">
+
+          <input type="number" class="form-control" placeholder="Enter Benefit in %" [(ngModel)]="newCard.benefit_percent" (ngModelChange)="calculateCardValue()">
+
+          <input type="number" class="form-control" placeholder="Incentive" [(ngModel)]="newCard.incentive">
+
+          <input type="number" class="form-control" placeholder="Expiry days" [(ngModel)]="newCard.expiry_days">
+
+          <textarea class="form-control" rows="3" placeholder="Enter card description"
+            [(ngModel)]="newCard.description"></textarea>
+
+          <button class="btn btn-primary" (click)="addCard()" [disabled]="isSaving">
+
+            <span *ngIf="isSaving">Adding...</span>
+
+            <span *ngIf="!isSaving">Add Card</span>
+
+          </button>
+
+        </div>
+
+
+
+        <div class="list-column">
+
+          <div class="filter-bar">
+            <label><input type="checkbox" [(ngModel)]="showExpired"> Show Expired</label>
+            <label><input type="checkbox" [(ngModel)]="showInactive"> Show Inactive</label>
+            <label><input type="checkbox" [(ngModel)]="showOrgOnly"> Show Org Level only</label>
+          </div>
+
+          <div class="list-card">
+
+            <div class="list-card-header">
+              <h4 class="card-title">Organisation Level Cards</h4>
+            </div>
+
+            <div class="table-responsive">
+            <table class="modern-bills-table" style="min-width: 100%;">
+
+              <thead>
+
+                <tr>
+                  
+                  <th>S.NO</th>
+
+                  <th>CARD NAME</th>
+
+                  <th>PRE TAX</th>
+
+                  <th>POST TAX</th>
+
+                  <th>EXP. DAYS</th>
+
+                  <th>VALUE</th>
+
+                  <th>BENEFIT %</th>
+
+                  <th>INCENTIVE</th>
+
+                  <th>ACTIVE?</th>
+
+                  <th>ACTIONS</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                <tr *ngFor="let c of orgCards; let i = index">
+
+                  <td class="text-secondary">{{ i + 1 }}</td>
+
+                  <td class="font-bold">{{c.title}}</td>
+
+                  <td>{{ c.pre_tax_price !== null ? (c.pre_tax_price | number:'1.2-2') : '-' }}</td>
+
+                  <td class="font-bold amount-pop">{{ c.post_tax_price !== null ? (c.post_tax_price | number:'1.0-2') : '-' }}</td>
+
+                  <td>{{ c.expiry_days !== null ? c.expiry_days : '-' }}</td>
+
+                  <td>{{ c.value !== null ? (c.value | number:'1.0-2') : '-' }}</td>
+
+                  <td>{{ c.benefit_percent !== null ? (c.benefit_percent | number:'1.2-2') : '-' }}</td>
+
+                  <td>{{ c.incentive !== null ? c.incentive : '-' }}</td>
+
+                  <td><span [style.color]="c.is_active ? 'green' : 'red'">{{ c.is_active ? 'Yes' : 'No' }}</span></td>
+
+                  <td>
+
+                    <button class="action-icon-btn" title="Edit" (click)="openEditModal(c, 'card')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                    <button class="action-icon-btn" [class.danger]="c.is_active" [title]="c.is_active ? 'Deactivate' : 'Activate'" (click)="toggleStatus(c, 'card')">
+                      <ng-container *ngIf="c.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></ng-container>
+                      <ng-container *ngIf="!c.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></ng-container>
+                    </button>
+
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+          </div>
+
+          </div>
+
+          <div class="list-card" style="margin-top: 1.5rem;">
+
+            <div class="list-card-header">
+              <h4 class="card-title">Center Level Cards</h4>
+              <select class="location-pill-select" style="max-width: 250px; margin: 0;" [(ngModel)]="selectedFilterCenterId" (change)="onFilterCenterChange()">
+                <option [value]="null" *ngIf="isOwner">All Centers</option>
+                <option *ngFor="let c of centers" [value]="c.id">{{ c.display_name || c.center_name }}</option>
+              </select>
+            </div>
+
+            <div class="table-responsive">
+            <table class="modern-bills-table" style="min-width: 100%;">
+
+              <thead>
+
+                <tr>
+                  
+                  <th>S.NO</th>
+
+                  <th>CARD NAME</th>
+
+                  <th>PRE TAX</th>
+
+                  <th>POST TAX</th>
+
+                  <th>EXP. DAYS</th>
+
+                  <th>VALUE</th>
+
+                  <th>BENEFIT %</th>
+
+                  <th>INCENTIVE</th>
+
+                  <th>ACTIVE?</th>
+
+                  <th>ACTIONS</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                <tr *ngFor="let c of centerCards; let i = index">
+
+                  <td class="text-secondary">{{ i + 1 }}</td>
+
+                  <td class="font-bold">{{c.title}}</td>
+
+                  <td>{{ c.pre_tax_price !== null ? (c.pre_tax_price | number:'1.2-2') : '-' }}</td>
+
+                  <td class="font-bold amount-pop">{{ c.post_tax_price !== null ? (c.post_tax_price | number:'1.0-2') : '-' }}</td>
+
+                  <td>{{ c.expiry_days !== null ? c.expiry_days : '-' }}</td>
+
+                  <td>{{ c.value !== null ? (c.value | number:'1.0-2') : '-' }}</td>
+
+                  <td>{{ c.benefit_percent !== null ? (c.benefit_percent | number:'1.2-2') : '-' }}</td>
+
+                  <td>{{ c.incentive !== null ? c.incentive : '-' }}</td>
+
+                  <td><span [style.color]="c.is_active ? 'green' : 'red'">{{ c.is_active ? 'Yes' : 'No' }}</span></td>
+
+                  <td>
+
+                    <button class="action-icon-btn" title="Edit" (click)="openEditModal(c, 'card')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+
+                    <button class="action-icon-btn" [class.danger]="c.is_active" [title]="c.is_active ? 'Deactivate' : 'Activate'" (click)="toggleStatus(c, 'card')">
+                      <ng-container *ngIf="c.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></ng-container>
+                      <ng-container *ngIf="!c.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></ng-container>
+                    </button>
+
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+          </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- Memberships -->
+
+    <div class="campaign-content" *ngIf="campaignTab === 'Memberships'">
+
+      <div class="split-layout">
+
+        <div class="form-card compact-form" *ngIf="isOwner || permissions.marketing?.campaigns?.create">
+
+          <h3 class="text-center">Add new Membership</h3>
+
+          <div class="segmented-control" style="justify-content: center;">
+
+            <label><input type="radio" name="mem_lvl" value="Organisation" [(ngModel)]="newMembership.level">
+              Organisation
+
+              Level</label>
+
+            <label><input type="radio" name="mem_lvl" value="Center" [(ngModel)]="newMembership.level"> Center
+
+              Specific</label>
+
+          </div>
+
+          <select *ngIf="newMembership.level === 'Center'" class="form-control" [(ngModel)]="selectedCenterId"
+            style="max-width:300px; margin: 0 auto 1rem auto; display:block;">
+
+            <option [value]="null">Select Center</option>
+
+            <option *ngFor="let c of centers" [value]="c.id">{{ c.display_name || c.center_name }}</option>
+
+          </select>
+
+
+
+          <input type="text" class="form-control" placeholder="Enter Membership Name" [(ngModel)]="newMembership.name">
+
+          <input type="number" class="form-control" placeholder="Post Tax Price" [(ngModel)]="newMembership.post_tax_price" (ngModelChange)="calculateMembershipPreTax()">
+
+          <input type="number" class="form-control" placeholder="Pre Tax Price" [(ngModel)]="newMembership.pre_tax_price" (ngModelChange)="calculateMembershipPostTax()">
+
+          <input type="number" class="form-control" placeholder="Value" [(ngModel)]="newMembership.value" (ngModelChange)="calculateMembershipBenefit()">
+
+          <input type="number" class="form-control" placeholder="Enter Benefit in %" [(ngModel)]="newMembership.discount_percent" (ngModelChange)="calculateMembershipValue()">
+
+          <input type="number" class="form-control" placeholder="Incentive" [(ngModel)]="newMembership.incentive">
+
+          <input type="number" class="form-control" placeholder="Days to Expiry"
+            [(ngModel)]="newMembership.expiry_days">
+
+          <textarea class="form-control" rows="3" placeholder="Enter Description (prints on client bills)"
+            [(ngModel)]="newMembership.description"></textarea>
+
+
+
+          <label class="checkbox-label" style="margin-bottom: 1rem;">
+
+            <input type="checkbox" [(ngModel)]="newMembership.is_vip"> VIP?
+
+          </label>
+
+          <button class="btn btn-primary" (click)="addMembership()" [disabled]="isSaving">
+
+            <span *ngIf="isSaving">Adding...</span>
+
+            <span *ngIf="!isSaving">Add Membership</span>
+
+          </button>
+
+        </div>
+
+
+
+        <div class="list-column">
+
+          <div class="filter-bar">
+            <label><input type="checkbox" [(ngModel)]="showExpired"> Show Expired</label>
+            <label><input type="checkbox" [(ngModel)]="showInactive"> Show Inactive</label>
+            <label><input type="checkbox" [(ngModel)]="showOrgOnly"> Show Org Level only</label>
+          </div>
+
+          <div class="list-card" style="margin-bottom: 2rem;">
+
+            <div class="list-card-header">
+              <h4 class="card-title">Organisational Memberships</h4>
+            </div>
+
+            <div class="table-responsive">
+            <table class="modern-bills-table" style="min-width: 100%;">
+
+              <thead>
+
+                <tr>
+
+                  <th>S.NO</th>
+
+                  <th>MEMBERSHIP NAME</th>
+
+                  <th>PRE TAX</th>
+
+                  <th>POST TAX</th>
+
+                  <th>EXP. DAYS</th>
+
+                  <th>VALUE</th>
+
+                  <th>BENEFIT %</th>
+
+                  <th>INCENTIVE</th>
+
+                  <th>ACTIVE?</th>
+
+                  <th>ACTIONS</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                <tr *ngFor="let m of orgMemberships; let i = index">
+
+                  <td class="text-secondary">{{ i + 1 }}</td>
+
+                  <td class="font-bold">{{ m.name }}</td>
+
+                  <td>{{ m.pre_tax_price !== null ? (m.pre_tax_price | number:'1.2-2') : '-' }}</td>
+
+                  <td class="font-bold amount-pop">{{ m.post_tax_price !== null ? (m.post_tax_price | number:'1.0-2') : '-' }}</td>
+
+                  <td>{{ m.expiry_days !== null ? m.expiry_days : '-' }}</td>
+
+                  <td>{{ m.value !== null ? (m.value | number:'1.0-2') : '-' }}</td>
+
+                  <td>{{ m.discount_percent !== null ? (m.discount_percent | number:'1.2-2') : '-' }}</td>
+
+                  <td>{{ m.incentive !== null ? m.incentive : '-' }}</td>
+
+                  <td><span [style.color]="m.is_active ? 'green' : 'red'">{{ m.is_active ? 'Yes' : 'No' }}</span></td>
+
+                  <td>
+
+                    <button class="action-icon-btn" title="Edit" (click)="openEditModal(m, 'membership')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                    <button class="action-icon-btn" [class.danger]="m.is_active" [title]="m.is_active ? 'Deactivate' : 'Activate'" (click)="toggleStatus(m, 'membership')">
+                      <ng-container *ngIf="m.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></ng-container>
+                      <ng-container *ngIf="!m.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></ng-container>
+                    </button>
+
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+          </div>
+
+          </div>
+
+
+
+          <div class="list-card" style="margin-top: 2rem;"
+            *ngIf="centerMemberships.length > 0 || selectedFilterCenterId">
+
+            <div class="list-card-header">
+              <h4 class="card-title">Center Specific Memberships</h4>
+              <select class="location-pill-select" style="max-width: 250px; margin: 0;" [(ngModel)]="selectedFilterCenterId" (change)="onFilterCenterChange()">
+                <option [value]="null" *ngIf="isOwner">All Centers</option>
+                <option *ngFor="let c of centers" [value]="c.id">{{ c.display_name || c.center_name }}</option>
+              </select>
+            </div>
+
+            <div class="empty-state-small" *ngIf="centerMemberships.length === 0">No center specific memberships found.
+
+            </div>
+
+            <div class="table-responsive">
+            <table class="modern-bills-table" style="min-width: 100%;" *ngIf="centerMemberships.length > 0">
+
+              <thead>
+
+                <tr>
+
+                  <th>S.NO</th>
+
+                  <th>MEMBERSHIP NAME</th>
+
+                  <th>PRE TAX</th>
+
+                  <th>POST TAX</th>
+
+                  <th>EXP. DAYS</th>
+
+                  <th>VALUE</th>
+
+                  <th>BENEFIT %</th>
+
+                  <th>INCENTIVE</th>
+
+                  <th>ACTIVE?</th>
+
+                  <th>ACTIONS</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                <tr *ngFor="let m of centerMemberships; let i = index">
+
+                  <td class="text-secondary">{{ i + 1 }}</td>
+
+                  <td class="font-bold">{{ m.name }}</td>
+
+                  <td>{{ m.pre_tax_price !== null ? (m.pre_tax_price | number:'1.2-2') : '-' }}</td>
+
+                  <td class="font-bold amount-pop">{{ m.post_tax_price !== null ? (m.post_tax_price | number:'1.0-2') : '-' }}</td>
+
+                  <td>{{ m.expiry_days !== null ? m.expiry_days : '-' }}</td>
+
+                  <td>{{ m.value !== null ? (m.value | number:'1.0-2') : '-' }}</td>
+
+                  <td>{{ m.discount_percent !== null ? (m.discount_percent | number:'1.2-2') : '-' }}</td>
+
+                  <td>{{ m.incentive !== null ? m.incentive : '-' }}</td>
+
+                  <td><span [style.color]="m.is_active ? 'green' : 'red'">{{ m.is_active ? 'Yes' : 'No' }}</span></td>
+
+                  <td>
+
+                    <button class="action-icon-btn" title="Edit" (click)="openEditModal(m, 'membership')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+
+                    <button class="action-icon-btn" [class.danger]="m.is_active" [title]="m.is_active ? 'Deactivate' : 'Activate'" (click)="toggleStatus(m, 'membership')">
+                      <ng-container *ngIf="m.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></ng-container>
+                      <ng-container *ngIf="!m.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></ng-container>
+                    </button>
+
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+          </div>
+
+          </div>
+
+
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+
+    <!-- Packages -->
+
+    <div class="campaign-content" *ngIf="campaignTab === 'Packages'">
+
+      <div class="split-layout">
+
+        <div class="form-card compact-form" *ngIf="isOwner || permissions.marketing?.campaigns?.create">
+
+          <h3>Add New Package</h3>
+
+          <div class="segmented-control">
+
+            <label><input type="radio" name="pkg_lvl" value="Organisation" [(ngModel)]="newPackage.level"> Organisation
+
+              Level</label>
+
+            <label><input type="radio" name="pkg_lvl" value="Center" [(ngModel)]="newPackage.level"> Center
+
+              Specific</label>
+
+          </div>
+
+          <select *ngIf="newPackage.level === 'Center'" class="form-control" [(ngModel)]="selectedCenterId">
+
+            <option [value]="null">Select Center</option>
+
+            <option *ngFor="let c of centers" [value]="c.id">{{ c.display_name || c.center_name }}</option>
+
+          </select>
+
+
+
+          <input type="text" class="form-control" placeholder="Package Name" [(ngModel)]="newPackage.name">
+
+          <select class="form-control" [(ngModel)]="newPackage.service_name">
+
+            <option value="">Select Service</option>
+
+            <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
+
+          </select>
+
+          <input type="number" class="form-control" placeholder="Number of Sessions" [(ngModel)]="newPackage.pkgQty">
+
+          <textarea class="form-control" rows="3" placeholder="Enter package description"
+            [(ngModel)]="newPackage.description"></textarea>
+
+          <input type="number" class="form-control" placeholder="Package Price" [(ngModel)]="newPackage.price">
+
+          <input type="number" class="form-control" placeholder="Validity Days" [(ngModel)]="newPackage.validity_days">
+
+          <button class="btn btn-primary" (click)="addPackage()" [disabled]="isSaving">
+
+            <span *ngIf="isSaving">Adding...</span>
+
+            <span *ngIf="!isSaving">Add Package</span>
+
+          </button>
+
+        </div>
+
+
+
+        <div class="list-column">
+
+          <div class="filter-bar">
+            <label><input type="checkbox" [(ngModel)]="showExpired"> Show Expired</label>
+            <label><input type="checkbox" [(ngModel)]="showInactive"> Show Inactive</label>
+            <label><input type="checkbox" [(ngModel)]="showOrgOnly"> Show Org Level only</label>
+          </div>
+
+          <div class="list-card">
+
+            <div class="list-card-header">
+              <h4 class="card-title">Organisation Level Packages</h4>
+            </div>
+
+            <div class="empty-state-small" *ngIf="orgPackages.length === 0">No packages yet.</div>
+
+            <div class="table-responsive">
+            <table class="data-table" *ngIf="orgPackages.length > 0">
+
+              <thead>
+
+                <tr>
+
+                  <th>NAME</th>
+
+                  <th>SERVICE</th>
+
+                  <th>PRICE</th>
+
+                  <th>VALIDITY</th>
+
+                  <th>ACTIVE?</th>
+
+                  <th>ACTIONS</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                <tr *ngFor="let p of orgPackages">
+
+                  <td>{{p.name}}</td>
+
+                  <td>{{p.service_name}}</td>
+
+                  <td>{{p.price | currency:'INR'}}</td>
+
+                  <td>{{p.validity_days}} days</td>
+
+                  <td><span [style.color]="p.is_active ? 'green' : 'red'">{{ p.is_active ? 'Yes' : 'No' }}</span></td>
+
+                  <td>
+
+                    <button class="action-icon-btn" title="Edit" (click)="openEditModal(p, 'package')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                    <button class="action-icon-btn" [class.danger]="p.is_active" [title]="p.is_active ? 'Deactivate' : 'Activate'" (click)="toggleStatus(p, 'package')">
+                      <ng-container *ngIf="p.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></ng-container>
+                      <ng-container *ngIf="!p.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></ng-container>
+                    </button>
+
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+          </div>
+
+          </div>
+
+          <div class="list-card" style="margin-top: 1.5rem;">
+
+            <div class="list-card-header">
+              <h4 class="card-title">Center Level Packages</h4>
+              <select class="location-pill-select" style="max-width: 250px; margin: 0;" [(ngModel)]="selectedFilterCenterId" (change)="onFilterCenterChange()">
+                <option [value]="null" *ngIf="isOwner">All Centers</option>
+                <option *ngFor="let c of centers" [value]="c.id">{{ c.display_name || c.center_name }}</option>
+              </select>
+            </div>
+
+            <div class="empty-state-small" *ngIf="centerPackages.length === 0">No packages yet.</div>
+
+            <div class="table-responsive">
+            <table class="data-table" *ngIf="centerPackages.length > 0">
+
+              <thead>
+
+                <tr>
+
+                  <th>NAME</th>
+
+                  <th>SERVICE</th>
+
+                  <th>PRICE</th>
+
+                  <th>VALIDITY</th>
+
+                  <th>ACTIVE?</th>
+
+                  <th>ACTIONS</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                <tr *ngFor="let p of centerPackages">
+
+                  <td>{{p.name}}</td>
+
+                  <td>{{p.service_name}}</td>
+
+                  <td>{{p.price | currency:'INR'}}</td>
+
+                  <td>{{p.validity_days}} days</td>
+
+                  <td><span [style.color]="p.is_active ? 'green' : 'red'">{{ p.is_active ? 'Yes' : 'No' }}</span></td>
+
+                  <td>
+
+                    <button class="action-icon-btn" title="Edit" (click)="openEditModal(p, 'package')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+
+                    <button class="action-icon-btn" [class.danger]="p.is_active" [title]="p.is_active ? 'Deactivate' : 'Activate'" (click)="toggleStatus(p, 'package')">
+                      <ng-container *ngIf="p.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></ng-container>
+                      <ng-container *ngIf="!p.is_active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></ng-container>
+                    </button>
+
+                  </td>
+
+                </tr>
+
+              </tbody>
+
+            </table>
+          </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- WhatsApp Tab -->
+
+  <div class="tab-content" *ngIf="activeTab === 'WhatsApp'">
+
+
+
+
+
+    <div class="list-card" *ngIf="whatsappMessages.length > 0">
+
+      <div class="table-responsive">
+            <table class="data-table">
+
+        <thead>
+
+          <tr>
+
+            <th>SALON</th>
+
+            <th>DATE</th>
+
+            <th>TIME</th>
+
+            <th>CLIENT / PHONE</th>
+
+            <th>MESSAGE</th>
+
+            <th>STATUS</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          <tr *ngFor="let msg of whatsappMessages">
+
+            <td>{{ msg.center_name }}</td>
+
+            <td>{{ msg.date | date:'dd MMM yyyy' }}</td>
+
+            <td>{{ msg.time }}</td>
+
+            <td>
+
+              <div>{{ msg.client_name }}</div>
+
+              <div style="font-size: 11px; color: var(--text-secondary);">{{ msg.client_phone || 'N/A' }}</div>
+
+            </td>
+
+            <td>{{ msg.message }}</td>
+
+            <td>
+
+              <span [style.color]="msg.status === 'Sent' ? 'green' : (msg.status === 'Failed' ? 'red' : 'gray')">
+
+                {{ msg.status }}
+
+              </span>
+
+            </td>
+
+          </tr>
+
+        </tbody>
+
+      </table>
+          </div>
+
+    </div>
+
+
+
+    <div class="empty-state" *ngIf="whatsappMessages.length === 0">
+
+      <p>No messages found.</p>
+
+    </div>
+
+  </div>
+
+
+
+
+
+  <!-- Usage Tab -->
+
+  <div class="tab-content" *ngIf="activeTab === 'Usage'">
+
+    <div class="campaign-content">
+
+      <div
+        style="display: flex; background: var(--bg-2); padding: 0.5rem 0.75rem; border-radius: 6px; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; border-top: 3px solid var(--primary-color);">
+
+        <label style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem;">
+
+          <input type="checkbox"> Show Inactive
+
+        </label>
+
+        <div style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem;">
+
+          <span>Start Date:</span>
+
+          <input type="date" class="form-control" style="width: auto; margin-bottom: 0; padding: 0.3rem 0.4rem;"
+            [(ngModel)]="usageStartDate">
+
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem;">
+
+          <span>End Date:</span>
+
+          <input type="date" class="form-control" style="width: auto; margin-bottom: 0; padding: 0.3rem 0.4rem;"
+            [(ngModel)]="usageEndDate">
+
+        </div>
+
+        <button class="btn btn-primary" style="background: #0b6b8b; padding: 0.35rem 1rem;"
+          (click)="fetchUsageData()">RUN</button>
+
+      </div>
+
+
+
+      <div class="row" style="display: flex; gap: 24px; margin-top: 16px;">
+
+        <!-- Left Table -->
+        <div class="list-card" style="flex: 2; padding: 0;">
+          <div class="table-responsive">
+            <table class="data-table" style="margin: 0; width: 100%;">
+            <thead>
+              <tr>
+                <th>Item (Type)</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Applied to</th>
+                <th>Status</th>
+                <th>Count</th>
+                <th>Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let u of usageData" (mousedown)="viewUsageDetails(u)"
+                  [ngStyle]="{'background': selectedUsage === u ? 'var(--primary-color-light, rgba(0,102,255,0.05))' : 'transparent'}"
+                  style="cursor: pointer; transition: background 0.2s;">
+                  <td>
+                    <div style="font-weight: 500;">{{ u.name }}</div>
+                    <div style="font-size: 0.75rem; color: var(--primary-color); font-weight: 600; margin-top: 4px; padding: 2px 6px; background: rgba(0, 102, 255, 0.1); border-radius: 4px; display: inline-block;">{{ u.type || 'Promotion' }}</div>
+                  </td>
+                  <td>{{ u.start_date ? (u.start_date | date:'dd-MMM-yyyy') : '-' }}</td>
+                  <td>{{ u.end_date ? (u.end_date | date:'dd-MMM-yyyy') : '-' }}</td>
+                <td style="color: var(--text-secondary);">{{ u.level === 'Organisation' ? 'Org Level' : 'Salon level' }}
+                </td>
+                <td [style.color]="u.status === 'Active' ? '#28a745' : 'var(--text-secondary)'">{{ u.status }}</td>
+                <td style="font-weight: 500;">{{ u.count }}</td>
+                <td style="font-weight: 600;">{{ u.revenue | currency:'INR' }}</td>
+              </tr>
+              <tr *ngIf="usageData.length === 0">
+                <td colspan="7" style="text-align: center; padding: 3rem 1rem; color: var(--text-secondary);">
+                  <div style="margin-bottom: 8px;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                  </div>
+                  <span *ngIf="!hasRunUsageReport">Run a report to see usage data.</span>
+                  <span *ngIf="hasRunUsageReport">No usage records found for this period.</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          </div>
+        </div>
+
+        <!-- Right Panel (Detailed breakdown) -->
+        <div class="list-card" style="flex: 1; padding: 0; display: flex; flex-direction: column;">
+          <div style="padding: 16px; border-bottom: 1px solid var(--border); background: var(--surface-hover); display: flex; align-items: center; justify-content: space-between;">
+             <h4 style="margin: 0; font-size: 1rem; font-weight: 600; color: var(--text-primary);">Center Breakdown</h4>
+             <button class="btn btn-outline" style="padding: 4px 12px; font-size: 0.75rem; border-color: var(--border);" (click)="exportExcel()" *ngIf="selectedUsage">
+                Download CSV
+             </button>
+          </div>
+
+          <div class="table-responsive" style="flex: 1; overflow-y: auto; max-height: 500px;">
+            <table class="data-table" style="margin: 0; width: 100%;">
+            <thead>
+              <tr>
+                <th>Center</th>
+                <th style="text-align: center;">Count</th>
+                <th style="text-align: right;">Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Empty State -->
+              <tr *ngIf="!selectedUsage">
+                <td colspan="3" style="text-align: center; padding: 4rem 1rem; color: var(--text-tertiary);">
+                   Select an item to view<br/>its center breakdown
+                </td>
+              </tr>
+              
+              <!-- Data State -->
+              <ng-container *ngIf="selectedUsage">
+                 <tr *ngIf="!selectedUsage.center_breakdown || selectedUsage.center_breakdown.length === 0">
+                    <td colspan="3" style="text-align: center; padding: 2rem 1rem; color: var(--text-tertiary);">
+                       No center data available.
+                    </td>
+                 </tr>
+                 <tr *ngFor="let cb of selectedUsage.center_breakdown">
+                    <td style="font-weight: 500; color: var(--text-secondary);">{{ cb.center_name }}</td>
+                    <td style="text-align: center;">
+                       <span style="background: var(--surface-hover); padding: 2px 8px; border-radius: 12px; font-size: 0.85rem;">{{ cb.count }}</span>
+                    </td>
+                    <td style="text-align: right; font-weight: 600;">{{ cb.revenue | currency:'INR' }}</td>
+                 </tr>
+              </ng-container>
+            </tbody>
+          </table>
+          </div>
+        </div>
+      </div>
+
+
+
+    </div>
+
+
+
+
+
+  </div>
+
+  <!-- Edit Marketing Item Modal - placed outside all tabs so it always renders -->
+  <div class="modal-backdrop" *ngIf="showEditModal">
+    <div class="modal-content config-modal fade-in" style="max-width: 500px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3 style="text-transform: capitalize;"><i class="bi bi-pencil-square text-primary"></i> Edit {{ editItemType }}
+        </h3>
+        <button class="close-btn" (click)="closeEditModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+
+        <!-- Promotion Edit Fields -->
+        <ng-container *ngIf="editItemType === 'promotion'">
+          <div class="form-row">
+            <input type="text" class="form-control" placeholder="Promotion Name" [(ngModel)]="editItemData.name">
+          </div>
+          <div class="form-row">
+            <input type="date" class="form-control" [(ngModel)]="editItemData.start_date">
+            <input type="date" class="form-control" [(ngModel)]="editItemData.end_date">
+          </div>
+          <textarea class="form-control" rows="3" placeholder="Promotion description"
+            [(ngModel)]="editItemData.description"></textarea>
+          <div style="display: flex; align-items: center; justify-content: space-between; ">
+            
+            <div style="display: flex; flex-direction: column; align-items: flex-end;">
+              <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Max Uses /
+                Client</label>
+              <input type="number" class="form-control" style="width: 120px; margin-bottom: 0;" placeholder="Unlimited"
+                [(ngModel)]="editItemData.max_usage_per_client">
+            </div>
+          </div>
+          <!-- Dynamic Config Editor -->
+          <div
+            style="background: transparent; border: 1px solid var(--border); padding: 0.5rem 0.75rem; border-top: 3px solid var(--primary-color); border-radius: 6px;">
+            <div *ngIf="editItemData.promo_type === 'Discount'">
+              <h4
+                style="color: var(--primary-color); margin-top: 0; font-size: 0.9rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                Discount Configuration</h4>
+              <div class="form-row" style="margin-top: 0.5rem;">
+                <select class="form-control" [(ngModel)]="editItemData.config.discount_type">
+                  <option value="Percentage">Percentage</option>
+                  <option value="Flat">Flat Amount</option>
+                </select>
+                <input type="number" class="form-control" placeholder="Discount Value"
+                  [(ngModel)]="editItemData.config.discount_value">
+              </div>
+              <div class="segmented-control" style="color: var(--primary-color); font-size: 0.8rem; margin: 0.5rem 0;">
+                <label><input type="radio" name="edit_disc_target" value="Overall Bill"
+                    [(ngModel)]="editItemData.config.target"> Overall Bill</label>
+                <label><input type="radio" name="edit_disc_target" value="Specific Service"
+                    [(ngModel)]="editItemData.config.target"> Specific Service</label>
+              </div>
+              <div *ngIf="editItemData.config.target === 'Specific Service'" style="margin-bottom: 1rem;">
+                <select class="form-control" [(ngModel)]="editItemData.config.specific_service">
+                  <option value="">Select Service</option>
+                  <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
+                </select>
+              </div>
+              <p style="color: var(--text-secondary); font-size: 0.75rem; margin-bottom: 0.25rem;">Minimum bill amount
+                for validity:</p>
+              <input type="number" class="form-control" placeholder="Min bill amount"
+                [(ngModel)]="editItemData.config.min_bill_amount">
+            </div>
+            <div *ngIf="editItemData.promo_type === 'FlatPrice'">
+              <h4
+                style="color: var(--primary-color); margin-top: 0; font-size: 0.9rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                Flat Price Configuration</h4>
+              <select class="form-control" style="margin-top: 0.5rem;"
+                [(ngModel)]="editItemData.config.specific_service">
+                <option value="">Select Service</option>
+                <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
+              </select>
+              <input type="number" class="form-control" placeholder="Flat Price"
+                [(ngModel)]="editItemData.config.flat_price">
+            </div>
+            <div *ngIf="editItemData.promo_type === 'Trigger'">
+              <h4
+                style="color: var(--primary-color); margin-top: 0; font-size: 0.9rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                Trigger Deal Configuration</h4>
+              <select class="form-control" style="margin-top: 0.5rem;"
+                [(ngModel)]="editItemData.config.trigger_services[0]">
+                <option value="" disabled selected hidden>Select Service 1</option>
+                <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
+              </select>
+              <select class="form-control" [(ngModel)]="editItemData.config.trigger_services[1]">
+                <option value="" disabled selected hidden>Select Service 2</option>
+                <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
+              </select>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="number" class="form-control" style="margin-bottom: 0;" placeholder="Discount %"
+                  [(ngModel)]="editItemData.config.trigger_discount">
+                <span style="color: var(--text-secondary); font-size: 0.75rem; white-space: nowrap;">(e.g. 20 for
+                  20%)</span>
+              </div>
+            </div>
+            <div *ngIf="editItemData.promo_type === 'Cashback'">
+              <h4
+                style="color: var(--primary-color); margin-top: 0; font-size: 0.9rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                Cashback Configuration</h4>
+              <input type="number" class="form-control" style="margin-top: 0.5rem;" placeholder="Minimum Bill Amount"
+                [(ngModel)]="editItemData.config.cashback_min_bill">
+              <input type="number" class="form-control" placeholder="Discount in %"
+                [(ngModel)]="editItemData.config.cashback_discount">
+              <div class="form-row">
+                <input type="number" class="form-control" placeholder="Valid Days"
+                  [(ngModel)]="editItemData.config.cashback_validity_days">
+                <input type="date" class="form-control" placeholder="Specific Date"
+                  [(ngModel)]="editItemData.config.cashback_specific_date">
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- Card Edit Fields -->
+        <ng-container *ngIf="editItemType === 'card'">
+          <input type="text" class="form-control" placeholder="Card Title" [(ngModel)]="editItemData.title">
+          <input type="number" class="form-control" placeholder="Post tax Price"
+            [(ngModel)]="editItemData.post_tax_price" (ngModelChange)="calculateEditCardPreTax()">
+          <input type="number" class="form-control" placeholder="Pre tax Price" [(ngModel)]="editItemData.pre_tax_price" (ngModelChange)="calculateEditCardPostTax()">
+          <input type="number" class="form-control" placeholder="Value" [(ngModel)]="editItemData.value" (ngModelChange)="calculateEditCardBenefit()">
+          <input type="number" class="form-control" placeholder="Benefit %" [(ngModel)]="editItemData.benefit_percent" (ngModelChange)="calculateEditCardValue()">
+          <input type="number" class="form-control" placeholder="Incentive" [(ngModel)]="editItemData.incentive">
+          <input type="number" class="form-control" placeholder="Expiry days" [(ngModel)]="editItemData.expiry_days">
+          <textarea class="form-control" rows="3" placeholder="Enter card description"
+            [(ngModel)]="editItemData.description"></textarea>
+        </ng-container>
+
+        <!-- Membership Edit Fields -->
+        <ng-container *ngIf="editItemType === 'membership'">
+          <input type="text" class="form-control" placeholder="Enter Membership Name" [(ngModel)]="editItemData.name">
+          <input type="number" class="form-control" placeholder="Post Tax Price" [(ngModel)]="editItemData.post_tax_price" (ngModelChange)="calculateEditMembershipPreTax()">
+          <input type="number" class="form-control" placeholder="Pre Tax Price" [(ngModel)]="editItemData.pre_tax_price" (ngModelChange)="calculateEditMembershipPostTax()">
+          <input type="number" class="form-control" placeholder="Value" [(ngModel)]="editItemData.value" (ngModelChange)="calculateEditMembershipBenefit()">
+          <input type="number" class="form-control" placeholder="Enter Benefit in %" [(ngModel)]="editItemData.discount_percent" (ngModelChange)="calculateEditMembershipValue()">
+          <input type="number" class="form-control" placeholder="Incentive" [(ngModel)]="editItemData.incentive">
+          <input type="number" class="form-control" placeholder="Days to Expiry" [(ngModel)]="editItemData.expiry_days">
+          <textarea class="form-control" rows="3" placeholder="Enter Description"
+            [(ngModel)]="editItemData.description"></textarea>
+          <label class="checkbox-label" style="margin-bottom: 1rem;">
+            <input type="checkbox" [(ngModel)]="editItemData.is_vip"> VIP?
+          </label>
+        </ng-container>
+
+        <!-- Package Edit Fields -->
+        <ng-container *ngIf="editItemType === 'package'">
+          <input type="text" class="form-control" placeholder="Package Name" [(ngModel)]="editItemData.name">
+          <select class="form-control" [(ngModel)]="editItemData.service_name">
+            <option value="">Select Service</option>
+            <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
+          </select>
+          <input type="number" class="form-control" placeholder="Number of Sessions" [(ngModel)]="editItemData.pkgQty">
+          <textarea class="form-control" rows="3" placeholder="Enter package description"
+            [(ngModel)]="editItemData.description"></textarea>
+          <input type="number" class="form-control" placeholder="Package Price" [(ngModel)]="editItemData.price">
+          <input type="number" class="form-control" placeholder="Validity Days"
+            [(ngModel)]="editItemData.validity_days">
+        </ng-container>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeEditModal()">Cancel</button>
+        <button class="btn btn-primary" (click)="saveEdit()" [disabled]="isSaving">{{ isSaving ? 'Saving...' : 'Save
+          Changes' }}</button>
+      </div>
+    </div>
+  </div>

@@ -1,0 +1,102 @@
+<div class="bills-page">
+  <div class="bills-header">
+    <div class="bills-controls">
+      <div class="control-pill-group">
+        <div style="display: flex; align-items: center; gap: 8px;">
+
+      <app-location-selector
+        [centers]="centers"
+        [hasGlobalAccess]="hasGlobalAccess"
+        [(selectedCenterId)]="selectedCenterId"
+        (selectionChange)="getChangeLogs()">
+      </app-location-selector>
+    </div>
+      </div>
+
+      <div class="control-pill-group">
+        <div class="date-pill">
+          <label>From</label>
+          <input type="date" [(ngModel)]="fromDate" (change)="getChangeLogs()" />
+        </div>
+        <div class="date-pill">
+          <label>To</label>
+          <input type="date" [(ngModel)]="toDate" (change)="getChangeLogs()" />
+        </div>
+      </div>
+      
+      <button class="pill-btn black-btn" (click)="getChangeLogs()">
+        Apply
+      </button>
+
+      <button class="pill-btn outline-btn" (click)="exportExcel()" *ngIf="changeLogs.length > 0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        Export
+      </button>
+    </div>
+  </div>
+
+  <div class="bills-layout-grid">
+    <!-- Left Column: Changes Table -->
+    <div class="bills-list">
+      <div class="loading-overlay" *ngIf="isLoading">Loading...</div>
+
+      <div class="date-divider" *ngIf="changeLogs.length > 0">CHANGES FOUND ({{ changeLogs.length }})</div>
+
+      <table class="modern-bills-table" *ngIf="changeLogs.length > 0">
+        <thead>
+          <tr>
+            <th>Changed On</th>
+            <th>Bill Date</th>
+            <th>Salon</th>
+            <th>Bill-No</th>
+            <th>Bill Amount</th>
+            <th>User</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let log of changeLogs">
+            <td class="text-secondary">{{ log.created_at | date:'dd-MM-yyyy, HH:mm' }}</td>
+            <td class="text-secondary">{{ log.bill_date ? (log.bill_date | date:'dd-MM-yyyy') : '-' }}</td>
+            <td class="font-semibold">{{log.display_name || log.center_name}}</td>
+            <td class="font-bold"><span class="invoice-tag" style="background:#e0e7ff; color:#4f46e5; padding:4px 8px; border-radius:6px;">#{{ log.invoice }}</span></td>
+            <td class="font-bold amount-pop">{{ log.bill_amount ? '₹' + (log.bill_amount | number:'1.0-2') : '-' }}</td>
+            <td>
+              <div class="table-client">
+                <span class="font-semibold">{{ log.user_name || 'System' }}</span>
+              </div>
+            </td>
+            <td>
+              <span class="status-badge"
+                    [ngClass]="{'badge-cancelled': log.action === 'Cancel Bill' || log.action === 'Refund', 'badge-paid': log.action !== 'Cancel Bill' && log.action !== 'Refund'}">
+                {{ log.action }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="no-bills-msg" *ngIf="changeLogs.length === 0 && !isLoading">
+        No changes found for the selected salon.
+      </div>
+    </div>
+
+    <!-- Right Column: KPI Snapshot -->
+    <div class="bills-sidebar">
+      <div class="kpi-card-dark">
+        <div class="kpi-label">Total Logs</div>
+        <div class="kpi-value">{{ changeLogs.length }}</div>
+      </div>
+
+      <div class="kpi-card-light" style="border-left: 4px solid #f59e0b;">
+        <div class="kpi-label">Cancel/Refund</div>
+        <div class="kpi-value-small">{{ getCancelRefundCount() }}</div>
+      </div>
+
+      <div class="kpi-card-light" style="border-left: 4px solid #ef4444;">
+        <div class="kpi-label">Value Affected</div>
+        <div class="kpi-value-small" style="color: #ef4444;">₹{{ getLostValue() | number:'1.0-2' }}</div>
+      </div>
+    </div>
+  </div>
+</div>

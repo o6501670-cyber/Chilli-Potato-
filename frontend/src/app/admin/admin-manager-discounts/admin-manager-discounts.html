@@ -1,0 +1,113 @@
+<div class="bills-page">
+  <div class="bills-header">
+    <div class="bills-controls">
+      <div class="control-pill-group">
+        <div style="display: flex; align-items: center; gap: 8px;">
+
+      <app-location-selector
+        [centers]="centers"
+        [hasGlobalAccess]="hasGlobalAccess"
+        [(selectedCenterId)]="selectedCenterId"
+        (selectionChange)="getDiscountedInvoices()">
+      </app-location-selector>
+    </div>
+      </div>
+
+      <div class="control-pill-group">
+        <div class="date-pill">
+          <label>From</label>
+          <input type="date" [(ngModel)]="fromDate" (change)="getDiscountedInvoices()" />
+        </div>
+        <div class="date-pill">
+          <label>To</label>
+          <input type="date" [(ngModel)]="toDate" (change)="getDiscountedInvoices()" />
+        </div>
+      </div>
+      
+      <button class="pill-btn black-btn" (click)="getDiscountedInvoices()">
+        Apply
+      </button>
+
+      <button class="pill-btn outline-btn" (click)="exportExcel()" *ngIf="invoices.length > 0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        Export
+      </button>
+    </div>
+  </div>
+
+  <div class="bills-layout-grid">
+    <!-- Left Column: Discounts Table -->
+    <div class="bills-list">
+      <div class="loading-overlay" *ngIf="isLoading">Loading...</div>
+
+      <div class="date-divider" *ngIf="invoices.length > 0">DISCOUNTS FOUND</div>
+
+      <table class="modern-bills-table" *ngIf="invoices.length > 0">
+        <thead>
+          <tr>
+            <th>Invoice No</th>
+            <th>Date/Time</th>
+            <th>Client</th>
+            <th>Phone</th>
+            <th>Type</th>
+            <th>Item</th>
+            <th>Billed By</th>
+            <th>Price</th>
+            <th>Discount</th>
+            <th>Discount %</th>
+            <th>Net Price</th>
+          </tr>
+        </thead>
+        <tbody *ngFor="let inv of invoices">
+          <!-- Invoice Level Discount -->
+          <tr *ngIf="inv.discount > 0">
+            <td class="font-bold"><span class="invoice-tag" style="background:#e0e7ff; color:#4f46e5; padding:4px 8px; border-radius:6px;">#{{ inv.id }}</span></td>
+            <td class="text-secondary">{{ inv.created_at | date:'dd-MM-yyyy, HH:mm' }}</td>
+            <td class="font-semibold">{{ getClientName(inv) }}</td>
+            <td class="text-secondary">{{ getClientPhone(inv) }}</td>
+            <td><span class="status-badge badge-cancelled">Overall Bill</span></td>
+            <td>Full Invoice</td>
+            <td class="font-semibold">{{ inv.staff || 'Admin' }}</td>
+            <td>₹{{ inv.subtotal | number:'1.0-0' }}</td>
+            <td class="font-bold amount-pop" style="color: #ef4444;">₹{{ inv.discount | number:'1.0-0' }}</td>
+            <td><span class="status-badge badge-refunded">{{ (inv.subtotal ? (inv.discount / inv.subtotal * 100) : 0) | number:'1.0-0' }}%</span></td>
+            <td class="font-bold amount-pop">₹{{ inv.total_amount | number:'1.0-0' }}</td>
+          </tr>
+          <!-- Item Level Discounts -->
+          <ng-container *ngFor="let item of inv.items">
+            <tr *ngIf="item.discount > 0">
+              <td class="font-bold"><span class="invoice-tag" style="background:#e0e7ff; color:#4f46e5; padding:4px 8px; border-radius:6px;">#{{ inv.id }}</span></td>
+              <td class="text-secondary">{{ inv.created_at | date:'dd-MM-yyyy, HH:mm' }}</td>
+              <td class="font-semibold">{{ getClientName(inv) }}</td>
+              <td class="text-secondary">{{ getClientPhone(inv) }}</td>
+              <td>{{ item.content_type?.split('.')?.[1] || 'Service' | titlecase }}</td>
+              <td>{{ item.description || 'Item' }}</td>
+              <td class="font-semibold">{{ inv.staff || 'Admin' }}</td>
+              <td>₹{{ item.unit_price | number:'1.0-0' }}</td>
+              <td class="font-bold amount-pop" style="color: #ef4444;">₹{{ item.discount | number:'1.0-0' }}</td>
+              <td><span class="status-badge badge-refunded">{{ (item.unit_price ? (item.discount / item.unit_price * 100) : 0) | number:'1.0-0' }}%</span></td>
+              <td class="font-bold amount-pop">₹{{ item.total_price | number:'1.0-0' }}</td>
+            </tr>
+          </ng-container>
+        </tbody>
+      </table>
+
+      <div class="no-bills-msg" *ngIf="invoices.length === 0 && !isLoading">
+        No manager discounts found for this salon.
+      </div>
+    </div>
+
+    <!-- Right Column: KPI Snapshot -->
+    <div class="bills-sidebar">
+      <div class="kpi-card-dark">
+        <div class="kpi-label">Invoices Affected</div>
+        <div class="kpi-value">{{ getTotalDiscountsCount() }}</div>
+      </div>
+
+      <div class="kpi-card-light" style="border-left: 4px solid #ef4444;">
+        <div class="kpi-label">Total Discount</div>
+        <div class="kpi-value-small" style="color: #ef4444;">₹{{ getTotalDiscountValue() | number:'1.0-2' }}</div>
+      </div>
+    </div>
+  </div>
+</div>

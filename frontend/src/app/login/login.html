@@ -1,0 +1,82 @@
+<div class="login-wrapper" (mousemove)="onMouseMove($event)">
+
+
+  <!-- Authentication Panel (Centered) -->
+  <div class="login-auth-panel">
+    
+    <!-- Printer machine graphic -->
+    <div class="printer-machine">
+      <!-- Printer slot (placed visually AT THE TOP of the paper) -->
+      <div class="printer-slot">
+        <div class="printer-led"></div>
+        <div class="printer-logo-text">POS TERMINAL</div>
+        <div class="slot-shadow"></div>
+      </div>
+
+      <!-- The Receipt Container for Printing Animation -->
+      <div class="receipt-wrapper">
+        <div class="auth-card receipt-paper" [class.no-delay]="!isInitialLoad">
+          <div class="receipt-header">
+            <img src="assets/images/full.png" alt="Geetanjali Salon" class="receipt-logo">
+          </div>
+          
+          <div class="invoice-divider"></div>
+          <div class="receipt-meta">
+            <span>Login Terminal 01</span>
+            <span>{{ currentDate | date:'dd/MM/yy h:mm a' }}</span>
+          </div>
+          <div class="invoice-divider"></div>
+
+      <div class="alert-error" *ngIf="error">
+        {{ error }}
+      </div>
+
+      <form class="auth-form" (ngSubmit)="onSubmit()">
+        
+        <!-- Email Input -->
+        <div class="input-group">
+          <label>WORK EMAIL</label>
+          <div class="input-field-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            <input type="email" class="floating-input glass-input" [(ngModel)]="credentials.username" name="username" required placeholder="name@company.com" />
+          </div>
+        </div>
+
+        <!-- Password Input -->
+        <div class="input-group">
+          <label>PASSWORD</label>
+          <div class="input-field-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <input type="password" class="floating-input glass-input" [(ngModel)]="credentials.password" name="password" required placeholder="••••••••" />
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="receipt-btn" [disabled]="isLoading">
+          <span *ngIf="!isLoading">AUTHORIZE ACCESS</span>
+          <span class="loader" *ngIf="isLoading"></span>
+        </button>
+
+        <div class="invoice-divider" style="margin-top: 1.5rem;"></div>
+        
+        <!-- Fake Barcode with Animated Laser -->
+        <div class="receipt-footer">
+          <div class="barcode-container">
+            <div class="receipt-barcode"></div>
+            <div class="barcode-laser"></div>
+          </div>
+          <p class="barcode-numbers">0019283746592817</p>
+        </div>
+
+        </form>
+      </div> <!-- End receipt-paper -->
+    </div> <!-- End receipt-wrapper -->
+  </div> <!-- End printer-machine -->
+  </div> <!-- End login-auth-panel -->
+</div>

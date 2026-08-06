@@ -1,0 +1,125 @@
+<div class="bills-page">
+  <div class="bills-header" style="justify-content: flex-end;">
+    <div class="bills-controls" style="margin-bottom: 0;">
+      <button class="pill-btn black-btn" *ngIf="isOwner || permissions.admin?.roles?.create"
+        (click)="newRole()">+ New Role</button>
+    </div>
+  </div>
+
+  <div class="bills-layout-grid">
+    <!-- Left Column: Roles List -->
+    <div class="roles-sidebar">
+
+
+      <div class="role-list">
+        <div class="role-item" *ngFor="let role of roles" [class.active]="selectedRole?.id === role.id"
+          (click)="selectRole(role)">
+          <div class="role-name">{{ role.name }}</div>
+          <div class="role-meta">{{ role.users_count || 0 }} user(s)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Role Details -->
+    <div class="role-details" *ngIf="selectedRole">
+      <div class="role-header-card">
+        <div style="display: flex; gap: 1rem; align-items: center;">
+          <input type="text" class="role-title-input" [(ngModel)]="selectedRole.name" placeholder="Role Name"
+            [readonly]="!isOwner && ((selectedRole.id && !permissions.admin?.roles?.update) || (!selectedRole.id && !permissions.admin?.roles?.create))">
+          <button class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;"
+            *ngIf="isOwner || (selectedRole.id ? permissions.admin?.roles?.update : permissions.admin?.roles?.create)"
+            (click)="saveRole()" [disabled]="isSaving">
+            <span *ngIf="isSaving">Saving...</span>
+            <span *ngIf="!isSaving">{{ selectedRole.id ? 'Save Changes' : 'Create Role' }}</span>
+          </button>
+        </div>
+        <button class="btn btn-outline delete-role-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;"
+          *ngIf="selectedRole.id && (isOwner || permissions.admin?.roles?.delete)" (click)="deleteRole()">Delete Role</button>
+      </div>
+
+      <!-- Global Permissions -->
+      <div class="module-card" style="margin-bottom: 1rem;">
+        <div class="module-header-dark">
+          <span style="font-size: 1.1rem; font-weight: 800; color: #111827;">Global Settings</span>
+        </div>
+        <div class="module-body" style="padding: 16px 24px;">
+          <label class="custom-checkbox" style="display: flex; align-items: center; gap: 0.75rem; margin: 0;">
+            <input type="checkbox" style="width: 20px; height: 20px;"
+              [(ngModel)]="selectedRole.permissions.all_centers"
+              [disabled]="!isOwner && ((selectedRole.id && !permissions.admin?.roles?.update) || (!selectedRole.id && !permissions.admin?.roles?.create))">
+            <span class="checkmark" style="position: relative; flex-shrink: 0;"></span>
+            <div style="display: flex; flex-direction: column;">
+              <strong style="font-size: 0.9rem; color: #111827;">Access to all centers</strong>
+              <span style="font-size: 0.75rem; color: #6b7280;">Bypasses per-user center assignment. The user will have access to all locations.</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div *ngIf="selectedRole.permissions" class="modules-container">
+
+        <div class="module-card" *ngFor="let mod of getModuleKeys()">
+          <div class="module-header-dark">
+            <label class="checkbox-label select-all-label">
+              <input type="checkbox" [checked]="isModuleFullyChecked(mod)" [indeterminate]="isModuleIndeterminate(mod)"
+                (change)="toggleModule(mod, $event)" [disabled]="!isOwner && !permissions.admin?.roles?.update">
+              <span>{{ mod | uppercase }}</span>
+            </label>
+          </div>
+
+          <div class="module-body table-responsive">
+            <table class="permissions-table" style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr>
+                  <th style="width: 30%;">Sub-module</th>
+                  <th style="text-align: center;">View</th>
+                  <th style="text-align: center;">Add</th>
+                  <th style="text-align: center;">Edit</th>
+                  <th style="text-align: center;">Del</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let sub of getSubModuleKeys(mod)">
+                  <td class="sub-module-name" style="font-weight: 600;">{{ sub | titlecase }}</td>
+                  <td style="text-align: center; vertical-align: middle;">
+                    <label class="custom-checkbox" style="display: inline-flex; margin: 0;">
+                      <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].read"
+                        (ngModelChange)="onPermissionChange(mod, sub, 'read', $event)"
+                        [disabled]="!isOwner && !permissions.admin?.roles?.update">
+                      <span class="checkmark"></span>
+                    </label>
+                  </td>
+                  <td style="text-align: center; vertical-align: middle;">
+                    <label class="custom-checkbox" style="display: inline-flex; margin: 0;">
+                      <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].create"
+                        (ngModelChange)="onPermissionChange(mod, sub, 'create', $event)"
+                        [disabled]="!isOwner && !permissions.admin?.roles?.update">
+                      <span class="checkmark"></span>
+                    </label>
+                  </td>
+                  <td style="text-align: center; vertical-align: middle;">
+                    <label class="custom-checkbox" style="display: inline-flex; margin: 0;">
+                      <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].update"
+                        (ngModelChange)="onPermissionChange(mod, sub, 'update', $event)"
+                        [disabled]="!isOwner && !permissions.admin?.roles?.update">
+                      <span class="checkmark"></span>
+                    </label>
+                  </td>
+                  <td style="text-align: center; vertical-align: middle;">
+                    <label class="custom-checkbox" style="display: inline-flex; margin: 0;">
+                      <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].delete"
+                        (ngModelChange)="onPermissionChange(mod, sub, 'delete', $event)"
+                        [disabled]="!isOwner && !permissions.admin?.roles?.update">
+                      <span class="checkmark"></span>
+                    </label>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
