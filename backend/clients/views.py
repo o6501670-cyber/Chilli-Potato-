@@ -96,7 +96,7 @@ class ClientViewSet(viewsets.ModelViewSet):
                 'service_name': log.service_name,
                 'service_type': log.service_type,
                 'price': log.price,
-                'staff_name': log.staff.first_name + ' ' + log.staff.last_name if log.staff else 'Unknown',
+                'staff_name': (log.staff.first_name + ' ' + (log.staff.last_name or '')).strip() if log.staff else 'Unknown',
                 'center_name': (log.center.display_name or log.center.center_name) if log.center else 'Unknown',
                 'invoice_id': log.invoice.id if log.invoice else None
             })
