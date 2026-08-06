@@ -60,6 +60,10 @@ The repository is now in a much safer, testable state for continued staging. The
 - Staff transfer/tool reads no longer run a database-writing synchronisation routine on every GET.
 - Refund reports now use actual refund ledger amounts rather than the face value of every cancelled invoice.
 
+### Repository hygiene
+
+- Removed tracked patch/recovery scripts, logs, backups, generated URL dumps, test spreadsheets, and duplicate nested source artifacts from the final repository. Only runtime source, migrations, tests, deployment files, documentation, and required assets remain.
+
 ### Frontend and runtime
 
 - Removed production loopback API URLs; the frontend uses same-origin paths.

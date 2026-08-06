@@ -4,6 +4,7 @@ import openpyxl
 from datetime import datetime
 from decimal import Decimal
 import hashlib
+import logging
 from django.contrib.auth.hashers import check_password, make_password
 from django.utils.crypto import constant_time_compare
 from salon_admin.models import Center
@@ -22,6 +23,8 @@ import datetime
 from .utils import sync_staff_transfers_and_tools
 from accounts.access import can_access_center, has_global_access
 from accounts.permissions import RoleActionPermission
+
+logger = logging.getLogger(__name__)
 
 
 def _read_bulk_rows(uploaded_file):
@@ -821,7 +824,7 @@ class ServiceLogViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 errors.append(f"Row {i}: Error saving '{first_name}' - {str(e)}")
                 
-        print('UPLOAD ERRORS:', errors)
+        logger.warning('Staff bulk upload errors: %s', errors)
         return Response({
             'message': f'Successfully uploaded {success_count} staff members.',
             'errors': errors
@@ -1073,7 +1076,7 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 errors.append(f"Row {i}: Error saving '{first_name}' - {str(e)}")
                 
-        print('UPLOAD ERRORS:', errors)
+        logger.warning('Staff bulk upload errors: %s', errors)
         return Response({
             'message': f'Successfully uploaded {success_count} staff members.',
             'errors': errors

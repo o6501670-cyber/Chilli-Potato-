@@ -222,7 +222,7 @@ export class StaffComponent implements OnInit {
     });
 
     this.apiService.getServices(filter).subscribe(data => {
-      console.log('staff.ts getServices returned:', data);
+      // Service data is loaded asynchronously; keep production output quiet.
       this.services = data;
     });
   }
