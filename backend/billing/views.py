@@ -490,10 +490,15 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=sanitized)
         try:
             serializer.is_valid(raise_exception=True)
-        except Exception:
+        except ValidationError:
             return Response({
                 'detail': 'Invoice validation failed',
                 'errors': serializer.errors,
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception('Unexpected invoice validation failure')
+            return Response({
+                'detail': 'Invoice validation failed due to an internal validation error.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
         user = request.user

@@ -156,6 +156,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError("One or more staff members do not belong to this center.")
                     
             ct_label = item.get('content_type')
+            obj_id = item.get('object_id')
             if ct_label and isinstance(ct_label, str) and ct_label.startswith('inventory'):
                 obj_id = item.get('object_id')
                 if obj_id:

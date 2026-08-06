@@ -10,6 +10,7 @@ from django.db import transaction
 from django.db.models import Sum, Count, Q
 from django.contrib.contenttypes.models import ContentType
 from datetime import datetime
+from decimal import Decimal
 import datetime as dt_module
 from collections import defaultdict
 import calendar
