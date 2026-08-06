@@ -68,6 +68,49 @@ class Client(models.Model):
     def __str__(self):
         return f"{self.full_name} ({self.phone})"
 
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        if is_new and not self.app_pin:
+            import random
+            self.app_pin = f"{random.randint(1000, 9999)}"
+        
+        super().save(*args, **kwargs)
+        
+        if is_new and self.email:
+            try:
+                from django.core.mail import send_mail
+                from django.conf import settings
+                import threading
+                
+                subject = "Welcome to Chilli Potato - Your Account PIN"
+                message = (
+                    f"Hello {self.first_name},\n\n"
+                    f"Your client profile has been created successfully.\n"
+                    f"Your 4-digit mobile app access PIN is: {self.app_pin}\n\n"
+                    f"Thank you,\n"
+                    f"Chilli Potato Team"
+                )
+                
+                def _send_email_async():
+                    try:
+                        send_mail(
+                            subject,
+                            message,
+                            getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@chillipotato.com'),
+                            [self.email],
+                            fail_silently=False,
+                        )
+                    except Exception as email_err:
+                        import logging
+                        logger = logging.getLogger('django')
+                        logger.error(f"[Welcome Email] Failed to send welcome email to {self.email}: {email_err}", exc_info=True)
+                
+                threading.Thread(target=_send_email_async, daemon=True).start()
+            except Exception as thread_err:
+                import logging
+                logger = logging.getLogger('django')
+                logger.error(f"[Welcome Email] Thread start error for {self.email}: {thread_err}", exc_info=True)
+
     class Meta:
         indexes = [
             models.Index(fields=['phone'], name='client_phone_idx'),
