@@ -82,7 +82,7 @@
                 <tr *ngFor="let sub of getSubModuleKeys(mod)">
                   <td class="sub-module-name" style="font-weight: 600;">{{ sub | titlecase }}</td>
                   <td style="text-align: center; vertical-align: middle;">
-                    <label class="custom-checkbox" style="display: inline-flex; margin: 0;">
+                    <label class="custom-checkbox cell-checkbox" style="display: inline-flex; margin: 0;">
                       <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].read"
                         (ngModelChange)="onPermissionChange(mod, sub, 'read', $event)"
                         [disabled]="!isOwner && !permissions.admin?.roles?.update">
@@ -90,7 +90,7 @@
                     </label>
                   </td>
                   <td style="text-align: center; vertical-align: middle;">
-                    <label class="custom-checkbox" style="display: inline-flex; margin: 0;">
+                    <label class="custom-checkbox cell-checkbox" style="display: inline-flex; margin: 0;">
                       <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].create"
                         (ngModelChange)="onPermissionChange(mod, sub, 'create', $event)"
                         [disabled]="!isOwner && !permissions.admin?.roles?.update">
@@ -98,7 +98,7 @@
                     </label>
                   </td>
                   <td style="text-align: center; vertical-align: middle;">
-                    <label class="custom-checkbox" style="display: inline-flex; margin: 0;">
+                    <label class="custom-checkbox cell-checkbox" style="display: inline-flex; margin: 0;">
                       <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].update"
                         (ngModelChange)="onPermissionChange(mod, sub, 'update', $event)"
                         [disabled]="!isOwner && !permissions.admin?.roles?.update">
@@ -106,7 +106,7 @@
                     </label>
                   </td>
                   <td style="text-align: center; vertical-align: middle;">
-                    <label class="custom-checkbox" style="display: inline-flex; margin: 0;">
+                    <label class="custom-checkbox cell-checkbox" style="display: inline-flex; margin: 0;">
                       <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].delete"
                         (ngModelChange)="onPermissionChange(mod, sub, 'delete', $event)"
                         [disabled]="!isOwner && !permissions.admin?.roles?.update">
