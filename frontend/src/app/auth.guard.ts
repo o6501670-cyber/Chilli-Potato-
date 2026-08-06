@@ -66,7 +66,6 @@ export const roleGuard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
       'changes': 'changes',
       'manager-discounts': 'manager_discounts',
     };
-
     if (path && adminSubModules[path]) {
       if (!permissions.admin || !permissions.admin[adminSubModules[path]]?.read) {
         router.navigate(['/admin/home']);
@@ -74,7 +73,11 @@ export const roleGuard: CanActivateFn = (route: ActivatedRouteSnapshot) => {
       }
     }
 
-    // Module-level routes
+    if (path === 'logs' && !isOwner) {
+      router.navigate(['/admin/home']);
+      return false;
+    }
+
     const moduleRoutes: { path: string; module: string }[] = [
       { path: 'dashboard', module: 'dashboard' },
       { path: 'billing', module: 'billing' },
