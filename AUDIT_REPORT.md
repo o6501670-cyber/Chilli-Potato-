@@ -81,14 +81,16 @@ The repository is now in a much safer, testable state for continued staging. The
 - Backend Django system check: **PASS**
 - Production-mode `check --deploy` with a supplied secret and SQLite verification database: **PASS**
 - Backend migrations and `makemigrations --check`: **PASS**
-- Backend test suite: **17 tests passed**
-- Billing integrity regressions: idempotency, stock rollback, one-time finalization, full refund reversal, cashback reversal: **PASS**
+- Backend test suite: **19 tests passed**
+- Billing integrity regressions: idempotency, stock rollback, one-time finalization, service-item validation, full refund reversal, cashback reversal: **PASS**
 - Role permission regressions: read allowed only where configured; writes denied without explicit action: **PASS**
 - Frontend production build: **PASS**
 - Frontend unit tests: **11/11 passed**
 - `npm audit --omit=dev --audit-level=high`: **0 vulnerabilities**
 - Bandit scan: **0 high / 0 medium severity findings**
 - Live preview smoke checks: Angular host **200**, Django host accepted, login **200**, authenticated core report/inventory/billing endpoints **200**
+- Final business-flow smoke: centre/role, staff/designation, service, client, appointment, product/vendor/purchase order receipt, promotion, card, membership, package, invoice/refund, petty cash, shift close, daily closing, incentive report, staff app login, client app login: **PASS**
+- Bulk-upload smoke: clients, vendors, products, services, service logs, and consumption logs without a pandas runtime dependency: **PASS**
 
 ## Staging checklist before live use
 

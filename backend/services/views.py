@@ -8,6 +8,7 @@ from .models import ServiceMaster, CenterService
 from .serializers import ServiceMasterSerializer, CenterServiceSerializer
 from accounts.access import can_access_center, has_global_access
 from accounts.permissions import RoleActionPermission
+from pos_backend.uploads import read_upload_records
 import logging
 
 logger = logging.getLogger(__name__)
@@ -113,18 +114,7 @@ class ServiceMasterViewSet(viewsets.ModelViewSet):
         if not file_obj:
             return Response({'error': 'No file uploaded'}, status=400)
         try:
-            import pandas as pd
-            if file_obj.name.endswith('.csv'):
-                df = pd.read_csv(file_obj)
-            elif file_obj.name.endswith('.xlsx') or file_obj.name.endswith('.xls'):
-                df = pd.read_excel(file_obj)
-            else:
-                return Response({'error': 'Unsupported file format. Please upload a .csv or .xlsx file.'}, status=400)
-
-            df = df.fillna('')
-            # Strip whitespace from column names for robust matching
-            df.columns = [str(c).strip() for c in df.columns]
-            records = df.to_dict('records')
+            records = read_upload_records(file_obj)
 
             user = request.user
 
@@ -170,49 +160,49 @@ class ServiceMasterViewSet(viewsets.ModelViewSet):
             with db_transaction.atomic():
                 for idx, row in enumerate(records, start=2):
                     # Service Name (required) — supports both "Service Name" and "name"
-                    name = str(row.get('Service Name', row.get('name', ''))).strip()
+                    name = str(row.get('servicename', row.get('name', ''))).strip()
                     if not name or name in ('nan', 'None'):
                         errors.append(f'Row {idx}: Skipped - Service Name is empty.')
                         skipped_count += 1
                         continue
 
                     # Category
-                    category = str(row.get('Category', row.get('category', ''))).strip()
+                    category = str(row.get('category', '')).strip()
                     if category in ('nan', 'None'):
                         category = ''
 
                     # Sub Category (informational, not a separate model field)
-                    sub_category = str(row.get('Sub Category', row.get('sub_category', ''))).strip()
+                    sub_category = str(row.get('subcategory', row.get('subcategoryname', ''))).strip()
                     if sub_category in ('nan', 'None'):
                         sub_category = ''
 
                     # Brand (informational)
-                    brand = str(row.get('Brand', row.get('brand', ''))).strip()
+                    brand = str(row.get('brand', '')).strip()
                     if brand in ('nan', 'None'):
                         brand = ''
 
                     # S.No -> service_code
-                    service_code = str(row.get('S.No', row.get('service_code', ''))).strip()
+                    service_code = str(row.get('sno', row.get('servicecode', ''))).strip()
                     if service_code in ('nan', 'None'):
                         service_code = ''
 
                     # Price
-                    price = safe_float(row.get('Price', row.get('price', row.get('default_price', 0))))
+                    price = safe_float(row.get('price', row.get('defaultprice', row.get('default_price', 0))))
 
                     # Tax
-                    tax_str = str(row.get('Tax', row.get('tax_percentage', '5'))).strip().replace('%', '')
+                    tax_str = str(row.get('tax', row.get('taxpercentage', '5'))).strip().replace('%', '')
                     tax_percentage = safe_float(tax_str, 5.00)
 
                     # HSN Code / SAC Code
-                    hsn_code = str(row.get('HSN Code', row.get('hsn_code', row.get('HSN', '')))).strip()
+                    hsn_code = str(row.get('hsncode', row.get('hsn', ''))).strip()
                     if hsn_code in ('nan', 'None', '0'):
                         hsn_code = ''
-                    sac_code = str(row.get('SAC Code', row.get('sac_code', ''))).strip()
+                    sac_code = str(row.get('saccode', '')).strip()
                     if sac_code in ('nan', 'None', '0'):
                         sac_code = ''
 
                     # Duration (optional column)
-                    duration = safe_int(row.get('duration', row.get('duration_mins', 0)))
+                    duration = safe_int(row.get('duration', row.get('durationmins', 0)))
 
                     # Upsert: update if name matches, else create
                     existing_qs = ServiceMaster.objects.filter(name=name)

@@ -10,6 +10,7 @@ from clients.models import Client
 from inventory.models import Product, StockTransaction
 from marketing.models import Promotion, PromotionUsage
 from salon_admin.models import Center
+from services.models import ServiceMaster
 
 from .models import Invoice, InvoiceRefund
 
@@ -68,6 +69,22 @@ class BillingIntegrityTests(APITestCase):
         self.assertEqual(Product.objects.get(pk=self.product.id).current_stock, 0)
         self.assertEqual(StockTransaction.objects.filter(product=self.product, transaction_type='SALE').count(), 1)
         self.assertEqual(invoice.payments.count(), 1)
+
+    def test_service_item_validation_and_finalization(self):
+        service = ServiceMaster.objects.create(
+            name='Test Service', category='Hair', default_price=100, tax_percentage=0
+        )
+        payload = self._invoice_payload('service-1')
+        payload['subtotal'] = payload['total_amount'] = 100
+        payload['items'][0].update({
+            'content_type': 'services.servicemaster',
+            'object_id': service.id,
+            'description': 'Test Service',
+            'unit_price': 100,
+        })
+        response = self.client.post('/billing/invoices/', payload, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertIsNotNone(Invoice.objects.get(pk=response.data['id']).finalized_at)
 
     def test_insufficient_stock_rolls_back_invoice(self):
         self.product.current_stock = 0

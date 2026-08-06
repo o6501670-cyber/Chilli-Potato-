@@ -81,6 +81,8 @@ def dashboard_summary(request):
             centers_qs = centers_qs.filter(id__in=user.centers.values_list('id', flat=True))
         elif hasattr(user, 'center') and user.center:
             centers_qs = centers_qs.filter(id=user.center.id)
+        else:
+            centers_qs = centers_qs.none()
             
     center_id = request.GET.get('center_id')
     if center_id and center_id != 'null':
@@ -643,6 +645,8 @@ def dashboard_finance(request):
             advances_qs = advances_qs.filter(Q(invoice__center__in=user.centers.all()) | Q(staff__center__in=user.centers.all()))
         elif hasattr(user, 'center') and user.center:
             advances_qs = advances_qs.filter(Q(invoice__center=user.center) | Q(staff__center=user.center))
+        else:
+            advances_qs = advances_qs.none()
 
     adv_raw = (
         advances_qs
@@ -695,6 +699,8 @@ def dashboard_staff(request):
             logs = logs.filter(staff__center__in=user.centers.all())
         elif hasattr(user, 'center') and user.center:
             logs = logs.filter(staff__center=user.center)
+        else:
+            logs = logs.none()
     center_id = request.GET.get('center_id')
     if center_id and center_id != 'null':
         logs = logs.filter(staff__center_id=center_id)

@@ -9,6 +9,7 @@ from .models import Vendor, Product, PurchaseOrder, ProductLot, StockTransaction
 from .serializers import VendorSerializer, ProductSerializer, PurchaseOrderSerializer, ProductLotSerializer, StockTransactionSerializer
 from accounts.access import can_access_center, has_global_access
 from accounts.permissions import RoleActionPermission
+from pos_backend.uploads import read_upload_records
 
 class InventoryBaseViewSet(viewsets.ModelViewSet):
     permission_classes = [RoleActionPermission]
@@ -130,19 +131,7 @@ class VendorViewSet(InventoryBaseViewSet):
         if not file_obj:
             return Response({'error': 'No file uploaded'}, status=400)
         try:
-            import pandas as pd
-            if file_obj.name.endswith('.csv'):
-                df = pd.read_csv(file_obj)
-            elif file_obj.name.endswith('.xlsx') or file_obj.name.endswith('.xls'):
-                df = pd.read_excel(file_obj)
-            else:
-                return Response({'error': 'Unsupported file format.'}, status=400)
-
-            df = df.fillna('')
-            def normalize_col(c):
-                return str(c).strip().lower().replace(' ', '').replace('_', '')
-            df.columns = [normalize_col(c) for c in df.columns]
-            records = df.to_dict('records')
+            records = read_upload_records(file_obj)
 
             user = request.user
             from salon_admin.models import Center
@@ -305,20 +294,7 @@ class ProductViewSet(InventoryBaseViewSet):
         if not file_obj:
             return Response({'error': 'No file uploaded'}, status=400)
         try:
-            import pandas as pd
-            if file_obj.name.endswith('.csv'):
-                df = pd.read_csv(file_obj)
-            elif file_obj.name.endswith('.xlsx') or file_obj.name.endswith('.xls'):
-                df = pd.read_excel(file_obj)
-            else:
-                return Response({'error': 'Unsupported file format. Please upload a .csv or .xlsx file.'}, status=400)
-
-            df = df.fillna('')
-            # Normalize column names: strip whitespace, lowercase, remove spaces and underscores
-            def normalize_col(c):
-                return str(c).strip().lower().replace(' ', '').replace('_', '')
-            df.columns = [normalize_col(c) for c in df.columns]
-            records = df.to_dict('records')
+            records = read_upload_records(file_obj)
 
             user = request.user
 

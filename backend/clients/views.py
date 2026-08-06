@@ -10,6 +10,7 @@ from .serializers import ClientSerializer
 from staff.models import ServiceLog
 from accounts.access import has_global_access, can_access_center
 from accounts.permissions import RoleActionPermission
+from pos_backend.uploads import read_upload_records
 
 class ClientViewSet(viewsets.ModelViewSet):
     permission_classes = [RoleActionPermission]
@@ -201,15 +202,7 @@ class ClientViewSet(viewsets.ModelViewSet):
         if not file_obj:
             return Response({'error': 'No file uploaded'}, status=400)
         try:
-            import pandas as pd
-            if file_obj.name.endswith('.csv'):
-                df = pd.read_csv(file_obj)
-            elif file_obj.name.endswith('.xlsx'):
-                df = pd.read_excel(file_obj)
-            else:
-                return Response({'error': 'Unsupported file format'}, status=400)
-            df = df.fillna('')
-            records = df.to_dict('records')
+            records = read_upload_records(file_obj)
             created_count = 0
             user = request.user
             center = None

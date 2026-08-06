@@ -1261,6 +1261,8 @@ class StaffIncentiveCalculationView(views.APIView):
                 staff_qs = staff_qs.filter(center__in=user.centers.all())
             elif hasattr(user, 'center') and user.center:
                 staff_qs = staff_qs.filter(center=user.center)
+            else:
+                staff_qs = staff_qs.none()
 
         if center_id:
             staff_qs = staff_qs.filter(center_id=center_id)
@@ -1272,6 +1274,8 @@ class StaffIncentiveCalculationView(views.APIView):
                 invoices_qs = invoices_qs.filter(center__in=user.centers.all())
             elif hasattr(user, 'center') and user.center:
                 invoices_qs = invoices_qs.filter(center=user.center)
+            else:
+                invoices_qs = invoices_qs.none()
 
         if center_id:
             invoices_qs = invoices_qs.filter(center_id=center_id)
