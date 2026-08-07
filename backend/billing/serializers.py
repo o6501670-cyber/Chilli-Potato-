@@ -329,8 +329,13 @@ class InvoiceSerializer(serializers.ModelSerializer):
             if staff_members:
                 m2m_map.append((idx, staff_members))
 
-        # Single INSERT statement for all items
-        created_items = InvoiceItem.objects.bulk_create(item_instances)
+        # We cannot reliably use bulk_create here because depending on the DB backend, 
+        # it may not assign the generated PKs to the instances, breaking the M2M assignment below.
+        # Since an invoice typically has a small number of items, looping save() is safe and robust.
+        created_items = []
+        for item in item_instances:
+            item.save()
+            created_items.append(item)
 
         # Pass 2: Set M2M staff_members only for items that need it
         for idx, staff_members in m2m_map:
