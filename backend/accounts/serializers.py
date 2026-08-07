@@ -70,8 +70,13 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 class MessageSerializer(serializers.ModelSerializer):
     sender = serializers.PrimaryKeyRelatedField(read_only=True)
     sender_name = serializers.CharField(source='sender.full_name', read_only=True)
-    receiver_name = serializers.CharField(source='receiver.full_name', read_only=True)
+    receiver_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
         fields = ('id', 'sender', 'sender_name', 'receiver', 'receiver_name', 'room', 'content', 'image', 'timestamp', 'is_read')
+
+    def get_receiver_name(self, obj):
+        if obj.receiver:
+            return obj.receiver.full_name
+        return None
