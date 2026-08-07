@@ -583,21 +583,24 @@ export class FinanceComponent implements OnInit {
       this.activeMainTab = '';
     }
 
-    // Default to last 30 days
+    // Default to this month (more relevant than past 30 days)
     const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+    const tzOffset = today.getTimezoneOffset() * 60000;
     const localToday = new Date(today.getTime() - tzOffset);
-    const localThirty = new Date(thirtyDaysAgo.getTime() - tzOffset);
-    this.endDate = localToday.toISOString().split('T')[0];
-    this.startDate = localThirty.toISOString().split('T')[0];
-    this.multiStartDate = this.startDate;
-    this.multiEndDate = this.endDate;
-    this.incentiveStartDate = this.startDate;
-    this.incentiveEndDate = this.endDate;
-    this.closingStartDate = this.startDate;
-    this.closingEndDate = this.endDate;
+    const y = today.getFullYear();
+    const m = today.getMonth();
+    const thisMonthStart = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+    const todayStr = localToday.toISOString().split('T')[0];
+    
+    this.startDate = thisMonthStart;
+    this.endDate = todayStr;
+    this.multiStartDate = thisMonthStart;
+    this.multiEndDate = todayStr;
+    this.incentiveStartDate = thisMonthStart;
+    this.incentiveEndDate = todayStr;
+    this.closingStartDate = thisMonthStart;
+    this.closingEndDate = todayStr;
+    this.currentRange = 'thisMonth'; // Set default fast-pill to "This Month"
 
     this.apiService.getCenters().subscribe((data: any) => {
       this.centers = Array.isArray(data) ? data : (data.results || []);

@@ -50,7 +50,7 @@ def _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('
     return qs
 
 
-def _compute_revenue_breakdown(invoices):
+def _compute_revenue_breakdown(invoices, invoice_ids=None):
     """Compute revenue breakdown by item type from invoices."""
     from services.models import ServiceMaster
     from inventory.models import Product
@@ -69,7 +69,13 @@ def _compute_revenue_breakdown(invoices):
 
     from django.db.models import Sum, Q
 
-    items = InvoiceItem.objects.filter(invoice__in=invoices).aggregate(
+    # Use pre-fetched invoice_ids (IN lookup) when available - avoids subquery re-evaluation
+    if invoice_ids is not None:
+        items_qs = InvoiceItem.objects.filter(invoice_id__in=invoice_ids)
+    else:
+        items_qs = InvoiceItem.objects.filter(invoice__in=invoices)
+
+    items = items_qs.aggregate(
         services=Sum('total_price', filter=Q(content_type=service_ct)),
         products=Sum('total_price', filter=Q(content_type=product_ct)),
         memberships=Sum('total_price', filter=Q(content_type=membership_ct)),
@@ -81,11 +87,17 @@ def _compute_revenue_breakdown(invoices):
     return {k: float(v or 0) for k, v in items.items()}
 
 
-def _compute_payment_breakdown(invoices):
+def _compute_payment_breakdown(invoices, invoice_ids=None):
     """Compute payment method totals from invoice payments efficiently."""
-    payments_agg = Payment.objects.filter(invoice__in=invoices).values('payment_method').annotate(
-        total_amount=Sum('amount'), count=Count('id')
-    )
+    # Use pre-fetched invoice_ids when available for faster IN lookup
+    if invoice_ids is not None:
+        payments_agg = Payment.objects.filter(invoice_id__in=invoice_ids).values('payment_method').annotate(
+            total_amount=Sum('amount'), count=Count('id')
+        )
+    else:
+        payments_agg = Payment.objects.filter(invoice__in=invoices).values('payment_method').annotate(
+            total_amount=Sum('amount'), count=Count('id')
+        )
     
     method_map = {
         'cash': ['cash'],
@@ -480,8 +492,14 @@ class RegisterSummaryView(views.APIView):
         user = request.user
 
         invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
-        revenue = _compute_revenue_breakdown(invoices)
-        payments = _compute_payment_breakdown(invoices)
+        
+        # Cache invoice IDs to avoid re-evaluating the queryset on each subsequent query.
+        # This converts the queryset into a list of IDs once, so all downstream filters
+        # are fast IN lookups rather than subqueries.
+        invoice_ids = list(invoices.values_list('id', flat=True))
+        
+        revenue = _compute_revenue_breakdown(invoices, invoice_ids)
+        payments = _compute_payment_breakdown(invoices, invoice_ids)
 
         # Advances received (positive advance payments in date range)
         adv_qs = AdvancePayment.objects.filter(amount__gt=0)
@@ -511,15 +529,16 @@ class RegisterSummaryView(views.APIView):
         advances_total = float(adv_qs.aggregate(t=Sum('amount'))['t'] or 0)
         advance_redemptions = abs(float(adv_used_qs.aggregate(t=Sum('amount'))['t'] or 0))
 
-        # Refunds (cancelled invoices) - these are excluded from sales_collection so they shouldn't be subtracted again.
+        # Refunds (cancelled invoices)
         cancelled_qs = _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('cancelled', 'refunded'))
         refunds_total = float(cancelled_qs.aggregate(t=Sum('total_amount'))['t'] or 0)
 
-        # Tax totals
-        total_cgst = float(invoices.aggregate(t=Sum('cgst'))['t'] or 0)
-        total_sgst = float(invoices.aggregate(t=Sum('sgst'))['t'] or 0)
-        total_tax = total_cgst + total_sgst
-        total_discount = float(invoices.aggregate(t=Sum('discount'))['t'] or 0)
+        # Tax totals — combine into a single aggregate call instead of 3 separate ones
+        totals = Invoice.objects.filter(id__in=invoice_ids).aggregate(
+            t_cgst=Sum('cgst'), t_sgst=Sum('sgst'), t_discount=Sum('discount')
+        )
+        total_tax = float(totals['t_cgst'] or 0) + float(totals['t_sgst'] or 0)
+        total_discount = float(totals['t_discount'] or 0)
 
         # Proportional tax split based on actual service vs product revenue
         total_taxable = revenue['services'] + revenue['products']
