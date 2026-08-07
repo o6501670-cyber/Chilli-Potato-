@@ -585,6 +585,22 @@ export class BillingComponent implements OnInit {
 
 
   discardInvoice() {
+    if (this.currentInvoiceId && this.currentInvoiceStatus === 'draft') {
+      this.apiService.delete(`billing/invoices/${this.currentInvoiceId}/`).subscribe({
+        next: () => {
+          this.finalizeDiscard();
+        },
+        error: (err) => {
+          console.error('Failed to delete draft', err);
+          this.finalizeDiscard();
+        }
+      });
+    } else {
+      this.finalizeDiscard();
+    }
+  }
+
+  finalizeDiscard() {
     this.isSaving = false;
     this.setViewMode('landing');
     this.cart = [];
@@ -602,7 +618,7 @@ export class BillingComponent implements OnInit {
     this.useAdvancePayment = false;
 
     this.loadLandingData();
-
+    this.cdr.detectChanges();
   }
 
 
@@ -2047,7 +2063,10 @@ export class BillingComponent implements OnInit {
           this.resetConfig();
           this.loadLandingData();
         } else {
-          this.discardInvoice();
+          this.showToast('Draft saved successfully', 'success');
+          // For save draft, we don't want to actually delete it, we just want to clear the UI.
+          // Since discardInvoice now deletes the invoice, we should call finalizeDiscard() here instead!
+          this.finalizeDiscard();
         }
         this.isSaving = false;
         setTimeout(() => this.cdr.detectChanges(), 0);
