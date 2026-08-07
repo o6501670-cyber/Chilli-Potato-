@@ -121,6 +121,21 @@
             <div class="kpi-tile-val">{{ formatCurrency(registerSummaryData.refunds.refunds_issued) }}</div>
             <div class="kpi-tile-sub"><i class="fa-solid fa-rotate-left" style="color:#6b7280;font-size:11px"></i> Cancelled Invoices</div>
           </div>
+          <div class="kpi-tile">
+            <div class="kpi-tile-label">Target</div>
+            <div class="kpi-tile-val">{{ formatCurrency(registerSummaryData.revenues.target || 0) }}</div>
+            <div class="kpi-tile-sub"><i class="fa-solid fa-crosshairs" style="color:#8b5cf6;font-size:11px"></i> Center Goal</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-tile-label">Target Achieved</div>
+            <div class="kpi-tile-val">{{ (registerSummaryData.revenues.target_achieved_percentage || 0) }}%</div>
+            <div class="kpi-tile-sub"><i class="fa-solid fa-chart-pie" style="color:#f59e0b;font-size:11px"></i> Performance</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-tile-label">Taxable Value</div>
+            <div class="kpi-tile-val">{{ formatCurrency(registerSummaryData.revenues.taxable_value || 0) }}</div>
+            <div class="kpi-tile-sub"><i class="fa-solid fa-receipt" style="color:#64748b;font-size:11px"></i> Eligible Items</div>
+          </div>
         </div>
 
       <div class="register-grid">
@@ -397,7 +412,10 @@
               <th class="num neg-col">Payment Redemptions</th>
               <th class="num neg-col">Refunds</th>
               <th class="num highlight-col">Collection Before Tax</th>
+              <th class="num">Taxable Value</th>
               <th class="num highlight-col">Including Tax</th>
+              <th class="num">Target</th>
+              <th class="num">Target Achieved</th>
             </tr>
           </thead>
           <tbody>
@@ -417,7 +435,10 @@
               <td class="num neg-col">{{ formatCurrency(row.payment_redemptions) }}</td>
               <td class="num neg-col">{{ formatCurrency(row.refunds) }}</td>
               <td class="num highlight-col">{{ formatCurrency(row.collection_before_tax) }}</td>
+              <td class="num">{{ formatCurrency(row.taxable_value) }}</td>
               <td class="num highlight-col">{{ formatCurrency(row.including_tax) }}</td>
+              <td class="num">{{ formatCurrency(row.target) }}</td>
+              <td class="num">{{ row.target_achieved_percentage }}%</td>
             </tr>
           </tbody>
         </table>

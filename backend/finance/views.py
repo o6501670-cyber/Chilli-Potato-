@@ -774,6 +774,18 @@ class MonthlySalesView(views.APIView):
         )
         refunds_dict = {(r['year'], r['month_num']): float(r['refunds'] or 0) for r in cancelled_monthly}
 
+        # Fetch target history
+        target_history = {}
+        default_target = 0
+        if center_id:
+            from salon_admin.models import Center
+            try:
+                c = Center.objects.get(id=center_id)
+                target_history = c.monthly_targets_history or {}
+                default_target = float(c.monthly_target or 0)
+            except Center.DoesNotExist:
+                pass
+
         # Build result
         result = []
         for row in monthly:
@@ -799,6 +811,16 @@ class MonthlySalesView(views.APIView):
             total_tax = float(row['total_cgst'] or 0) + float(row['total_sgst'] or 0)
             total_discount = float(row['total_discount'] or 0)
             total = (services + products + memberships + packages + value_cards + other + adv - total_redemptions) - total_discount
+            
+            taxable_value = services + products + value_cards + memberships + packages
+            
+            target = float(target_history.get(month_str, 0))
+            if target == 0:
+                target = default_target
+                
+            target_achieved_percentage = 0
+            if target > 0:
+                target_achieved_percentage = round((total / target) * 100, 2)
 
             result.append({
                 'month': month_str,
@@ -816,6 +838,9 @@ class MonthlySalesView(views.APIView):
                 'other': round(other, 2),
                 'discounts': round(-total_discount, 2),
                 'collection_before_tax': round(total, 2),
+                'taxable_value': round(taxable_value, 2),
+                'target': round(target, 2),
+                'target_achieved_percentage': target_achieved_percentage,
                 'total_tax': round(total_tax, 2),
                 'including_tax': round(total + total_tax, 2)
             })
