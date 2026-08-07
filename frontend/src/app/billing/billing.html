@@ -1047,10 +1047,11 @@
       
       <div class="classic-receipt-paper" id="print-invoice">
         <div class="prt-header">
-          <div class="prt-salon-name">GEETANJALI SALON</div>
-          <div class="prt-salon-sub">{{ completedInvoiceData.center_detail?.name || selectedCenterName }}</div>
-          <div *ngIf="completedInvoiceData.center_detail?.address" class="prt-salon-sub" style="font-size:10px;">{{
+          <div class="prt-salon-name">{{ completedInvoiceData.center_detail?.name || selectedCenterName || 'SALON INVOICE' | uppercase }}</div>
+          <div *ngIf="completedInvoiceData.center_detail?.address" class="prt-salon-sub" style="font-size:10px; margin-top: 4px;">{{
             completedInvoiceData.center_detail.address }}</div>
+          <div *ngIf="completedInvoiceData.center_detail?.phone" class="prt-salon-sub" style="font-size:10px; margin-top: 2px;">Ph: {{
+            completedInvoiceData.center_detail.phone }}</div>
           <div class="prt-divider"></div>
           <div class="prt-meta-row">
             <span><b>Invoice #:</b> {{ completedInvoiceData.id }}</span>
@@ -1067,21 +1068,26 @@
         <table class="prt-table">
           <thead>
             <tr>
-              <th style="text-align:left;">ITEM</th>
+              <th style="text-align:left; width: 40%;">ITEM</th>
               <th style="text-align:center;">QTY</th>
               <th style="text-align:right;">PRICE</th>
-              <th style="text-align:right;">DISC</th>
+              <th style="text-align:right;">TAX</th>
               <th style="text-align:right;">TOTAL</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let item of completedInvoiceData.items">
-              <td>{{ item.description }}</td>
+              <td>
+                <div style="font-weight: 600;">{{ item.description }}</div>
+                <div *ngIf="item.staff_members?.length" style="font-size: 9px; color: #64748b; margin-top: 2px;">
+                  Staff: <span *ngFor="let staff of item.staff_members; let last=last">{{ staff.name || staff.first_name || 'Staff' }}{{ !last ? ', ' : '' }}</span>
+                </div>
+                <div *ngIf="item.discount > 0" style="font-size: 9px; color: #10b981; margin-top: 1px;">Discount: -Rs. {{ item.discount | number:'1.0-0' }}</div>
+              </td>
               <td style="text-align:center;">{{ item.quantity }}</td>
               <td style="text-align:right;">{{ item.unit_price | number:'1.0-0' }}</td>
-              <td style="text-align:right;">{{ item.discount | number:'1.0-0' }}</td>
-              <td style="text-align:right; font-weight:700;">{{ ((item.unit_price * item.quantity) - item.discount) |
-                number:'1.0-0' }}</td>
+              <td style="text-align:right;">{{ item.tax_amount | number:'1.0-0' }} <span *ngIf="item.tax_percentage > 0" style="font-size: 8px;">({{ item.tax_percentage }}%)</span></td>
+              <td style="text-align:right; font-weight:700;">{{ item.total_price | number:'1.0-0' }}</td>
             </tr>
           </tbody>
         </table>

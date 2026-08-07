@@ -2146,12 +2146,15 @@ export class BillingComponent implements OnInit {
   }
 
   viewInvoice(invoiceId: number) {
+    this.isSaving = true;
     this.apiService.get(`billing/invoices/${invoiceId}/`).subscribe({
       next: (inv: any) => {
         this.completedInvoiceData = inv;
         this.showSuccessModal = true;
+        this.isSaving = false;
       },
       error: (err: any) => {
+        this.isSaving = false;
         this.showToast('Failed to load invoice details', 'error');
       }
     });
