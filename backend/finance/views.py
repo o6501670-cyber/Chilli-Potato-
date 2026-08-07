@@ -1250,15 +1250,10 @@ class StaffIncentiveCalculationView(views.APIView):
             staff_qs = staff_qs.filter(center_id=center_id)
 
         # 2. Filter Invoices
+        # We do NOT filter invoices by center_id or RBAC here, because we want a staff member's 
+        # Total Sales to correctly reflect their cross-center performance (for their salary multiple).
+        # We will filter the invoice items by staff_qs later.
         invoices_qs = Invoice.objects.filter(status__in=['paid', 'partial'])
-        if not is_owner and not perms.get('all_centers', False):
-            if hasattr(user, 'centers') and user.centers.exists():
-                invoices_qs = invoices_qs.filter(center__in=user.centers.all())
-            elif hasattr(user, 'center') and user.center:
-                invoices_qs = invoices_qs.filter(center=user.center)
-
-        if center_id:
-            invoices_qs = invoices_qs.filter(center_id=center_id)
         if start_date:
             try:
                 from datetime import datetime as _dt2
@@ -1320,8 +1315,10 @@ class StaffIncentiveCalculationView(views.APIView):
         invoice_items = (
             InvoiceItem.objects
             .filter(invoice__in=invoices_qs)
+            .filter(Q(staff__in=staff_qs) | Q(staff_members__in=staff_qs) | Q(staff__isnull=True, staff_members__isnull=True, invoice__staff__in=staff_qs))
             .select_related('invoice', 'content_type', 'staff', 'invoice__center', 'invoice__client')
             .prefetch_related('staff_members')
+            .distinct()
         )
 
         # Build staff aggregation structures
