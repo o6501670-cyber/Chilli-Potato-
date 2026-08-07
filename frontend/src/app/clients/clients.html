@@ -71,7 +71,7 @@
           <div class="cl-avatar">{{ (c.first_name || c.phone || '?')[0].toUpperCase() }}</div>
           <div class="cl-list-info">
             <div class="cl-list-name">
-              {{c.first_name || 'Unknown'}} {{c.last_name}}
+              {{c.first_name || 'Unknown'}}
               <span *ngIf="c.is_blacklisted" style="color: #ef4444; font-size: 10px; margin-left: 4px;"
                 title="Blacklisted">⚠️</span>
             </div>
@@ -110,7 +110,7 @@
           <div class="cl-avatar-lg">{{ (client.first_name || client.phone || '?')[0].toUpperCase() }}</div>
           <div class="cl-detail-hero">
             <div class="cl-detail-name">
-              {{client.first_name}} {{client.last_name}}
+              {{client.first_name}}
               <span *ngIf="client.is_blacklisted"
                 style="background-color: #ef4444; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; vertical-align: middle;">BLACKLISTED</span>
             </div>
@@ -139,8 +139,7 @@
         <!-- TAB: Profile -->
         <div *ngIf="activeTab === 'profile'" class="cl-tab-body">
           <div class="cl-form-grid">
-            <div class="cl-fg"><label>First Name</label><input type="text" [(ngModel)]="client.first_name" /></div>
-            <div class="cl-fg"><label>Last Name</label><input type="text" [(ngModel)]="client.last_name" /></div>
+            <div class="cl-fg"><label>Full Name</label><input type="text" [(ngModel)]="client.first_name" /></div>
             <div class="cl-fg"><label>Phone</label><input type="text" [(ngModel)]="client.phone" /></div>
             <div class="cl-fg"><label>Email</label><input type="email" [(ngModel)]="client.email" /></div>
             <div class="cl-fg"><label>Birthday</label><input type="date" [(ngModel)]="client.birthday" /></div>
@@ -150,6 +149,7 @@
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
+                <option value="unknown">Unknown</option>
               </select>
             </div>
             <div class="cl-fg">
