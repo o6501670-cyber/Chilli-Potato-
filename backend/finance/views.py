@@ -800,7 +800,7 @@ class MonthlySalesView(views.APIView):
 
         # Fetch target history
         from salon_admin.models import Center
-        centers_qs = Center.objects.filter(is_active=True)
+        centers_qs = Center.objects.all()
         user = request.user
         perms = getattr(user.role, 'permissions', {}) or {}
         is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
