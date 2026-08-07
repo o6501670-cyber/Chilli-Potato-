@@ -99,13 +99,13 @@
         <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
           <div style="display: flex; flex-direction: column; gap: 2px;">
             <label style="font-size: 8.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Full Name</label>
-            <input type="text" placeholder="Client Name" [(ngModel)]="client.first_name" style="width: 100%; font-size: 13px; font-weight: 600; color: #0f172a; padding: 2px 0; border: none; border-bottom: 1px solid #e2e8f0; background: transparent; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderBottomColor='#4f46e5'" onblur="this.style.borderBottomColor='#e2e8f0'">
+            <input type="text" placeholder="Client Name" [(ngModel)]="client.first_name" class="minimal-client-input" style="width: 100%; font-size: 13px; font-weight: 600; color: #0f172a; padding: 2px 0;">
           </div>
           <div style="display: flex; flex-direction: column; gap: 2px;">
             <label style="font-size: 8.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Phone Number</label>
             <div style="position: relative;">
               <i class="fa fa-phone" style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); font-size: 9px; color: #94a3b8;"></i>
-              <input type="text" placeholder="Phone Number" [(ngModel)]="client.phone" style="width: 100%; font-size: 11px; font-weight: 500; color: #334155; padding: 2px 0 2px 14px; border: none; border-bottom: 1px solid #e2e8f0; background: transparent; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderBottomColor='#4f46e5'" onblur="this.style.borderBottomColor='#e2e8f0'">
+              <input type="text" placeholder="Phone Number" [(ngModel)]="client.phone" class="minimal-client-input" style="width: 100%; font-size: 11px; font-weight: 500; color: #334155; padding: 2px 0 2px 14px;">
             </div>
           </div>
         </div>
@@ -114,18 +114,18 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
           <div style="display: flex; flex-direction: column; gap: 2px;">
             <label style="font-size: 8.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Email</label>
-            <input placeholder="Email Address" [(ngModel)]="client.email" style="font-size: 11px; font-weight: 500; padding: 2px 0; border: none; border-bottom: 1px solid #e2e8f0; background: transparent; width: 100%; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderBottomColor='#4f46e5'" onblur="this.style.borderBottomColor='#e2e8f0'">
+            <input placeholder="Email Address" [(ngModel)]="client.email" class="minimal-client-input" style="font-size: 11px; font-weight: 500; padding: 2px 0; width: 100%;">
           </div>
           <div style="display: flex; flex-direction: column; gap: 2px;">
             <label style="font-size: 8.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Birthday</label>
-            <input type="date" [(ngModel)]="client.birthday" style="font-size: 11px; font-weight: 500; padding: 2px 0; border: none; border-bottom: 1px solid #e2e8f0; background: transparent; width: 100%; color: #334155; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderBottomColor='#4f46e5'" onblur="this.style.borderBottomColor='#e2e8f0'">
+            <input type="date" [(ngModel)]="client.birthday" class="minimal-client-input" style="font-size: 11px; font-weight: 500; padding: 2px 0; width: 100%; color: #334155;">
           </div>
         </div>
 
         <!-- Notes -->
         <div style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px;">
           <label style="font-size: 8.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Internal Notes</label>
-          <input type="text" placeholder="Add any special notes..." [(ngModel)]="client.notes" style="font-size: 11px; font-weight: 500; padding: 2px 0; border: none; border-bottom: 1px solid #e2e8f0; background: transparent; width: 100%; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderBottomColor='#4f46e5'" onblur="this.style.borderBottomColor='#e2e8f0'">
+          <input type="text" placeholder="Add any special notes..." [(ngModel)]="client.notes" class="minimal-client-input" style="font-size: 11px; font-weight: 500; padding: 2px 0; width: 100%;">
         </div>
 
         <!-- Gender and Save -->
@@ -285,7 +285,7 @@
                   </td>
                   <td style="padding: 7px 8px; font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
                     #{{ h.ref }}
-                    <button *ngIf="h.type === 'Invoice'" (click)="viewInvoice(h.ref)" style="padding: 2px 6px; background: #e2e8f0; color: #475569; border: none; border-radius: 4px; font-size: 9px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center;" onmouseover="this.style.background='#cbd5e1'; this.style.color='#0f172a'" onmouseout="this.style.background='#e2e8f0'; this.style.color='#475569'">
+                    <button *ngIf="h.type === 'Invoice'" (click)="viewInvoice(h.ref)" class="btn-view-invoice">
                       <i class="fa fa-external-link" style="margin-right: 3px;"></i> View
                     </button>
                   </td>

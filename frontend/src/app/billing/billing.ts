@@ -796,20 +796,6 @@ export class BillingComponent implements OnInit {
 
     this.clientHistory = history;
 
-  }
-
-  viewInvoice(invoiceId: number) {
-    this.apiService.get(`billing/invoices/${invoiceId}/`).subscribe({
-      next: (inv: any) => {
-        this.completedInvoiceData = inv;
-        this.showSuccessModal = true;
-      },
-      error: (err: any) => {
-        this.showToast('Failed to load invoice details', 'error');
-      }
-    });
-  }
-
     // Auto-detect membership based on true active status
 
     if (this.client && this.client.active_memberships && this.client.active_memberships.length > 0) {
@@ -2157,5 +2143,17 @@ export class BillingComponent implements OnInit {
     }
 
     this.cdr.detectChanges();
+  }
+
+  viewInvoice(invoiceId: number) {
+    this.apiService.get(`billing/invoices/${invoiceId}/`).subscribe({
+      next: (inv: any) => {
+        this.completedInvoiceData = inv;
+        this.showSuccessModal = true;
+      },
+      error: (err: any) => {
+        this.showToast('Failed to load invoice details', 'error');
+      }
+    });
   }
 }

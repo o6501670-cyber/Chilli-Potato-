@@ -1763,3 +1763,31 @@
     display: table-cell !important;
   }
 }
+
+.minimal-client-input {
+  border: none;
+  border-bottom: 1px solid #e2e8f0;
+  background: transparent;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.minimal-client-input:focus {
+  border-bottom-color: #4f46e5 !important;
+}
+
+.btn-view-invoice {
+  padding: 2px 6px; 
+  background: #e2e8f0; 
+  color: #475569; 
+  border: none; 
+  border-radius: 4px; 
+  font-size: 9px; 
+  cursor: pointer; 
+  transition: all 0.2s; 
+  display: flex; 
+  align-items: center;
+}
+.btn-view-invoice:hover {
+  background: #cbd5e1 !important;
+  color: #0f172a !important;
+}
