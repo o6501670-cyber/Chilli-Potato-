@@ -709,7 +709,7 @@ class MonthlySalesView(views.APIView):
                 total_discount=Sum('discount'),
                 invoice_count=Count('id'),
             )
-            .order_by('year', 'month_num')
+            .order_by('-year', '-month_num')
         )
 
         item_monthly = (
@@ -724,7 +724,7 @@ class MonthlySalesView(views.APIView):
                 value_cards=Sum('total_price', filter=Q(content_type=valuecard_ct)),
                 other=Sum('total_price', filter=Q(content_type__isnull=True))
             )
-            .order_by('year', 'month_num')
+            .order_by('-year', '-month_num')
         )
         items_dict = {(row['year'], row['month_num']): row for row in item_monthly}
 
@@ -758,7 +758,7 @@ class MonthlySalesView(views.APIView):
             .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
             .values('year', 'month_num')
             .annotate(advances=Sum('amount'))
-            .order_by('year', 'month_num')
+            .order_by('-year', '-month_num')
         )
         adv_dict = {(row['year'], row['month_num']): row for row in adv_monthly}
 
@@ -767,7 +767,7 @@ class MonthlySalesView(views.APIView):
             .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
             .values('year', 'month_num')
             .annotate(advances_used=Sum('amount'))
-            .order_by('year', 'month_num')
+            .order_by('-year', '-month_num')
         )
         adv_used_dict = {(row['year'], row['month_num']): row for row in adv_used_monthly}
 
@@ -783,7 +783,7 @@ class MonthlySalesView(views.APIView):
             .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
             .values('year', 'month_num')
             .annotate(liab_used=Sum('amount'))
-            .order_by('year', 'month_num')
+            .order_by('-year', '-month_num')
         )
         liab_used_dict = {(row['year'], row['month_num']): row for row in liab_monthly}
 
@@ -794,7 +794,7 @@ class MonthlySalesView(views.APIView):
             .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
             .values('year', 'month_num')
             .annotate(refunds=Sum('total_amount'))
-            .order_by('year', 'month_num')
+            .order_by('-year', '-month_num')
         )
         refunds_dict = {(r['year'], r['month_num']): float(r['refunds'] or 0) for r in cancelled_monthly}
 
