@@ -245,10 +245,10 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
             if center:
                 if user.centers.exists() and center not in user.centers.all():
                     from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create daily closings for this center.")
+                    raise PermissionDenied("You cannot create petty cash entries for this center.")
                 elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create daily closings for this center.")
+                    raise PermissionDenied("You cannot create petty cash entries for this center.")
         serializer.save(user=self.request.user)
 
     def perform_update(self, serializer):
@@ -261,10 +261,10 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
             if center:
                 if user.centers.exists() and center not in user.centers.all():
                     from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot update daily closings for this center.")
+                    raise PermissionDenied("You cannot update petty cash entries for this center.")
                 elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot update daily closings for this center.")
+                    raise PermissionDenied("You cannot update petty cash entries for this center.")
         serializer.save(user=self.request.user)
 
     from rest_framework.decorators import action
