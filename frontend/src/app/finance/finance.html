@@ -579,7 +579,10 @@
             <th class="num">Other</th>
             <th class="num neg-col">Redemptions</th>
             <th class="num highlight-col">Collection (Before Tax)</th>
+            <th class="num">Taxable Value</th>
             <th class="num highlight-col">Including Tax</th>
+            <th class="num">Target</th>
+            <th class="num">Target Achieved</th>
           </tr>
         </thead>
         <tbody>
@@ -594,7 +597,10 @@
             <td class="num">{{ formatCurrency(row.revenues?.other?.amount || 0) }}</td>
             <td class="num neg-col">{{ formatCurrency(row.revenues?.payment_redemptions?.amount || 0) }}</td>
             <td class="num highlight-col">{{ formatCurrency(row.revenues?.collection_before_tax || 0) }}</td>
+            <td class="num">{{ formatCurrency(row.revenues?.taxable_value || 0) }}</td>
             <td class="num highlight-col">{{ formatCurrency(row.revenues?.including_tax || 0) }}</td>
+            <td class="num">{{ formatCurrency(row.revenues?.target || 0) }}</td>
+            <td class="num">{{ (row.revenues?.target_achieved_percentage || 0) }}%</td>
           </tr>
         </tbody>
       </table>

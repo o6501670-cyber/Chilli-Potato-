@@ -546,6 +546,18 @@ class RegisterSummaryView(views.APIView):
         collection_before_tax = sales_collection + advances_total - advance_redemptions - value_card_redemptions - cashback_redemptions
         including_tax = collection_before_tax + total_tax
 
+        target = 0
+        target_achieved_percentage = 0
+        if center_id:
+            from salon_admin.models import Center
+            try:
+                center_obj = Center.objects.get(id=center_id)
+                target = float(center_obj.monthly_target or 0)
+                if target > 0:
+                    target_achieved_percentage = round((collection_before_tax / target) * 100, 2)
+            except Center.DoesNotExist:
+                pass
+
         total_payments = sum(p['amount'] for p in payments.values())
 
         response_data = {
@@ -563,6 +575,9 @@ class RegisterSummaryView(views.APIView):
                 'refunds': {'amount': 0, 'tax': 0},
                 'other': {'amount': revenue.get('other', 0), 'tax': 0},
                 'discounts': {'amount': -total_discount, 'tax': 0},
+                'taxable_value': round(total_taxable, 2),
+                'target': round(target, 2),
+                'target_achieved_percentage': target_achieved_percentage,
                 'collection_before_tax': round(collection_before_tax, 2),
                 'total_tax': round(total_tax, 2),
                 'including_tax': round(including_tax, 2),
