@@ -1418,49 +1418,10 @@ class StaffIncentiveCalculationView(views.APIView):
 
             for sm in item_staff_list:
                 if sm.id not in staff_data:
-                    staff_lookup[sm.id] = sm
-                    staff_data[sm.id] = {
-                        'staff_id': sm.id,
-                        'staff_name': f"{sm.first_name} {sm.last_name or ''}".strip(),
-                        'role': sm.designation or 'Staff',
-                        'center': (sm.center.display_name or sm.center.center_name) if sm.center else 'N/A',
-                        'center_id': sm.center_id,
-                        'salary': float(sm.salary or 0),
-                        'commission_percentage': float(sm.commission_percentage or 0),
-                        'product_commission_percentage': float(sm.product_commission_percentage or 0),
-                        'services_revenue': 0.0,
-                        'products_revenue': 0.0,
-                        'cards_revenue': 0.0,
-                        'memberships_revenue': 0.0,
-                        'packages_revenue': 0.0,
-                        'total_sales': 0.0,
-                        'revenue': 0.0,
-                        'cards_count': 0,
-                        'card_slabs': [],
-                        'service_incentive': 0.0,
-                        'services_incentive': 0.0,
-                        'service_addon_incentive': 0.0,
-                        'service_target_incentive': 0.0,
-                        'daily_business_incentive': 0.0,
-                        'daily_bonus': 0.0,
-                        'daily_bonus_rule': '',
-                        'target_achievements': [],
-                        'product_incentive': 0.0,
-                        'products_incentive': 0.0,
-                        'card_incentive': 0.0,
-                        'cards_incentive': 0.0,
-                        'membership_incentive': 0.0,
-                        'memberships_incentive': 0.0,
-                        'package_incentive': 0.0,
-                        'packages_incentive': 0.0,
-                        'total_incentive': 0.0,
-                        'incentive_amount': 0.0,
-                        'salary_multiple': 0.0,
-                        'service_percent_applied': 0.0,
-                        'product_percent_applied': 0.0,
-                        'details': [],
-                        'items': [],
-                    }
+                    # If staff is not in our filtered staff_qs (e.g. they belong to another center
+                    # and the user filtered by a specific center, or RBAC restricts access),
+                    # do not calculate incentives for them in this report view.
+                    continue
 
                 st = staff_data[sm.id]
 
