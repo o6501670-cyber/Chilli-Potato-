@@ -315,7 +315,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
   mentionStartIndex = -1;
 
   fetchStaffUsers() {
-    this.apiService.get('accounts/users/').subscribe({
+    this.apiService.get('accounts/api/users/').subscribe({
       next: (res: any) => {
         this.allStaffUsers = Array.isArray(res) ? res : (res.results || res.data || []);
       },
