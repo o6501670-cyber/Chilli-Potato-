@@ -1806,7 +1806,9 @@
   border-radius: 6px;
   transition: all 0.2s;
 }
-.btn-icon-view:hover {
-  background: #f1f5f9;
-  color: #3b82f6;
+@media (hover: hover) {
+  .btn-icon-view:hover {
+    background: #f1f5f9;
+    color: #3b82f6;
+  }
 }
