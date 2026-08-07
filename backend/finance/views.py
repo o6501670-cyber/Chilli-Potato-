@@ -552,7 +552,35 @@ class RegisterSummaryView(views.APIView):
             from salon_admin.models import Center
             try:
                 center_obj = Center.objects.get(id=center_id)
-                target = float(center_obj.monthly_target or 0)
+                target = 0
+                history = center_obj.monthly_targets_history or {}
+                
+                if start_date and end_date:
+                    from datetime import datetime
+                    import calendar
+                    try:
+                        sd = datetime.strptime(start_date, '%Y-%m-%d')
+                        ed = datetime.strptime(end_date, '%Y-%m-%d')
+                        curr_y, curr_m = sd.year, sd.month
+                        end_y, end_m = ed.year, ed.month
+                        
+                        while (curr_y < end_y) or (curr_y == end_y and curr_m <= end_m):
+                            month_abbr = calendar.month_abbr[curr_m]
+                            month_key = f"{month_abbr}-{curr_y}"
+                            val = history.get(month_key, 0)
+                            target += float(val or 0)
+                            
+                            curr_m += 1
+                            if curr_m > 12:
+                                curr_m = 1
+                                curr_y += 1
+                    except Exception:
+                        pass
+                
+                # Fallback to default monthly_target if no target found from history or dates missing
+                if target == 0:
+                    target = float(center_obj.monthly_target or 0)
+
                 if target > 0:
                     target_achieved_percentage = round((collection_before_tax / target) * 100, 2)
             except Center.DoesNotExist:
