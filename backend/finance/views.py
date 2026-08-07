@@ -1010,7 +1010,7 @@ class DetailedRevenuesView(views.APIView):
 
 
         if request.query_params.get('export') == 'true':
-            items_page = items # Ignore pagination
+            invoices_page = invoices # Ignore pagination
             
         result = []
         for inv in invoices_page:
@@ -2171,14 +2171,22 @@ class MultiSalonExportView(views.APIView):
         view_instance = RegisterSummaryView()
         
         rows = []
+        from rest_framework.request import Request
+        from django.http import HttpRequest
         for c in centers:
-            req = request._request
-            mutable_get = req.GET.copy()
+            # Create a completely fresh Django HttpRequest
+            django_req = HttpRequest()
+            django_req.method = 'GET'
+            django_req.user = request.user
+            mutable_get = request.query_params.copy()
             mutable_get['center_id'] = str(c.id)
-            req.GET = mutable_get
-            view_instance.request = request
+            django_req.GET = mutable_get
             
-            res = view_instance.get(request)
+            # Wrap it in DRF Request so query_params is cleanly parsed
+            drf_req = Request(django_req)
+            view_instance.request = drf_req
+            
+            res = view_instance.get(drf_req)
             data = res.data
             
             sales = data['revenues']['collection_before_tax']
