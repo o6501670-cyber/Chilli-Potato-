@@ -385,16 +385,33 @@
 /* ACCORDIONS — quiet labels instead of solid teal bars */
 .accordion-header {
   background: transparent;
-  color: var(--text-secondary);
+  color: #64748b;
   padding: 0;
-  font-size: 10.5px;
-  font-weight: 700;
-  margin-top: 14px;
-  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  margin-top: 18px;
+  margin-bottom: 8px;
   text-align: left;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   border: none;
+}
+
+.modern-client-item {
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+.modern-client-item:hover {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 }
 
 .accordion-body {
