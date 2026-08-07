@@ -1397,6 +1397,9 @@ class StaffIncentiveCalculationView(views.APIView):
             is_package = ct_model == 'package' or 'package' in desc
             is_service = ct_model == 'servicemaster' or (not is_card and not is_product and not is_membership and not is_package)
 
+            if is_membership or is_package:
+                continue
+
             # Determine credited staff members
             item_staff_list = []
             if item.staff:

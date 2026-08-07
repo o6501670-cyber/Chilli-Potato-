@@ -124,8 +124,6 @@ class IncentiveRule(models.Model):
         ('value_cards', 'Value Cards'),
         ('products', 'Products'),
         ('services', 'Services'),
-        ('memberships', 'Memberships'),
-        ('packages', 'Packages'),
         ('overall', 'Overall Business'),
         ('daily_business', 'Daily Business Slabs'),
         ('service_addon', 'Specific Service Incentive (Add-on)'),

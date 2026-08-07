@@ -923,12 +923,6 @@
           <button class="filter-pill" [class.active]="manageCategoryFilter === 'value_cards'" (click)="manageCategoryFilter = 'value_cards'; loadIncentiveRules()">
             💳 Value Cards
           </button>
-          <button class="filter-pill" [class.active]="manageCategoryFilter === 'memberships'" (click)="manageCategoryFilter = 'memberships'; loadIncentiveRules()">
-            👑 Memberships
-          </button>
-          <button class="filter-pill" [class.active]="manageCategoryFilter === 'packages'" (click)="manageCategoryFilter = 'packages'; loadIncentiveRules()">
-            📦 Packages
-          </button>
         </div>
 
         <div class="manage-right-actions">
@@ -1550,8 +1544,6 @@
                 <option value="services">✂️ Monthly Services</option>
                 <option value="products">🧴 Monthly Products</option>
                 <option value="value_cards">💳 Value Cards</option>
-                <option value="memberships">👑 Memberships</option>
-                <option value="packages">📦 Packages</option>
               </optgroup>
               <optgroup label="Daily Incentive Categories">
                 <option value="daily_business">⚡ Daily Business Slabs (LHDS/UHDS/MHDS)</option>

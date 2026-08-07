@@ -500,8 +500,6 @@ export class FinanceComponent implements OnInit {
       'services': 'Services',
       'products': 'Products',
       'value_cards': 'Value Cards',
-      'memberships': 'Memberships',
-      'packages': 'Packages',
       'daily_business': 'Daily Business Slabs',
       'service_addon': 'Service Add-on Bonuses',
       'service_target': 'Service Volume Targets'
@@ -514,8 +512,6 @@ export class FinanceComponent implements OnInit {
       'services': '✂️',
       'products': '🧴',
       'value_cards': '💳',
-      'memberships': '👑',
-      'packages': '📦',
       'daily_business': '⚡',
       'service_addon': '✨',
       'service_target': '🎯'
