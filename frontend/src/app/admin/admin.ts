@@ -324,8 +324,8 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   onChatInput(event: any) {
-    const text = this.newMessage;
-    const cursor = event.target.selectionStart;
+    const text = event.target.value || '';
+    const cursor = event.target.selectionStart || 0;
     
     // Check if we are typing a mention
     const textBeforeCursor = text.substring(0, cursor);
@@ -350,7 +350,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   selectMention(user: any) {
-    const text = this.newMessage;
+    const text = this.newMessage || '';
     const before = text.substring(0, this.mentionStartIndex);
     const after = text.substring(this.mentionSearch.length + this.mentionStartIndex + 1);
     // Use a special tag or just the name
