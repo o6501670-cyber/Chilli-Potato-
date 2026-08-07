@@ -160,9 +160,10 @@ class PettyCashEntryViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(center_id=center_id)
         # Use __date__ lookup so DateTimeField is compared correctly (avoids missing end-day entries)
         if start_date:
-            queryset = queryset.filter(date__date__gte=start_date)
+            # PettyCashEntry.date is a DateField — use direct comparison (no __date__ transform)
+            queryset = queryset.filter(date__gte=start_date)
         if end_date:
-            queryset = queryset.filter(date__date__lte=end_date)
+            queryset = queryset.filter(date__lte=end_date)
             
         return queryset.order_by('-date')
 
@@ -1259,9 +1260,17 @@ class StaffIncentiveCalculationView(views.APIView):
         if center_id:
             invoices_qs = invoices_qs.filter(center_id=center_id)
         if start_date:
-            invoices_qs = invoices_qs.filter(created_at__date__gte=start_date)
+            try:
+                from datetime import datetime as _dt2
+                invoices_qs = invoices_qs.filter(created_at__gte=_dt2.strptime(str(start_date), '%Y-%m-%d'))
+            except (ValueError, TypeError):
+                invoices_qs = invoices_qs.filter(created_at__date__gte=start_date)
         if end_date:
-            invoices_qs = invoices_qs.filter(created_at__date__lte=end_date)
+            try:
+                from datetime import datetime as _dt2, timedelta as _td2
+                invoices_qs = invoices_qs.filter(created_at__lt=_dt2.strptime(str(end_date), '%Y-%m-%d') + _td2(days=1))
+            except (ValueError, TypeError):
+                invoices_qs = invoices_qs.filter(created_at__date__lte=end_date)
 
         # 3. Load active IncentiveRules for the period (all categories — frequency determines calc mode)
         rules_qs = IncentiveRule.objects.filter(is_active=True)

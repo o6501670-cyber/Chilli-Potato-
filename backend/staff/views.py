@@ -715,7 +715,8 @@ class ServiceLogViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 errors.append(f"Row {i}: Error saving '{first_name}' - {str(e)}")
                 
-        print('UPLOAD ERRORS:', errors)
+        if errors:
+            logger.info('[Staff BulkUpload] Completed with errors: %s', errors)
         return Response({
             'message': f'Successfully uploaded {success_count} staff members.',
             'errors': errors
