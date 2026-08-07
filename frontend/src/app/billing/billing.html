@@ -95,16 +95,17 @@
 
       <div *ngIf="client && !client.is_anonymous" class="client-profile-card" style="padding: 12px 10px; background: #f8fafc; border-radius: 10px; margin-bottom: 12px; border: 1px solid #e2e8f0;">
         
-        <!-- Avatar and Identity Row -->
-        <div style="display: flex; gap: 10px; margin-bottom: 12px; align-items: center;">
-          <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #1e293b, #4f46e5); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);">
-            {{ client.first_name ? client.first_name.charAt(0).toUpperCase() : '?' }}
+        <!-- Identity Row -->
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <label style="font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Full Name</label>
+            <input type="text" placeholder="Client Name" [(ngModel)]="client.first_name" style="width: 100%; font-size: 14px; font-weight: 700; color: #1e293b; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; outline: none; transition: all 0.2s;" onfocus="this.style.borderColor='#4f46e5'; this.style.boxShadow='0 0 0 2px rgba(79, 70, 229, 0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
           </div>
-          <div style="flex: 1;">
-            <input type="text" placeholder="Full Name" [(ngModel)]="client.first_name" style="width: 100%; font-size: 14px; font-weight: 700; color: #1e293b; border: none; background: transparent; border-bottom: 2px solid transparent; transition: border-color 0.2s; padding: 2px 0;" onfocus="this.style.borderBottomColor='#4f46e5'" onblur="this.style.borderBottomColor='transparent'">
-            <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px; color: #64748b;">
-              <i class="fa fa-phone" style="font-size: 10px;"></i>
-              <input type="text" placeholder="Phone Number" [(ngModel)]="client.phone" style="width: 100%; font-size: 11px; color: #475569; border: none; background: transparent; padding: 2px 0; outline: none;">
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <label style="font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Phone Number</label>
+            <div style="position: relative;">
+              <i class="fa fa-phone" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 10px; color: #94a3b8;"></i>
+              <input type="text" placeholder="Phone Number" [(ngModel)]="client.phone" style="width: 100%; font-size: 11px; font-weight: 600; color: #475569; padding: 6px 8px 6px 24px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#94a3b8'" onblur="this.style.borderColor='#cbd5e1'">
             </div>
           </div>
         </div>
