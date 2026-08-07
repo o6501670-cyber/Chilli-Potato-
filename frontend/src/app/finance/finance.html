@@ -25,6 +25,13 @@
       </div>
     </div>
     <div class="top-bar-right">
+      <!-- Fast Date Filters -->
+      <div class="date-quick-btns" *ngIf="activeMainTab !== 'manage'">
+        <button class="date-quick-btn" [class.active]="currentRange === 'thisMonth'" (click)="setDateRange('thisMonth')">This Month</button>
+        <button class="date-quick-btn" [class.active]="currentRange === 'past3Months'" (click)="setDateRange('past3Months')">Past 3 Months</button>
+        <button class="date-quick-btn" [class.active]="currentRange === 'past6Months'" (click)="setDateRange('past6Months')">Past 6 Months</button>
+      </div>
+
       <!-- Single Salon / Petty Cash Date Filter -->
       <div class="date-range-pill" *ngIf="activeMainTab === 'single' || activeMainTab === 'pettycash'">
         <i class="fa-regular fa-calendar"></i>

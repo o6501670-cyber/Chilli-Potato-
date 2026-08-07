@@ -22,6 +22,8 @@ export class FinanceComponent implements OnInit {
   centers: any[] = [];
   selectedFilterLocation: any = null;
 
+  currentRange: string = ''; // Track active date pill
+
   // Tab State
   activeMainTab = 'single';
   activeSingleTab = 'register';
@@ -631,7 +633,48 @@ export class FinanceComponent implements OnInit {
   }
 
   onLocationChange() {
-    // Clear cached data immediately when location changes
+    this.refreshCurrentTab();
+  }
+
+  setDateRange(range: string) {
+    this.currentRange = range;
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth();
+    const d = today.getDate();
+
+    let start = '';
+    let end = '';
+
+    if (range === 'thisMonth') {
+      start = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+      end = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    } else if (range === 'past3Months') {
+      const past = new Date(y, m - 2, 1);
+      start = `${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, '0')}-01`;
+      end = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    } else if (range === 'past6Months') {
+      const past = new Date(y, m - 5, 1);
+      start = `${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, '0')}-01`;
+      end = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+
+    if (this.activeMainTab === 'single' || this.activeMainTab === 'pettycash') {
+      this.startDate = start;
+      this.endDate = end;
+      this.onApplyFilter();
+    } else if (this.activeMainTab === 'multi') {
+      this.multiStartDate = start;
+      this.multiEndDate = end;
+      this.loadMultiSalonData();
+    } else if (this.activeMainTab === 'incentives') {
+      this.incentiveStartDate = start;
+      this.incentiveEndDate = end;
+      this.loadIncentives();
+    }
+  }
+
+  refreshCurrentTab() {
     this.clearSingleTabData();
     this.pettyCashLogs = [];
     // Reload data for the new location
