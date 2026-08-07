@@ -799,16 +799,21 @@ class MonthlySalesView(views.APIView):
         refunds_dict = {(r['year'], r['month_num']): float(r['refunds'] or 0) for r in cancelled_monthly}
 
         # Fetch target history
-        target_history = {}
-        default_target = 0
+        from salon_admin.models import Center
+        centers_qs = Center.objects.filter(is_active=True)
+        user = request.user
+        perms = getattr(user.role, 'permissions', {}) or {}
+        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        if not is_owner and not perms.get('all_centers', False):
+            if user.centers.exists():
+                centers_qs = centers_qs.filter(id__in=user.centers.all())
+            elif hasattr(user, 'center') and user.center:
+                centers_qs = centers_qs.filter(id=user.center.id)
+                
         if center_id:
-            from salon_admin.models import Center
-            try:
-                c = Center.objects.get(id=center_id)
-                target_history = c.monthly_targets_history or {}
-                default_target = float(c.monthly_target or 0)
-            except Center.DoesNotExist:
-                pass
+            centers_qs = centers_qs.filter(id=center_id)
+            
+        centers = list(centers_qs)
 
         # Build result
         result = []
@@ -838,13 +843,17 @@ class MonthlySalesView(views.APIView):
             
             taxable_value = services + products + value_cards + memberships + packages
             
-            target = float(target_history.get(month_str, 0))
-            if target == 0:
-                target = default_target
+            target = 0
+            for c in centers:
+                hist = c.monthly_targets_history or {}
+                t = float(hist.get(month_str, 0))
+                if t == 0:
+                    t = float(c.monthly_target or 0)
+                target += t
                 
             target_achieved_percentage = 0
             if target > 0:
-                target_achieved_percentage = round((total / target) * 100, 2)
+                target_achieved_percentage = round((taxable_value / target) * 100, 2)
 
             result.append({
                 'month': month_str,
