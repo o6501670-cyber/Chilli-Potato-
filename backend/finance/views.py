@@ -661,6 +661,34 @@ class RegisterSummaryView(views.APIView):
                 'refunds_issued': refunds_total,
             }
         }
+
+        if request.query_params.get('export') == 'true':
+            import openpyxl
+            from django.http import HttpResponse
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Register Summary"
+            
+            ws.append(["Metric", "Amount", "Tax"])
+            for k, v in response_data['revenues'].items():
+                if isinstance(v, dict):
+                    ws.append([k.replace('_', ' ').title(), v.get('amount', 0), v.get('tax', 0)])
+                else:
+                    ws.append([k.replace('_', ' ').title(), v, ""])
+                    
+            ws.append([])
+            ws.append(["Payment Method", "Amount"])
+            for k, v in response_data['payment_methods'].items():
+                if isinstance(v, dict):
+                    ws.append([k.replace('_', ' ').title(), v.get('amount', 0)])
+                else:
+                    ws.append([k.replace('_', ' ').title(), v])
+                    
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = 'attachment; filename=register_summary.xlsx'
+            wb.save(response)
+            return response
+
         return Response(response_data)
 
 
@@ -885,6 +913,26 @@ class MonthlySalesView(views.APIView):
                 'including_tax': round(total + total_tax, 2)
             })
 
+
+        if request.query_params.get('export') == 'true':
+            import openpyxl
+            from django.http import HttpResponse
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Monthly Sales"
+            ws.append(["Month", "Total Sales", "Target", "Achieved %"])
+            for row in result:
+                ws.append([
+                    row.get('month_name', ''),
+                    row.get('total_sales', 0),
+                    row.get('target', 0),
+                    row.get('target_achieved_percentage', 0)
+                ])
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = 'attachment; filename=monthly_sales.xlsx'
+            wb.save(response)
+            return response
+
         return Response(result)
 
 
@@ -960,6 +1008,10 @@ class DetailedRevenuesView(views.APIView):
         )
         counts_by_invoice = {row['invoice_id']: row for row in item_counts}
 
+
+        if request.query_params.get('export') == 'true':
+            items_page = items # Ignore pagination
+            
         result = []
         for inv in invoices_page:
             counts = counts_by_invoice.get(inv.id, {})
@@ -1013,6 +1065,33 @@ class DetailedRevenuesView(views.APIView):
                 'applied_promo': applied_promo,
                 'status': inv.status,
             })
+
+
+        if request.query_params.get('export') == 'true':
+            import openpyxl
+            from django.http import HttpResponse
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Detailed Revenues"
+            ws.append(["Bill No", "Date", "Item Name", "Item Type", "Staff", "Client Name", "Quantity", "Subtotal", "Discount", "Tax", "Total"])
+            for row in result:
+                ws.append([
+                    row.get('bill_no', ''),
+                    row.get('date', ''),
+                    row.get('item_name', ''),
+                    row.get('item_type', ''),
+                    row.get('staff', ''),
+                    row.get('client_name', ''),
+                    row.get('quantity', 0),
+                    row.get('subtotal', 0),
+                    row.get('discount', 0),
+                    row.get('tax', 0),
+                    row.get('total', 0)
+                ])
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = 'attachment; filename=detailed_revenues.xlsx'
+            wb.save(response)
+            return response
 
         return Response({
             'results': result,
@@ -1085,6 +1164,10 @@ class RefundsView(views.APIView):
         # FIXED: Aggregate total across ALL cancelled invoices, not just the current page
         all_refunds_total = cancelled.aggregate(total=DbSum('total_amount'))['total'] or 0
 
+
+        if request.query_params.get('export') == 'true':
+            cancelled_page = cancelled # Ignore pagination
+            
         result = []
         for inv in cancelled_page:
             client_name = ''
@@ -1104,6 +1187,28 @@ class RefundsView(views.APIView):
                 'total_amount': float(inv.total_amount),
                 'status': inv.status,
             })
+
+
+        if request.query_params.get('export') == 'true':
+            import openpyxl
+            from django.http import HttpResponse
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Refunds"
+            ws.append(["Bill No", "Date", "Client", "Refund Amount", "Reason", "Billed By"])
+            for row in result:
+                ws.append([
+                    row.get('bill_no', ''),
+                    row.get('date', ''),
+                    row.get('client', ''),
+                    row.get('amount', 0),
+                    row.get('reason', ''),
+                    row.get('billed_by', '')
+                ])
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = 'attachment; filename=refunds.xlsx'
+            wb.save(response)
+            return response
 
         return Response({
             'refunds': result,
@@ -1174,6 +1279,35 @@ class ProcurementReportView(views.APIView):
             })
 
         result.sort(key=lambda x: x['total'], reverse=True)
+
+
+        if request.query_params.get('export') == 'true':
+            import openpyxl
+            from django.http import HttpResponse
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Procurement Item Analysis"
+            ws.append(["Item Name", "Quantity Bought", "Avg Cost per Unit", "Total Spent"])
+            for row in item_analysis:
+                ws.append([
+                    row.get('item_name', ''),
+                    row.get('quantity_bought', 0),
+                    row.get('avg_cost_per_unit', 0),
+                    row.get('total_spent', 0)
+                ])
+                
+            ws2 = wb.create_sheet(title="Suppliers")
+            ws2.append(["Supplier Name", "Total Spent"])
+            for row in supplier_totals:
+                ws2.append([
+                    row.get('supplier__name', 'Unknown'),
+                    row.get('total', 0)
+                ])
+                
+            response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = 'attachment; filename=procurement.xlsx'
+            wb.save(response)
+            return response
 
         return Response({
             'vendors': result,
@@ -2005,3 +2139,66 @@ class StaffIncentiveCalculationView(views.APIView):
 
 
 
+
+class MultiSalonExportView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        import openpyxl
+        from django.http import HttpResponse
+        
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        user = request.user
+        
+        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        perms = getattr(user.role, 'permissions', {}) or {}
+        
+        centers = Center.objects.all()
+        if not is_owner and not perms.get('all_centers', False):
+            if user.centers.exists():
+                centers = centers.filter(id__in=user.centers.all())
+            elif hasattr(user, 'center') and user.center:
+                centers = centers.filter(id=user.center.id)
+            else:
+                centers = Center.objects.none()
+                
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Multi Salon Report"
+        ws.append(["Center Name", "Total Sales", "Target", "Target Achieved %"])
+        
+        from .views import RegisterSummaryView
+        view_instance = RegisterSummaryView()
+        
+        rows = []
+        for c in centers:
+            req = request._request
+            mutable_get = req.GET.copy()
+            mutable_get['center_id'] = str(c.id)
+            req.GET = mutable_get
+            view_instance.request = request
+            
+            res = view_instance.get(request)
+            data = res.data
+            
+            sales = data['revenues']['collection_before_tax']
+            target = data['revenues']['target']
+            achieved = data['revenues']['target_achieved_percentage']
+            
+            rows.append({
+                'center_name': c.display_name or c.center_name,
+                'sales': sales,
+                'target': target,
+                'achieved': achieved
+            })
+            
+        rows.sort(key=lambda x: x['achieved'])
+        
+        for r in rows:
+            ws.append([r['center_name'], r['sales'], r['target'], r['achieved']])
+            
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=multi_salon_report.xlsx'
+        wb.save(response)
+        return response
