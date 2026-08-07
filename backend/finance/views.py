@@ -678,6 +678,11 @@ class MonthlySalesView(views.APIView):
 
         invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
 
+        # Cache invoice IDs once to avoid subquery re-evaluation across multiple downstream queries
+        invoice_ids = list(invoices.values_list('id', flat=True))
+        if not invoice_ids:
+            return Response([])
+
         from services.models import ServiceMaster
         from inventory.models import Product
         from marketing.models import Membership, Package, ValueCard
@@ -692,10 +697,9 @@ class MonthlySalesView(views.APIView):
         except Exception:
             return Response([])
 
-        # USE_TZ=False safe: use ExtractYear + ExtractMonth (return integers) instead of
-        # TruncMonth (returns datetime, which crashes with MySQL when USE_TZ=False).
+        # Fast monthly aggregations using invoice_id__in (IN lookup, not subquery)
         monthly = (
-            invoices
+            Invoice.objects.filter(id__in=invoice_ids)
             .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
             .values('year', 'month_num')
             .annotate(
@@ -709,7 +713,7 @@ class MonthlySalesView(views.APIView):
         )
 
         item_monthly = (
-            InvoiceItem.objects.filter(invoice__in=invoices)
+            InvoiceItem.objects.filter(invoice_id__in=invoice_ids)
             .annotate(year=ExtractYear('invoice__created_at'), month_num=ExtractMonth('invoice__created_at'))
             .values('year', 'month_num')
             .annotate(
@@ -767,11 +771,12 @@ class MonthlySalesView(views.APIView):
         )
         adv_used_dict = {(row['year'], row['month_num']): row for row in adv_used_monthly}
 
-        # Value Card and Cashback Redemptions
+        # Value Card and Cashback Redemptions - use invoice_id__in for fast lookup
         from billing.models import Payment
-        liability_pmts = (
-            Payment.objects.filter(invoice__in=invoices, payment_method__icontains='value card')
-            | Payment.objects.filter(invoice__in=invoices, payment_method__icontains='cashback')
+        liability_pmts = Payment.objects.filter(
+            invoice_id__in=invoice_ids
+        ).filter(
+            Q(payment_method__icontains='value card') | Q(payment_method__icontains='cashback')
         )
         liab_monthly = (
             liability_pmts

@@ -824,19 +824,27 @@ export class FinanceComponent implements OnInit {
   // ---- Register Summary ----
   runRegisterSummary() {
     this.isLoading = true;
+    this.registerSummaryData = null;
+    this.cdr.detectChanges();
     this.apiService.getRegisterSummary(this.getCenterId(), this.startDate, this.endDate).subscribe({
       next: res => {
         this.registerSummaryData = res;
         this.isLoading = false;
         this.cdr.detectChanges();
       },
-      error: () => { this.isLoading = false; }
+      error: (err) => {
+        console.error('[Finance] Register summary error:', err);
+        this.isLoading = false;
+        this.cdr.detectChanges();
+      }
     });
   }
 
   // ---- Monthly Sales ----
   runMonthlySales() {
     this.isLoading = true;
+    this.monthlySalesData = [];
+    this.cdr.detectChanges();
     this.apiService.getMonthlySales(this.getCenterId(), this.startDate, this.endDate).subscribe({
       next: res => {
         this.monthlySalesData = res;

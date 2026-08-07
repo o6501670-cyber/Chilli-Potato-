@@ -37,8 +37,9 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  flex-wrap: wrap;
-  gap: 12px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow: visible;
 }
 
 .top-bar-right {
