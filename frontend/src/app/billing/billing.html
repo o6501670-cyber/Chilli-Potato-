@@ -283,7 +283,12 @@
                       h.type }}</span>
                     <span *ngIf="h.status" style="margin-left:4px;font-size:9px;color:#94a3b8;">{{ h.status }}</span>
                   </td>
-                  <td style="padding: 7px 8px; font-size: 11px; color: var(--text-secondary);">#{{ h.ref }}</td>
+                  <td style="padding: 7px 8px; font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+                    #{{ h.ref }}
+                    <button *ngIf="h.type === 'Invoice'" (click)="viewInvoice(h.ref)" style="padding: 2px 6px; background: #e2e8f0; color: #475569; border: none; border-radius: 4px; font-size: 9px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center;" onmouseover="this.style.background='#cbd5e1'; this.style.color='#0f172a'" onmouseout="this.style.background='#e2e8f0'; this.style.color='#475569'">
+                      <i class="fa fa-external-link" style="margin-right: 3px;"></i> View
+                    </button>
+                  </td>
                   <td style="padding: 7px 8px; font-size: 12px; font-weight:700; text-align:right;"
                     [style.color]="h.type === 'Advance' && +h.amount < 0 ? '#ef4444' : '#1e293b'">
                     Rs. {{ h.amount | number:'1.0-0' }}
