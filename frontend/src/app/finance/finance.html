@@ -59,8 +59,8 @@
         <button class="btn-go" (click)="loadIncentives()">Run</button>
       </div>
       
-      <button class="btn-go" style="background-color: #10b981; margin-left: 10px; border-radius: 20px; padding: 0 16px; height: 36px; border: none; color: white; cursor: pointer; font-size: 13px;" (click)="exportExcel()" *ngIf="activeMainTab === 'single'">
-        <i class="fa-solid fa-file-excel"></i> Export
+      <button class="btn-go" title="Export to Excel" style="background-color: #10b981; margin-left: 10px; border-radius: 8px; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border: none; color: white; cursor: pointer; font-size: 14px;" (click)="exportExcel()" *ngIf="activeMainTab === 'single'">
+        <i class="fa-solid fa-file-excel"></i>
       </button>
     </div>
   </div>

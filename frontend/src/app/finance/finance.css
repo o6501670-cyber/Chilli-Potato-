@@ -75,8 +75,8 @@
   background: var(--surface-color);
   border: 1.5px solid var(--border-color);
   border-radius: 50px;
-  padding: 4px 10px;
-  font-size: 11px;
+  padding: 2px 8px;
+  font-size: 10px;
   color: var(--text-secondary);
 }
 
@@ -84,20 +84,20 @@
   border: none;
   outline: none;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-color);
   background: transparent;
-  width: 96px;
+  width: 85px;
 }
 
 .btn-go {
   background: #e11d48;
   color: var(--surface-color);
   border: none;
-  padding: 6px 16px;
+  padding: 4px 12px;
   border-radius: 50px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
@@ -118,11 +118,11 @@
 }
 
 .tab-btn {
-  padding: 8px 18px;
+  padding: 6px 12px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -904,9 +904,9 @@
 .sub-tab {
   background: transparent;
   border: none;
-  padding: 8px 0;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-secondary);
   cursor: pointer;
   position: relative;
