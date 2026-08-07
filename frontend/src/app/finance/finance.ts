@@ -796,52 +796,20 @@ export class FinanceComponent implements OnInit {
   }
 
   exportExcel() {
-    let url = '';
-    const centerId = this.getCenterId();
-    
-    if (this.activeMainTab === 'multi') {
-      url = `${this.apiService.baseUrl}/finance/api/export_multi_salon/?start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
-    } else if (this.activeMainTab === 'single') {
-      const base = `${this.apiService.baseUrl}/finance/api`;
-      const dateParams = `start_date=${this.startDate}&end_date=${this.endDate}`;
-      let cIdParam = centerId ? `&center_id=${centerId}` : '';
-      
-      if (this.activeSingleTab === 'register') {
-        url = `${base}/register_summary/?export=true&${dateParams}${cIdParam}`;
-      } else if (this.activeSingleTab === 'monthly') {
-        url = `${base}/monthly_sales/?export=true&${dateParams}${cIdParam}`;
-      } else if (this.activeSingleTab === 'detailed') {
-        url = `${base}/detailed_revenues/?export=true&${dateParams}${cIdParam}`;
-      } else if (this.activeSingleTab === 'refunds') {
-        url = `${base}/refunds/?export=true&${dateParams}${cIdParam}`;
-      } else if (this.activeSingleTab === 'procurement') {
-        url = `${base}/procurement/?export=true&${dateParams}${cIdParam}`;
-      } else {
-        // Fallback to original
-        url = `${base}/export/?start_date=${this.startDate}&end_date=${this.endDate}&type=detailed${cIdParam}`;
-      }
-    }
-    
-    if (!url) return;
-    
-    const token = localStorage.getItem('access_token');
-    fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
-      .then(res => {
-        if (!res.ok) throw new Error('Network response was not ok');
-        return res.blob();
-      })
-      .then(blob => {
-        const a = document.createElement('a');
-        a.href = window.URL.createObjectURL(blob);
-        a.download = `finance_export_${Date.now()}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      })
-      .catch(err => {
-        console.error("Export error:", err);
-        alert('Failed to export Excel.');
-      });
+    let centerId = this.selectedFilterLocation === 'null' ? null : this.selectedFilterLocation;
+    this.apiService.exportFinance(centerId, this.startDate, this.endDate).subscribe((blob: Blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `finance_export_${this.startDate}_${this.endDate}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    }, (err: any) => {
+      console.error('Export failed', err);
+      alert('Failed to export Excel.');
+    });
   }
 
   loadRegisterSummary() {

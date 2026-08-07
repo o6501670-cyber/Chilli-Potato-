@@ -6,7 +6,7 @@ from .views import (
     RegisterSummaryView, MonthlySalesView, DetailedRevenuesView,
     RefundsView, ProcurementReportView,
     TaxReportView, ServiceDrilldownView, StaffPerformanceReportView, ManagerDiscountsAuditView,
-    StaffIncentiveCalculationView, MultiSalonExportView,
+    StaffIncentiveCalculationView,
 )
 
 router = DefaultRouter()
@@ -24,7 +24,6 @@ urlpatterns = [
     path('api/reports/incentive-calculation/', StaffIncentiveCalculationView.as_view(), name='incentive-calculation'),
     path('api/', include(router.urls)),
     path('api/export/', ExportFinanceView.as_view(), name='finance-export'),
-    path('api/export_multi_salon/', MultiSalonExportView.as_view(), name='export_multi_salon'),
     path('api/register_summary/', RegisterSummaryView.as_view(), name='register_summary'),
     path('api/monthly_sales/', MonthlySalesView.as_view(), name='monthly_sales'),
     path('api/detailed_revenues/', DetailedRevenuesView.as_view(), name='detailed_revenues'),
