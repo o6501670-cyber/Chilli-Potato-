@@ -884,8 +884,23 @@ export class FinanceComponent implements OnInit {
         this.isLoading = false;
         this.cdr.detectChanges();
       },
-      error: () => { this.isLoading = false; }
+      error: () => { 
+        this.isLoading = false; 
+      }
     });
+  }
+
+  exportPdfMulti() {
+    // Not implemented
+  }
+
+  getTargetColor(percentage: number | string): string {
+    const p = typeof percentage === 'string' ? parseFloat(percentage) : (percentage || 0);
+    if (p >= 100) return '#10b981'; // Emerald Green
+    if (p >= 80) return '#0ea5e9';  // Light Blue
+    if (p >= 65) return '#b45309';  // Brown/Gold
+    if (p >= 50) return '#f97316';  // Orange
+    return '#ef4444'; // Red
   }
 
   // ---- Incentives (Upgraded Dashboard & Engine) ----

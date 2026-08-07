@@ -128,7 +128,7 @@
           </div>
           <div class="kpi-tile">
             <div class="kpi-tile-label">Target Achieved</div>
-            <div class="kpi-tile-val">{{ (registerSummaryData.revenues.target_achieved_percentage || 0) }}%</div>
+            <div class="kpi-tile-val" [style.color]="getTargetColor(registerSummaryData.revenues.target_achieved_percentage)">{{ (registerSummaryData.revenues.target_achieved_percentage || 0) }}%</div>
             <div class="kpi-tile-sub"><i class="fa-solid fa-chart-pie" style="color:#f59e0b;font-size:11px"></i> Performance</div>
           </div>
           <div class="kpi-tile">
@@ -438,7 +438,7 @@
               <td class="num">{{ formatCurrency(row.taxable_value) }}</td>
               <td class="num highlight-col">{{ formatCurrency(row.including_tax) }}</td>
               <td class="num">{{ formatCurrency(row.target) }}</td>
-              <td class="num">{{ row.target_achieved_percentage }}%</td>
+              <td class="num" [style.color]="getTargetColor(row.target_achieved_percentage)" style="font-weight:bold">{{ row.target_achieved_percentage }}%</td>
             </tr>
           </tbody>
         </table>
@@ -628,7 +628,7 @@
             <td class="num">{{ formatCurrency(row.revenues?.taxable_value || 0) }}</td>
             <td class="num highlight-col">{{ formatCurrency(row.revenues?.including_tax || 0) }}</td>
             <td class="num">{{ formatCurrency(row.revenues?.target || 0) }}</td>
-            <td class="num">{{ (row.revenues?.target_achieved_percentage || 0) }}%</td>
+            <td class="num" [style.color]="getTargetColor(row.revenues?.target_achieved_percentage)" style="font-weight:bold">{{ (row.revenues?.target_achieved_percentage || 0) }}%</td>
           </tr>
         </tbody>
       </table>
