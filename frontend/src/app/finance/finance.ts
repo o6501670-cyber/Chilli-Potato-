@@ -1085,10 +1085,18 @@ export class FinanceComponent implements OnInit {
     );
 
     forkJoin(observables).subscribe(results => {
-      this.multiSalonData = results.map((res: any, index) => ({
+      let mapped = results.map((res: any, index) => ({
         center_name: this.centers[index].display_name || this.centers[index].center_name,
         ...res
       }));
+      
+      mapped.sort((a, b) => {
+        const valA = a.categories?.target_achieved_percentage || 0;
+        const valB = b.categories?.target_achieved_percentage || 0;
+        return valA - valB;
+      });
+
+      this.multiSalonData = mapped;
       this.isLoading = false;
       this.cdr.detectChanges();
     }, () => {
