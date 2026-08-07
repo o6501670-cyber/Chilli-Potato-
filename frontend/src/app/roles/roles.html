@@ -9,8 +9,9 @@
   <div class="bills-layout-grid">
     <!-- Left Column: Roles List -->
     <div class="roles-sidebar">
-
-
+      <div style="font-size: 0.85rem; font-weight: 800; color: #64748b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; padding-left: 4px;">
+        Created Roles
+      </div>
       <div class="role-list">
         <div class="role-item" *ngFor="let role of roles" [class.active]="selectedRole?.id === role.id"
           (click)="selectRole(role)">
@@ -43,14 +44,16 @@
           <span style="font-size: 1.1rem; font-weight: 800; color: #111827;">Global Settings</span>
         </div>
         <div class="module-body" style="padding: 16px 24px;">
-          <label class="custom-checkbox" style="display: flex; align-items: center; gap: 0.75rem; margin: 0;">
-            <input type="checkbox" style="width: 20px; height: 20px;"
-              [(ngModel)]="selectedRole.permissions.all_centers"
-              [disabled]="!isOwner && ((selectedRole.id && !permissions.admin?.roles?.update) || (!selectedRole.id && !permissions.admin?.roles?.create))">
-            <span class="checkmark" style="position: relative; flex-shrink: 0;"></span>
+          <label style="display: flex; align-items: flex-start; gap: 0.75rem; margin: 0; cursor: pointer;">
+            <div class="custom-checkbox" style="margin-top: 2px; flex-shrink: 0;">
+              <input type="checkbox"
+                [(ngModel)]="selectedRole.permissions.all_centers"
+                [disabled]="!isOwner && ((selectedRole.id && !permissions.admin?.roles?.update) || (!selectedRole.id && !permissions.admin?.roles?.create))">
+              <span class="checkmark"></span>
+            </div>
             <div style="display: flex; flex-direction: column;">
-              <strong style="font-size: 0.9rem; color: #111827;">Access to all centers</strong>
-              <span style="font-size: 0.75rem; color: #6b7280;">Bypasses per-user center assignment. The user will have access to all locations.</span>
+              <strong style="font-size: 0.9rem; color: #111827; margin-bottom: 2px;">Access to all centers</strong>
+              <span style="font-size: 0.75rem; color: #6b7280; line-height: 1.4;">Bypasses per-user center assignment. The user will have access to all locations.</span>
             </div>
           </label>
         </div>
