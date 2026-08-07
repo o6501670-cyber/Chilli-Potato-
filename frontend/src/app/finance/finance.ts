@@ -906,12 +906,24 @@ export class FinanceComponent implements OnInit {
   }
 
   getTargetColor(percentage: number | string): string {
-    const p = typeof percentage === 'string' ? parseFloat(percentage) : (percentage || 0);
+    const p = typeof percentage === 'string' ? parseFloat(percentage) : percentage;
+    if (isNaN(p)) return '#ef4444';
     if (p >= 100) return '#10b981'; // Emerald Green
-    if (p >= 80) return '#0ea5e9';  // Light Blue
-    if (p >= 65) return '#b45309';  // Brown/Gold
-    if (p >= 50) return '#f97316';  // Orange
+    if (p >= 80) return '#0ea5e9'; // Light Blue
+    if (p >= 65) return '#b45309'; // Brown/Gold
+    if (p >= 50) return '#f97316'; // Orange
     return '#ef4444'; // Red
+  }
+
+  getTrendColor(current: number | string, previous: number | string | undefined, invert: boolean = false): string {
+    if (previous === undefined || previous === null || previous === '') return '';
+    const curr = typeof current === 'string' ? parseFloat(current.replace(/,/g, '')) : current;
+    const prev = typeof previous === 'string' ? parseFloat(previous.replace(/,/g, '')) : previous;
+    if (isNaN(curr) || isNaN(prev)) return '';
+    
+    if (curr > prev) return invert ? '#ef4444' : '#10b981'; // Green (or Red if inverted)
+    if (curr < prev) return invert ? '#10b981' : '#ef4444'; // Red (or Green if inverted)
+    return ''; // Equal
   }
 
   // ---- Incentives (Upgraded Dashboard & Engine) ----

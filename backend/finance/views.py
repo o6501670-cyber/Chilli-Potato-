@@ -846,9 +846,16 @@ class MonthlySalesView(views.APIView):
             target = 0
             for c in centers:
                 hist = c.monthly_targets_history or {}
-                t = float(hist.get(month_str, 0))
+                raw_t = hist.get(month_str, 0)
+                try:
+                    t = float(raw_t) if raw_t not in [None, ""] else 0.0
+                except (ValueError, TypeError):
+                    t = 0.0
                 if t == 0:
-                    t = float(c.monthly_target or 0)
+                    try:
+                        t = float(c.monthly_target) if c.monthly_target not in [None, ""] else 0.0
+                    except (ValueError, TypeError):
+                        t = 0.0
                 target += t
                 
             target_achieved_percentage = 0

@@ -422,24 +422,24 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let row of monthlySalesData">
+            <tr *ngFor="let row of monthlySalesData; let i = index">
               <td class="month-cell">{{ row.month }}</td>
-              <td class="num">{{ formatCurrency(row.services) }}</td>
-              <td class="num neg-col">{{ formatCurrency(row.service_redemptions) }}</td>
-              <td class="num">{{ formatCurrency(row.products) }}</td>
-              <td class="num">{{ formatCurrency(row.value_cards) }}</td>
-              <td class="num">{{ formatCurrency(row.gift_cards) }}</td>
-              <td class="num">{{ formatCurrency(row.memberships) }}</td>
-              <td class="num">{{ formatCurrency(row.packages) }}</td>
-              <td class="num">{{ formatCurrency(row.advances) }}</td>
-              <td class="num">{{ formatCurrency(row.change_to_advance) }}</td>
-              <td class="num">{{ formatCurrency(row.other) }}</td>
-              <td class="num neg-col">{{ formatCurrency(row.discounts) }}</td>
-              <td class="num neg-col">{{ formatCurrency(row.payment_redemptions) }}</td>
-              <td class="num neg-col">{{ formatCurrency(row.refunds) }}</td>
-              <td class="num highlight-col">{{ formatCurrency(row.collection_before_tax) }}</td>
-              <td class="num">{{ formatCurrency(row.taxable_value) }}</td>
-              <td class="num highlight-col">{{ formatCurrency(row.including_tax) }}</td>
+              <td class="num" [style.color]="getTrendColor(row.services, monthlySalesData[i+1]?.services)">{{ formatCurrency(row.services) }}</td>
+              <td class="num neg-col" [style.color]="getTrendColor(row.service_redemptions, monthlySalesData[i+1]?.service_redemptions, true)">{{ formatCurrency(row.service_redemptions) }}</td>
+              <td class="num" [style.color]="getTrendColor(row.products, monthlySalesData[i+1]?.products)">{{ formatCurrency(row.products) }}</td>
+              <td class="num" [style.color]="getTrendColor(row.value_cards, monthlySalesData[i+1]?.value_cards)">{{ formatCurrency(row.value_cards) }}</td>
+              <td class="num" [style.color]="getTrendColor(row.gift_cards, monthlySalesData[i+1]?.gift_cards)">{{ formatCurrency(row.gift_cards) }}</td>
+              <td class="num" [style.color]="getTrendColor(row.memberships, monthlySalesData[i+1]?.memberships)">{{ formatCurrency(row.memberships) }}</td>
+              <td class="num" [style.color]="getTrendColor(row.packages, monthlySalesData[i+1]?.packages)">{{ formatCurrency(row.packages) }}</td>
+              <td class="num" [style.color]="getTrendColor(row.advances, monthlySalesData[i+1]?.advances)">{{ formatCurrency(row.advances) }}</td>
+              <td class="num" [style.color]="getTrendColor(row.change_to_advance, monthlySalesData[i+1]?.change_to_advance)">{{ formatCurrency(row.change_to_advance) }}</td>
+              <td class="num" [style.color]="getTrendColor(row.other, monthlySalesData[i+1]?.other)">{{ formatCurrency(row.other) }}</td>
+              <td class="num neg-col" [style.color]="getTrendColor(row.discounts, monthlySalesData[i+1]?.discounts, true)">{{ formatCurrency(row.discounts) }}</td>
+              <td class="num neg-col" [style.color]="getTrendColor(row.payment_redemptions, monthlySalesData[i+1]?.payment_redemptions, true)">{{ formatCurrency(row.payment_redemptions) }}</td>
+              <td class="num neg-col" [style.color]="getTrendColor(row.refunds, monthlySalesData[i+1]?.refunds, true)">{{ formatCurrency(row.refunds) }}</td>
+              <td class="num highlight-col" [style.color]="getTrendColor(row.collection_before_tax, monthlySalesData[i+1]?.collection_before_tax)">{{ formatCurrency(row.collection_before_tax) }}</td>
+              <td class="num" [style.color]="getTrendColor(row.taxable_value, monthlySalesData[i+1]?.taxable_value)">{{ formatCurrency(row.taxable_value) }}</td>
+              <td class="num highlight-col" [style.color]="getTrendColor(row.including_tax, monthlySalesData[i+1]?.including_tax)">{{ formatCurrency(row.including_tax) }}</td>
               <td class="num">{{ formatCurrency(row.target) }}</td>
               <td class="num" [style.color]="getTargetColor(row.target_achieved_percentage)" style="font-weight:bold">{{ row.target_achieved_percentage }}%</td>
             </tr>
