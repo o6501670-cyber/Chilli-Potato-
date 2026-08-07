@@ -63,58 +63,70 @@ class ChatUserListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        from .models import ChatRoom
+        from .serializers import ChatRoomSerializer
         from django.db.models import Subquery, OuterRef
         
-        last_message_subquery = Message.objects.filter(
-            Q(sender=request.user, receiver_id=OuterRef('pk')) |
-            Q(sender_id=OuterRef('pk'), receiver=request.user)
-        ).order_by('-timestamp')
-
+        # Ensure 1-on-1 rooms exist
         if request.user.is_superuser:
             users = CustomUser.objects.exclude(id=request.user.id)
         else:
             users = CustomUser.objects.filter(is_superuser=True)
+            
+        for u in users:
+            rooms = ChatRoom.objects.filter(is_group=False, participants=request.user).filter(participants=u)
+            if not rooms.exists():
+                room = ChatRoom.objects.create(is_group=False)
+                room.participants.add(request.user, u)
 
-        users = users.annotate(
+        # Now fetch all rooms for the user
+        rooms = request.user.chat_rooms.all()
+        
+        last_message_subquery = Message.objects.filter(
+            room_id=OuterRef('pk')
+        ).order_by('-timestamp')
+        
+        rooms = rooms.annotate(
             last_message_content=Subquery(last_message_subquery.values('content')[:1]),
             last_message_time_annotated=Subquery(last_message_subquery.values('timestamp')[:1]),
             last_message_image=Subquery(last_message_subquery.values('image')[:1])
         )
-
-        serializer = UserChatSerializer(users, many=True)
+        
+        serializer = ChatRoomSerializer(rooms, many=True, context={'request': request})
         data = serializer.data
-
+        
         import datetime
         epoch = datetime.datetime.min
 
-        for i, user_model in enumerate(users):
-            user_data = data[i]
-            if user_model.last_message_time_annotated:
-                content = user_model.last_message_content
-                image = user_model.last_message_image
-                user_data['last_message'] = content if content else ('[Image]' if image else None)
-                user_data['last_message_time'] = user_model.last_message_time_annotated
+        for i, room_model in enumerate(rooms):
+            room_data = data[i]
+            # Map room_data to what the frontend expects!
+            room_data['full_name'] = room_data.get('display_name')
+            room_data['email'] = '' # Just to avoid undefined
+            room_data['center_name'] = 'Group' if room_data.get('is_group') else 'Private'
+            
+            if room_model.last_message_time_annotated:
+                content = room_model.last_message_content
+                image = room_model.last_message_image
+                room_data['last_message'] = content if content else ('[Image]' if image else None)
+                room_data['last_message_time'] = room_model.last_message_time_annotated
             else:
-                user_data['last_message'] = None
-                user_data['last_message_time'] = None
+                room_data['last_message'] = None
+                room_data['last_message_time'] = None
 
         data.sort(
             key=lambda x: x['last_message_time'] if x['last_message_time'] else epoch,
             reverse=True
         )
-
-        logger.info(f"Chat users returned: {len(data)}")
-
+        
         return Response(data)
-
 
 class UnreadMessageCountView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        count = Message.objects.filter(receiver=request.user, is_read=False).count()
+        count = Message.objects.filter(room__participants=request.user, is_read=False).exclude(sender=request.user).count()
         return Response({'count': count})
-
 
 class MessageViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -123,20 +135,39 @@ class MessageViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        other_user_id = self.request.query_params.get('user_id')
-
-        if other_user_id:
+        room_id = self.request.query_params.get('user_id') # Note: frontend sends user_id, but it's actually room_id now
+        
+        if room_id:
             # Mark incoming messages as read
             Message.objects.filter(
-                sender_id=other_user_id, receiver=user, is_read=False
-            ).update(is_read=True)
+                room_id=room_id, is_read=False
+            ).exclude(sender=user).update(is_read=True)
 
-            return Message.objects.filter(
-                Q(sender=user, receiver_id=other_user_id) |
-                Q(sender_id=other_user_id, receiver=user)
-            ).order_by('timestamp')
+            return Message.objects.filter(room_id=room_id).order_by('timestamp')
 
         return Message.objects.none()
 
     def perform_create(self, serializer):
-        serializer.save(sender=self.request.user)
+        room_id = self.request.data.get('room_id') or self.request.query_params.get('user_id') or self.request.data.get('receiver') # Fallback if frontend sends it wrong
+        room = None
+        if room_id:
+            from .models import ChatRoom
+            room = ChatRoom.objects.get(id=room_id)
+            serializer.save(sender=self.request.user, room=room, receiver=None)
+        else:
+            serializer.save(sender=self.request.user)
+            
+        # Process mentions and add them to the room
+        mentions_data = self.request.data.get('mentions')
+        if mentions_data and room:
+            import json
+            try:
+                mention_ids = json.loads(mentions_data)
+                for mid in mention_ids:
+                    room.participants.add(mid)
+                if room.participants.count() > 2:
+                    room.is_group = True
+                    room.save()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Failed to process mentions: {e}")

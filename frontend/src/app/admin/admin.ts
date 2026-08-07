@@ -240,6 +240,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   selectChatUser(user: any) {
     this.selectedChatUser = user;
+    this.newMessageMentions = [];
     this.chatMessages = []; // Clear previous messages immediately
     this.cdr.detectChanges(); // Update UI immediately
     this.fetchChatMessages();
@@ -307,23 +308,86 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
+  mentionSearch = '';
+  showMentionDropdown = false;
+  allStaffUsers: any[] = [];
+  filteredMentionUsers: any[] = [];
+  mentionStartIndex = -1;
+
+  fetchStaffUsers() {
+    this.apiService.get('accounts/users/').subscribe({
+      next: (res: any) => {
+        this.allStaffUsers = Array.isArray(res) ? res : (res.results || res.data || []);
+      },
+      error: (err) => console.error('Failed to load staff users', err)
+    });
+  }
+
+  onChatInput(event: any) {
+    const text = this.newMessage;
+    const cursor = event.target.selectionStart;
+    
+    // Check if we are typing a mention
+    const textBeforeCursor = text.substring(0, cursor);
+    const match = textBeforeCursor.match(/@(\w*)$/);
+    
+    if (match) {
+      this.showMentionDropdown = true;
+      this.mentionSearch = match[1].toLowerCase();
+      this.mentionStartIndex = cursor - match[1].length - 1;
+      
+      if (!this.allStaffUsers.length) {
+         this.fetchStaffUsers();
+      }
+      
+      this.filteredMentionUsers = this.allStaffUsers.filter(u => 
+        (u.full_name || '').toLowerCase().includes(this.mentionSearch) ||
+        (u.email || '').toLowerCase().includes(this.mentionSearch)
+      ).slice(0, 5); // show max 5
+    } else {
+      this.showMentionDropdown = false;
+    }
+  }
+
+  selectMention(user: any) {
+    const text = this.newMessage;
+    const before = text.substring(0, this.mentionStartIndex);
+    const after = text.substring(this.mentionSearch.length + this.mentionStartIndex + 1);
+    // Use a special tag or just the name
+    this.newMessage = before + '@' + user.full_name + ' ' + after;
+    this.showMentionDropdown = false;
+    
+    // We also need to send the mentioned user ID to the backend!
+    if (!this.newMessageMentions) this.newMessageMentions = [];
+    if (!this.newMessageMentions.includes(user.id)) {
+        this.newMessageMentions.push(user.id);
+    }
+  }
+
+  newMessageMentions: number[] = [];
+
   sendMessage() {
     if (!this.newMessage.trim() && !this.selectedImage) return;
     if (!this.selectedChatUser) return;
 
     const formData = new FormData();
-    formData.append('receiver', this.selectedChatUser.id);
+    // selectedChatUser is now a Room! We send room_id
+    formData.append('room_id', this.selectedChatUser.id);
     if (this.newMessage.trim()) {
       formData.append('content', this.newMessage.trim());
     }
     if (this.selectedImage) {
       formData.append('image', this.selectedImage);
     }
+    if (this.newMessageMentions && this.newMessageMentions.length > 0) {
+      formData.append('mentions', JSON.stringify(this.newMessageMentions));
+    }
 
     this.apiService.post('accounts/api/chat/messages/', formData).subscribe({
       next: (res: any) => {
         this.newMessage = '';
         this.selectedImage = null;
+        this.newMessageMentions = [];
         this.fetchChatMessages();
       },
       error: (err: any) => console.error('Failed to send message', err)

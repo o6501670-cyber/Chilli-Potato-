@@ -47,6 +47,26 @@ class UserChatSerializer(serializers.ModelSerializer):
             return c.display_name or c.center_name
         return "No Center"
 
+from .models import CustomUser, Message, ChatRoom
+
+class ChatRoomSerializer(serializers.ModelSerializer):
+    participants = UserChatSerializer(many=True, read_only=True)
+    display_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChatRoom
+        fields = ('id', 'name', 'display_name', 'is_group', 'participants')
+
+    def get_display_name(self, obj):
+        if obj.name:
+            return obj.name
+        request = self.context.get('request')
+        if request and request.user:
+            others = obj.participants.exclude(id=request.user.id)
+            if others.exists():
+                return ", ".join([o.full_name or o.email for o in others])
+        return "Chat Room"
+
 class MessageSerializer(serializers.ModelSerializer):
     sender = serializers.PrimaryKeyRelatedField(read_only=True)
     sender_name = serializers.CharField(source='sender.full_name', read_only=True)
@@ -54,4 +74,4 @@ class MessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Message
-        fields = ('id', 'sender', 'sender_name', 'receiver', 'receiver_name', 'content', 'image', 'timestamp', 'is_read')
+        fields = ('id', 'sender', 'sender_name', 'receiver', 'receiver_name', 'room', 'content', 'image', 'timestamp', 'is_read')

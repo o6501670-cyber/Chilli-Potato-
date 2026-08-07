@@ -300,7 +300,18 @@
         </div>
       </div>
     </div>
-    <div class="chat-footer" *ngIf="selectedChatUser">
+    <div class="chat-footer" *ngIf="selectedChatUser" style="position:relative;">
+      <!-- MENTION DROPDOWN -->
+      <div *ngIf="showMentionDropdown && filteredMentionUsers.length > 0" 
+           style="position:absolute; bottom:100%; left:0; width:100%; background:white; border:1px solid #e2e8f0; border-radius:8px 8px 0 0; box-shadow:0 -4px 12px rgba(0,0,0,0.05); z-index:10; max-height:150px; overflow-y:auto;">
+        <div *ngFor="let mu of filteredMentionUsers" 
+             (click)="selectMention(mu)"
+             style="padding:8px 12px; cursor:pointer; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; gap:8px;">
+          <div class="chat-avatar" style="width:24px; height:24px; font-size:10px;">{{ mu.full_name ? mu.full_name.charAt(0).toUpperCase() : 'U' }}</div>
+          <div style="font-size:12px; font-weight:600;">{{ mu.full_name }}</div>
+        </div>
+      </div>
+
       <input type="file" #chatFileInput style="display:none;" accept="image/*" (change)="onChatFileSelected($event)">
       <button class="chat-attach-btn" (click)="chatFileInput.click()">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -309,7 +320,7 @@
             d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
         </svg>
       </button>
-      <input type="text" placeholder="Type a message..." [(ngModel)]="newMessage" (keyup.enter)="sendMessage()"
+      <input type="text" placeholder="Type a message... (@ to mention)" [(ngModel)]="newMessage" (input)="onChatInput($event)" (keyup.enter)="sendMessage()"
         class="chat-input-box">
       <button class="chat-send-btn" (click)="sendMessage()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
