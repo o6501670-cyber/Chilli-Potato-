@@ -1767,10 +1767,24 @@ class StaffIncentiveCalculationView(views.APIView):
                     elif prod_rule.rule_type in ['percentage', 'flat_percentage']:
                         prod_pct = float(prod_rule.flat_percent or 0)
 
+                # FALLBACK FOR PRODUCTS
+                if not prod_rule and st['product_commission_percentage'] > 0:
+                    prod_pct = st['product_commission_percentage']
+
                 # If no rule applies, use master-level item percentages
                 if prod_pct == 0:
-                    st['product_incentive'] = 0.0
-                    st['products_incentive'] = 0.0
+                    prod_inc = 0.0
+                    for dt in st['details']:
+                        if dt['type'] == 'Product':
+                            pct = dt.get('master_incentive_percent') or 0.0
+                            inc = round(dt['price'] * (pct / 100.0), 2)
+                            dt['calculated_incentive'] = inc
+                            dt['incentive_amount'] = inc
+                            if pct > 0:
+                                dt['calculation_rule'] = f"{pct}% (Item Master)"
+                            prod_inc += inc
+                    st['product_incentive'] = round(prod_inc, 2)
+                    st['products_incentive'] = st['product_incentive']
                     st['product_percent_applied'] = 0
                 else:
                     st['product_incentive'] = round(st['products_revenue'] * (prod_pct / 100.0), 2)
@@ -1780,7 +1794,7 @@ class StaffIncentiveCalculationView(views.APIView):
                         if dt['type'] == 'Product':
                             dt['calculated_incentive'] = round(dt['price'] * (prod_pct / 100.0), 2)
                             dt['incentive_amount'] = dt['calculated_incentive']
-                            dt['calculation_rule'] = f"{prod_pct}% ({multiple}x multiple)"
+                            dt['calculation_rule'] = f"{prod_pct}% ({multiple}x multiple)" if prod_rule and prod_rule.rule_type in ['multiple', 'multipliers'] else f"{prod_pct}%"
 
                 # Service Incentive Calculation
                 serv_rule = get_matching_rule('services', st['center_id'], st['role'])
@@ -1795,9 +1809,29 @@ class StaffIncentiveCalculationView(views.APIView):
                     elif serv_rule.rule_type in ['percentage', 'flat_percentage']:
                         serv_pct = float(serv_rule.flat_percent or 0)
                 
+                # FALLBACK FOR SERVICES
+                if not serv_rule:
+                    if st['commission_percentage'] > 0:
+                        serv_pct = st['commission_percentage']
+                    else:
+                        # Default hardcoded multiple tiers
+                        if multiple >= 7.0: serv_pct = 5.0
+                        elif multiple >= 6.0: serv_pct = 4.0
+                        elif multiple >= 5.0: serv_pct = 3.0
+                
                 if serv_pct == 0:
-                    st['service_incentive'] = st['service_addon_incentive']
-                    st['services_incentive'] = st['service_addon_incentive']
+                    serv_inc = st['service_addon_incentive']
+                    for dt in st['details']:
+                        if dt['type'] == 'Service':
+                            pct = dt.get('master_incentive_percent') or 0.0
+                            inc = round(dt['price'] * (pct / 100.0), 2)
+                            dt['calculated_incentive'] = round(dt.get('calculated_incentive', 0) + inc, 2)
+                            dt['incentive_amount'] = dt['calculated_incentive']
+                            if pct > 0:
+                                dt['calculation_rule'] = f"{pct}% (Item Master)" + (f" + {dt['calculation_rule']}" if dt.get('calculation_rule') else "")
+                            serv_inc += inc
+                    st['service_incentive'] = round(serv_inc, 2)
+                    st['services_incentive'] = st['service_incentive']
                     st['service_percent_applied'] = 0
                 else:
                     st['service_incentive'] = round(st['services_revenue'] * (serv_pct / 100.0) + st['service_addon_incentive'], 2)
@@ -1806,9 +1840,10 @@ class StaffIncentiveCalculationView(views.APIView):
                     for dt in st['details']:
                         if dt['type'] == 'Service':
                             inc = round(dt['price'] * (serv_pct / 100.0), 2)
-                            dt['calculated_incentive'] = round(dt['calculated_incentive'] + inc, 2)
+                            dt['calculated_incentive'] = round(dt.get('calculated_incentive', 0) + inc, 2)
                             dt['incentive_amount'] = dt['calculated_incentive']
-                            dt['calculation_rule'] = f"{serv_pct}% ({multiple}x multiple)" + (f" + {dt['calculation_rule']}" if dt['calculation_rule'] else "")
+                            rule_label = f"{serv_pct}% ({multiple}x multiple)" if multiple > 0 else f"{serv_pct}%"
+                            dt['calculation_rule'] = rule_label + (f" + {dt['calculation_rule']}" if dt.get('calculation_rule') else "")
 
                 total_inc = (
                     st['service_incentive'] + st['product_incentive'] +
