@@ -59,66 +59,61 @@
         </div>
       </div>
 
-      <div *ngIf="selectedRole.permissions" class="modules-container">
-
-        <div class="module-card" *ngFor="let mod of getModuleKeys()">
-          <div class="module-header-dark">
-            <label class="checkbox-label select-all-label">
-              <input type="checkbox" [checked]="isModuleFullyChecked(mod)" [indeterminate]="isModuleIndeterminate(mod)"
-                (change)="toggleModule(mod, $event)" [disabled]="!isOwner && !permissions.admin?.roles?.update">
-              <span>{{ mod | uppercase }}</span>
+      <div *ngIf="selectedRole.permissions" class="bento-modules-container">
+        
+        <div class="bento-card" *ngFor="let mod of getModuleKeys()">
+          <div class="bento-card-header">
+            <h4 class="bento-module-title">{{ mod | uppercase }}</h4>
+            <label class="bento-toggle-label select-all-label">
+              <span class="toggle-text">All</span>
+              <div class="bento-toggle">
+                <input type="checkbox" [checked]="isModuleFullyChecked(mod)" [indeterminate]="isModuleIndeterminate(mod)"
+                  (change)="toggleModule(mod, $event)" [disabled]="!isOwner && !permissions.admin?.roles?.update">
+                <span class="slider"></span>
+              </div>
             </label>
           </div>
 
-          <div class="module-body table-responsive">
-            <table class="permissions-table" style="width: 100%; border-collapse: collapse;">
-              <thead>
-                <tr>
-                  <th style="width: 30%;">Sub-module</th>
-                  <th style="text-align: center;">View</th>
-                  <th style="text-align: center;">Add</th>
-                  <th style="text-align: center;">Edit</th>
-                  <th style="text-align: center;">Del</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let sub of getSubModuleKeys(mod)">
-                  <td class="sub-module-name" style="font-weight: 600;">{{ sub | titlecase }}</td>
-                  <td style="text-align: center; vertical-align: middle;">
-                    <label class="custom-checkbox cell-checkbox" style="display: inline-flex; margin: 0;">
-                      <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].read"
-                        (ngModelChange)="onPermissionChange(mod, sub, 'read', $event)"
-                        [disabled]="!isOwner && !permissions.admin?.roles?.update">
-                      <span class="checkmark"></span>
-                    </label>
-                  </td>
-                  <td style="text-align: center; vertical-align: middle;">
-                    <label class="custom-checkbox cell-checkbox" style="display: inline-flex; margin: 0;">
-                      <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].create"
-                        (ngModelChange)="onPermissionChange(mod, sub, 'create', $event)"
-                        [disabled]="!isOwner && !permissions.admin?.roles?.update">
-                      <span class="checkmark"></span>
-                    </label>
-                  </td>
-                  <td style="text-align: center; vertical-align: middle;">
-                    <label class="custom-checkbox cell-checkbox" style="display: inline-flex; margin: 0;">
-                      <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].update"
-                        (ngModelChange)="onPermissionChange(mod, sub, 'update', $event)"
-                        [disabled]="!isOwner && !permissions.admin?.roles?.update">
-                      <span class="checkmark"></span>
-                    </label>
-                  </td>
-                  <td style="text-align: center; vertical-align: middle;">
-                    <label class="custom-checkbox cell-checkbox" style="display: inline-flex; margin: 0;">
-                      <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].delete"
-                        (ngModelChange)="onPermissionChange(mod, sub, 'delete', $event)"
-                        [disabled]="!isOwner && !permissions.admin?.roles?.update">
-                      <span class="checkmark"></span>
-                    </label>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="bento-card-body">
+            <div class="bento-row bento-row-header">
+              <div class="bento-col-name">Sub-module</div>
+              <div class="bento-col-toggles">
+                <span class="toggle-head">View</span>
+                <span class="toggle-head">Add</span>
+                <span class="toggle-head">Edit</span>
+                <span class="toggle-head">Del</span>
+              </div>
+            </div>
+            
+            <div class="bento-row" *ngFor="let sub of getSubModuleKeys(mod)">
+              <div class="bento-sub-name">{{ sub | titlecase }}</div>
+              <div class="bento-col-toggles">
+                <label class="bento-toggle" title="View">
+                  <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].read"
+                    (ngModelChange)="onPermissionChange(mod, sub, 'read', $event)"
+                    [disabled]="!isOwner && !permissions.admin?.roles?.update">
+                  <span class="slider"></span>
+                </label>
+                <label class="bento-toggle" title="Add">
+                  <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].create"
+                    (ngModelChange)="onPermissionChange(mod, sub, 'create', $event)"
+                    [disabled]="!isOwner && !permissions.admin?.roles?.update">
+                  <span class="slider"></span>
+                </label>
+                <label class="bento-toggle" title="Edit">
+                  <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].update"
+                    (ngModelChange)="onPermissionChange(mod, sub, 'update', $event)"
+                    [disabled]="!isOwner && !permissions.admin?.roles?.update">
+                  <span class="slider"></span>
+                </label>
+                <label class="bento-toggle" title="Delete">
+                  <input type="checkbox" [ngModel]="selectedRole.permissions[mod][sub].delete"
+                    (ngModelChange)="onPermissionChange(mod, sub, 'delete', $event)"
+                    [disabled]="!isOwner && !permissions.admin?.roles?.update">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 

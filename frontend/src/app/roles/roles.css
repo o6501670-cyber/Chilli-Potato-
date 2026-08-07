@@ -156,100 +156,190 @@
   transform: translateY(-1px);
 }
 
-/* Modules Permissions Matrix Grid */
-.modules-container {
+/* Modules Permissions Matrix Grid (Bento UI) */
+.bento-modules-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 16px;
+  gap: 24px;
   align-items: start;
 }
 
-.module-card {
+.bento-card {
   background: var(--surface);
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-xs);
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04), 0 4px 10px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.03);
   overflow: hidden;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
 }
 
-.module-card:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+.bento-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.06), 0 6px 12px rgba(0, 0, 0, 0.03);
 }
 
-.module-header-dark {
-  background: var(--bg-2);
-  padding: 10px 14px;
+.bento-card-header {
+  background: linear-gradient(to right, #f8fafc, #f1f5f9);
+  padding: 16px 20px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.select-all-label {
+.bento-module-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1e293b;
+  letter-spacing: -0.02em;
+}
+
+.bento-toggle-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
+  background: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 
-.select-all-label span {
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-  text-transform: capitalize;
-}
-
-/* Compact Matrix Tables */
-.permissions-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.permissions-table th {
-  text-align: center;
-  padding: 8px 10px;
-  color: var(--text-secondary);
+.bento-toggle-label .toggle-text {
+  font-size: 0.75rem;
   font-weight: 700;
-  font-size: 0.68rem;
+  color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border);
 }
 
-.permissions-table th:first-child {
-  text-align: left;
+.bento-card-body {
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.permissions-table td {
-  padding: 8px 10px;
-  color: var(--text-primary);
-  font-size: 0.8rem;
-  vertical-align: middle;
-  border-bottom: 1px solid var(--border);
+.bento-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-bottom: 1px solid rgba(0,0,0,0.03);
+  transition: background 0.2s;
 }
 
-.permissions-table tr:last-child td {
+.bento-row:hover {
+  background: #f8fafc;
+}
+
+.bento-row:last-child {
   border-bottom: none;
 }
 
-.permissions-table tr {
-  transition: background 0.15s;
+.bento-row-header {
+  border-bottom: 2px solid rgba(0,0,0,0.04);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
 }
 
-.permissions-table tr:hover {
-  background: var(--bg-2);
+.bento-row-header:hover {
+  background: transparent;
 }
 
-.sub-module-name {
+.bento-col-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: 30%;
+}
+
+.bento-sub-name {
+  font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-primary);
-  font-size: 0.8rem;
+  color: #334155;
+  width: 30%;
 }
 
-/* Custom Checkbox Design (Centered and Balanced) */
+.bento-col-toggles {
+  display: flex;
+  justify-content: space-between;
+  flex: 1;
+  max-width: 220px;
+}
+
+.toggle-head {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  width: 40px;
+  text-align: center;
+}
+
+/* Modern iOS-Style Toggle Switch */
+.bento-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  margin: 0 auto;
+}
+
+.bento-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.bento-toggle .slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 20px;
+}
+
+.bento-toggle .slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.bento-toggle input:checked + .slider {
+  background-color: var(--primary-color, #ef4444);
+}
+
+.bento-toggle input:focus + .slider {
+  box-shadow: 0 0 1px var(--primary-color, #ef4444);
+}
+
+.bento-toggle input:checked + .slider:before {
+  transform: translateX(16px);
+}
+
+/* Disabled State */
+.bento-toggle input:disabled + .slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Maintain original custom checkbox for Global Settings */
 .custom-checkbox {
   display: block;
   position: relative;
@@ -258,7 +348,6 @@
   cursor: pointer;
   user-select: none;
 }
-
 .custom-checkbox input {
   position: absolute;
   opacity: 0;
@@ -266,7 +355,6 @@
   height: 0;
   width: 0;
 }
-
 .checkmark {
   position: absolute;
   top: 0;
@@ -278,26 +366,21 @@
   border-radius: 4px;
   transition: all 0.15s ease;
 }
-
 .custom-checkbox:hover input ~ .checkmark {
   background-color: var(--border-strong);
 }
-
 .custom-checkbox input:checked ~ .checkmark {
   background-color: var(--primary-color, #ef4444);
   border-color: var(--primary-color, #ef4444);
 }
-
 .checkmark:after {
   content: "";
   position: absolute;
   display: none;
 }
-
 .custom-checkbox input:checked ~ .checkmark:after {
   display: block;
 }
-
 .custom-checkbox .checkmark:after {
   left: 5px;
   top: 2px;
@@ -307,29 +390,12 @@
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
-
-/* Disabled State styling */
 .custom-checkbox input:disabled ~ .checkmark {
   background-color: var(--bg-2);
   border-color: var(--border);
   cursor: not-allowed;
 }
-
 .custom-checkbox input:disabled:checked ~ .checkmark {
   background-color: var(--border-strong);
   border-color: var(--border-strong);
-}
-
-/* Specific Centering rules for tables */
-.cell-checkbox {
-  margin: 0 auto !important;
-  padding-left: 0 !important;
-}
-
-/* Select all header checkbox style */
-.select-all-label input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--primary-color, #ef4444);
-  cursor: pointer;
 }
