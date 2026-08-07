@@ -2168,7 +2168,6 @@ class MultiSalonExportView(views.APIView):
         ws.title = "Multi Salon Report"
         ws.append(["Center Name", "Total Sales", "Target", "Target Achieved %"])
         
-        from .views import RegisterSummaryView
         view_instance = RegisterSummaryView()
         
         rows = []
