@@ -93,50 +93,50 @@
         Start typing a name or phone number...
       </div>
 
-      <div *ngIf="client && !client.is_anonymous" class="client-profile-card" style="padding: 16px 12px; background: #f8fafc; border-radius: 12px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
+      <div *ngIf="client && !client.is_anonymous" class="client-profile-card" style="padding: 12px 10px; background: #f8fafc; border-radius: 10px; margin-bottom: 12px; border: 1px solid #e2e8f0;">
         
         <!-- Avatar and Identity Row -->
-        <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: center;">
-          <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #1e293b, #4f46e5); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; flex-shrink: 0; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);">
+        <div style="display: flex; gap: 10px; margin-bottom: 12px; align-items: center;">
+          <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #1e293b, #4f46e5); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);">
             {{ client.first_name ? client.first_name.charAt(0).toUpperCase() : '?' }}
           </div>
           <div style="flex: 1;">
-            <input type="text" placeholder="Full Name" [(ngModel)]="client.first_name" style="width: 100%; font-size: 16px; font-weight: 700; color: #1e293b; border: none; background: transparent; border-bottom: 2px solid transparent; transition: border-color 0.2s; padding: 4px 0;" onfocus="this.style.borderBottomColor='#4f46e5'" onblur="this.style.borderBottomColor='transparent'">
-            <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px; color: #64748b;">
-              <i class="fa fa-phone" style="font-size: 12px;"></i>
-              <input type="text" placeholder="Phone Number" [(ngModel)]="client.phone" style="width: 100%; font-size: 13px; color: #475569; border: none; background: transparent; padding: 2px 0; outline: none;">
+            <input type="text" placeholder="Full Name" [(ngModel)]="client.first_name" style="width: 100%; font-size: 14px; font-weight: 700; color: #1e293b; border: none; background: transparent; border-bottom: 2px solid transparent; transition: border-color 0.2s; padding: 2px 0;" onfocus="this.style.borderBottomColor='#4f46e5'" onblur="this.style.borderBottomColor='transparent'">
+            <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px; color: #64748b;">
+              <i class="fa fa-phone" style="font-size: 10px;"></i>
+              <input type="text" placeholder="Phone Number" [(ngModel)]="client.phone" style="width: 100%; font-size: 11px; color: #475569; border: none; background: transparent; padding: 2px 0; outline: none;">
             </div>
           </div>
         </div>
 
         <!-- Two Column Grid for Info -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-          <div style="display: flex; flex-direction: column; gap: 4px;">
-            <label style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Email</label>
-            <input placeholder="Email Address" [(ngModel)]="client.email" style="font-size: 13px; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; width: 100%; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#94a3b8'" onblur="this.style.borderColor='#cbd5e1'">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <label style="font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Email</label>
+            <input placeholder="Email Address" [(ngModel)]="client.email" style="font-size: 11px; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; width: 100%; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#94a3b8'" onblur="this.style.borderColor='#cbd5e1'">
           </div>
-          <div style="display: flex; flex-direction: column; gap: 4px;">
-            <label style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Birthday</label>
-            <input type="date" [(ngModel)]="client.birthday" style="font-size: 13px; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; width: 100%; color: #475569; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#94a3b8'" onblur="this.style.borderColor='#cbd5e1'">
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <label style="font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Birthday</label>
+            <input type="date" [(ngModel)]="client.birthday" style="font-size: 11px; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; width: 100%; color: #475569; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#94a3b8'" onblur="this.style.borderColor='#cbd5e1'">
           </div>
         </div>
 
         <!-- Notes -->
-        <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
-          <label style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Internal Notes</label>
-          <textarea placeholder="Add any special notes..." [(ngModel)]="client.notes" rows="2" style="font-size: 13px; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; width: 100%; resize: vertical; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#94a3b8'" onblur="this.style.borderColor='#cbd5e1'"></textarea>
+        <div style="display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px;">
+          <label style="font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Internal Notes</label>
+          <textarea placeholder="Add any special notes..." [(ngModel)]="client.notes" rows="1" style="font-size: 11px; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; width: 100%; resize: vertical; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#94a3b8'" onblur="this.style.borderColor='#cbd5e1'"></textarea>
         </div>
 
         <!-- Gender and Save -->
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
-          <div style="display: flex; background: #e2e8f0; border-radius: 8px; padding: 3px; gap: 2px;">
-            <button [style.background]="client.gender === 'male' ? '#fff' : 'transparent'" [style.color]="client.gender === 'male' ? '#0f172a' : '#64748b'" [style.boxShadow]="client.gender === 'male' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'" (click)="client.gender = 'male'" style="border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Male</button>
-            <button [style.background]="client.gender === 'female' ? '#fff' : 'transparent'" [style.color]="client.gender === 'female' ? '#0f172a' : '#64748b'" [style.boxShadow]="client.gender === 'female' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'" (click)="client.gender = 'female'" style="border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Female</button>
-            <button [style.background]="client.gender === 'unknown' ? '#fff' : 'transparent'" [style.color]="client.gender === 'unknown' ? '#0f172a' : '#64748b'" [style.boxShadow]="client.gender === 'unknown' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'" (click)="client.gender = 'unknown'" style="border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Unknown</button>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px;">
+          <div style="display: flex; background: #e2e8f0; border-radius: 6px; padding: 2px; gap: 2px;">
+            <button [style.background]="client.gender === 'male' ? '#fff' : 'transparent'" [style.color]="client.gender === 'male' ? '#0f172a' : '#64748b'" [style.boxShadow]="client.gender === 'male' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none'" (click)="client.gender = 'male'" style="border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Male</button>
+            <button [style.background]="client.gender === 'female' ? '#fff' : 'transparent'" [style.color]="client.gender === 'female' ? '#0f172a' : '#64748b'" [style.boxShadow]="client.gender === 'female' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none'" (click)="client.gender = 'female'" style="border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Female</button>
+            <button [style.background]="client.gender === 'unknown' ? '#fff' : 'transparent'" [style.color]="client.gender === 'unknown' ? '#0f172a' : '#64748b'" [style.boxShadow]="client.gender === 'unknown' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none'" (click)="client.gender = 'unknown'" style="border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Unknown</button>
           </div>
           
-          <button (click)="saveClient()" style="background: #1e293b; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px rgba(15, 23, 42, 0.2); transition: transform 0.1s;">
-            <i class="fa fa-save" style="margin-right: 6px;"></i> Save
+          <button (click)="saveClient()" style="background: #1e293b; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 10px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px rgba(15, 23, 42, 0.2); transition: transform 0.1s;">
+            <i class="fa fa-save" style="margin-right: 4px;"></i> Save
           </button>
         </div>
       </div>
