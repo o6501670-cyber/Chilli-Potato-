@@ -904,11 +904,13 @@ export class BillingComponent implements OnInit {
         next: () => {
           this.isSaving = false;
           this.showToast('Client updated', 'success');
+          this.cdr.detectChanges();
         },
         error: (err: any) => {
           this.isSaving = false;
           this.showToast('Failed to update client.', 'error');
           console.error(err);
+          this.cdr.detectChanges();
         }
       });
     } else {
@@ -917,11 +919,13 @@ export class BillingComponent implements OnInit {
           this.isSaving = false;
           this.client = res;
           this.showToast('Client created', 'success');
+          this.cdr.detectChanges();
         },
         error: (err: any) => {
           this.isSaving = false;
           this.showToast('Failed to create client. Please check details.', 'error');
           console.error(err);
+          this.cdr.detectChanges();
         }
       });
     }
