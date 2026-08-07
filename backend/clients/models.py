@@ -71,8 +71,9 @@ class Client(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         if is_new and not self.app_pin:
-            import random
-            self.app_pin = f"{random.randint(1000, 9999)}"
+            # Use secrets module (CSPRNG) instead of random — PINs are used for app login
+            import secrets
+            self.app_pin = f"{secrets.randbelow(9000) + 1000}"
         
         super().save(*args, **kwargs)
         

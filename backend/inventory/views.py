@@ -34,12 +34,31 @@ class InventoryBaseViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         is_owner = user.is_superuser or (user.role and user.role.name.lower() == 'owner')
-        
-        # For non-owners, automatically force the center to their own center
+
         if not is_owner:
+            # For non-owners, resolve center from request — honor which center they're working in
+            center_id_param = (
+                self.request.data.get('center') or
+                self.request.data.get('center_id') or
+                self.request.query_params.get('center_id')
+            )
+            if center_id_param:
+                try:
+                    center_id_param = int(center_id_param)
+                except (TypeError, ValueError):
+                    center_id_param = None
+
             if user.centers.exists():
-                serializer.save(center=user.centers.first())
-            elif user.center:
+                allowed_centers = user.centers.all()
+                if center_id_param:
+                    matched = allowed_centers.filter(id=center_id_param).first()
+                    if not matched:
+                        raise PermissionDenied("You are not assigned to this center.")
+                    serializer.save(center=matched)
+                else:
+                    # No center specified — use first assigned center (single-center common case)
+                    serializer.save(center=allowed_centers.first())
+            elif getattr(user, 'center', None):
                 serializer.save(center=user.center)
             else:
                 raise PermissionDenied("You are not assigned to any center.")

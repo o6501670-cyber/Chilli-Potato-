@@ -174,16 +174,17 @@ class InvoiceSerializer(serializers.ModelSerializer):
                 pm = p.get('payment_method', '')
                 if pm and 'value card' in pm.lower() and p.get('value_card_id'):
                     vc_id = p.get('value_card_id')
+                    from clients.models import ClientValueCard
                     try:
-                        from clients.models import ClientValueCard
                         vc = ClientValueCard.objects.get(id=vc_id, client=client)
-                        req_amt = Decimal(str(p.get('amount', 0)))
-                        if vc.balance < req_amt:
-                            raise serializers.ValidationError(
-                                f"Insufficient value card balance. Requested: ₹{req_amt}, Available: ₹{vc.balance}"
-                            )
-                    except Exception:
+                    except ClientValueCard.DoesNotExist:
                         raise serializers.ValidationError("Value card not found or does not belong to client.")
+                    # Check balance separately so the correct error message reaches the user
+                    req_amt = Decimal(str(p.get('amount', 0)))
+                    if vc.balance < req_amt:
+                        raise serializers.ValidationError(
+                            f"Insufficient value card balance. Requested: ₹{req_amt}, Available: ₹{vc.balance}"
+                        )
 
             # Package Redemption Validation
             redeemed_counts = {}
@@ -305,9 +306,35 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
         invoice = Invoice.objects.create(**validated_data)
 
-        for item_data in items_data:
+        # Pass 1: Build InvoiceItem instances and extract M2M data separately.
+        # bulk_create cannot handle M2M, so we save staff_members for a second pass.
+        item_instances = []
+        m2m_map = []  # list of (item_index, staff_members list)
+        for idx, item_data in enumerate(items_data):
+            item_data = dict(item_data)
+            staff_members = item_data.pop('staff_members', [])
             item_data['invoice'] = invoice
-            InvoiceItemSerializer().create(validated_data=item_data)
+
+            # Resolve content_type label → ContentType object (same as InvoiceItemSerializer.create)
+            ct_label = item_data.pop('content_type', None)
+            if ct_label and isinstance(ct_label, str):
+                try:
+                    from django.contrib.contenttypes.models import ContentType as CT
+                    app_label, model = ct_label.split('.')
+                    item_data['content_type'] = CT.objects.get(app_label=app_label, model=model)
+                except Exception:
+                    item_data['content_type'] = None
+
+            item_instances.append(InvoiceItem(**item_data))
+            if staff_members:
+                m2m_map.append((idx, staff_members))
+
+        # Single INSERT statement for all items
+        created_items = InvoiceItem.objects.bulk_create(item_instances)
+
+        # Pass 2: Set M2M staff_members only for items that need it
+        for idx, staff_members in m2m_map:
+            created_items[idx].staff_members.set(staff_members)
 
         paid = Decimal('0')
         for pay_data in payments_data:

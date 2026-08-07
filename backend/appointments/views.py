@@ -55,7 +55,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             svc_time = svc.get('time')
             duration = int(svc.get('duration') or 30)
 
-            if not svc_time:
+            # Guard: after DRF validation this should be datetime.time, but be defensive
+            if not svc_time or not hasattr(svc_time, 'hour'):
                 continue
 
             # Find all other active appointments for this staff member on the same date

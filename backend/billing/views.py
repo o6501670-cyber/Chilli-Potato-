@@ -128,7 +128,9 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             # Advance balance check INSIDE the lock to prevent over-drawing under concurrent requests
             if payment_method and ('advance' in payment_method.lower() or 'wallet' in payment_method.lower()):
                 if invoice.client:
-                    invoice.client.refresh_from_db(fields=['advance_balance'] if hasattr(invoice.client, 'advance_balance') else [])
+                    # advance_balance is a @property (not a DB field) — refresh_from_db() with
+                    # no args reloads the actual row so we read the live balance inside the lock.
+                    invoice.client.refresh_from_db()
                     advance_balance = invoice.client.advance_balance
                     if advance_balance < float(amt):
                         amt = Decimal(str(min(float(amt), max(0, advance_balance))))

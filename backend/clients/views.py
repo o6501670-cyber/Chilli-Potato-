@@ -134,7 +134,8 @@ class ClientViewSet(viewsets.ModelViewSet):
                     source_vc = ClientValueCard.objects.select_for_update().get(id=source_id, client=client)
                     target_vc = ClientValueCard.objects.select_for_update().get(id=target_id, client=client)
                     
-                    target_vc.balance = float(target_vc.balance) + float(source_vc.balance)
+                    # Use Decimal arithmetic — float() causes precision loss on monetary values
+                    target_vc.balance = target_vc.balance + source_vc.balance
                     target_vc.save()
                     
                     source_vc.is_active = False

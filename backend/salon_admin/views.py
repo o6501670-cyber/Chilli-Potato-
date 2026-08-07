@@ -1,9 +1,12 @@
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count
 from .models import Center, Role
 from .serializers import CenterSerializer, RoleSerializer
+
 class CenterViewSet(viewsets.ModelViewSet):
     serializer_class = CenterSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
@@ -39,9 +42,10 @@ class CenterViewSet(viewsets.ModelViewSet):
 class RoleViewSet(viewsets.ModelViewSet):
     queryset = Role.objects.annotate(users_count=Count('customuser', distinct=True)).all()
     serializer_class = RoleSerializer
+    permission_classes = [IsAuthenticated]
 
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from decimal import Decimal as _Decimal
 from rest_framework.response import Response
 from django.db.models import Sum, Count
 from billing.models import Invoice
@@ -125,15 +129,16 @@ def dashboard_view(request):
         
         # Get all distinct clients who had an invoice in this period
         visiting_client_ids = invoices.exclude(client__isnull=True).values_list('client_id', flat=True).distinct()
-        
+        total_visiting = visiting_client_ids.count()  # use .count() — avoids loading all IDs into Python memory
+
         if start_date_str:
             sd_obj = datetime.strptime(start_date_str, '%Y-%m-%d').date()
             # Out of the visitors, how many were created on or after the start date?
             new_client_count = Client.objects.filter(id__in=visiting_client_ids, created_at__date__gte=sd_obj).count()
-            repeat_client_count = len(visiting_client_ids) - new_client_count
+            repeat_client_count = total_visiting - new_client_count
         else:
-            # If no date range is given, technically all are historical/repeat or we can just count all as repeat
-            repeat_client_count = len(visiting_client_ids)
+            # If no date range is given, count all visitors as repeat
+            repeat_client_count = total_visiting
     except Exception as e:
         new_client_count = 0
         repeat_client_count = 0

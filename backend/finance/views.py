@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('paid', 'partial')):
     qs = Invoice.objects.filter(status__in=statuses)
-    
+
     user = request.user
     perms = getattr(user.role, 'permissions', {}) or {}
     is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
@@ -28,13 +28,25 @@ def _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('
             qs = qs.filter(center__in=user.centers.all())
         elif hasattr(user, 'center') and user.center:
             qs = qs.filter(center=user.center)
-            
+
     if center_id:
         qs = qs.filter(center_id=center_id)
+
+    # Use the same datetime-range pattern as billing/views.py to avoid off-by-one near midnight
+    # e.g. __date__gte vs __gte with datetime can produce different results in the same query
     if start_date:
-        qs = qs.filter(created_at__date__gte=start_date)
+        try:
+            from datetime import datetime as _dt
+            qs = qs.filter(created_at__gte=_dt.strptime(str(start_date), '%Y-%m-%d'))
+        except (ValueError, TypeError):
+            qs = qs.filter(created_at__date__gte=start_date)
     if end_date:
-        qs = qs.filter(created_at__date__lte=end_date)
+        try:
+            from datetime import datetime as _dt, timedelta as _td
+            end_dt = _dt.strptime(str(end_date), '%Y-%m-%d') + _td(days=1)
+            qs = qs.filter(created_at__lt=end_dt)
+        except (ValueError, TypeError):
+            qs = qs.filter(created_at__date__lte=end_date)
     return qs
 
 
