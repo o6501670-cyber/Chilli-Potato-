@@ -255,21 +255,23 @@
   color: #94a3b8;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  width: 30%;
+  flex: 1;
 }
 
 .bento-sub-name {
   font-size: 0.85rem;
   font-weight: 600;
   color: #334155;
-  width: 30%;
+  flex: 1;
+  word-break: break-all;
+  padding-right: 12px;
 }
 
 .bento-col-toggles {
-  display: flex;
-  justify-content: space-between;
-  flex: 1;
-  max-width: 220px;
+  display: grid;
+  grid-template-columns: repeat(4, 44px);
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .toggle-head {
@@ -277,14 +279,15 @@
   font-weight: 700;
   color: #94a3b8;
   text-transform: uppercase;
-  width: 40px;
   text-align: center;
+  width: 100%;
 }
 
 /* Modern iOS-Style Toggle Switch */
 .bento-toggle {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  justify-content: center;
   width: 36px;
   height: 20px;
   margin: 0 auto;
