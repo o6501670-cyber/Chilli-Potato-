@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,13 +11,38 @@ import { ToastService } from '../services/toast.service';
   imports: [CommonModule, FormsModule],
   templateUrl: './users.html',
   styleUrl: './users.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UsersComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   toastService = inject(ToastService);
 
   apiService = inject(ApiService);
   cdr = inject(ChangeDetectorRef);
   users: any[] = [];
+  currentPage: number = 1;
+  pageSize: number = 500;
+
+  get paginatedItems() {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.users.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  get totalPages() {
+    return Math.ceil(this.users.length / this.pageSize) || 1;
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+    }
+  }
+
+  prevPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+    }
+  }
   roles: any[] = [];
   centers: any[] = [];
   showModal = false;
@@ -55,21 +81,22 @@ export class UsersComponent implements OnInit {
   }
 
   loadUsers() {
-    this.apiService.getUsers().subscribe((data: any) => {
+    this.apiService.getUsers().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data: any) => {
       this.users = Array.isArray(data) ? data : (data.results || []);
+        this.currentPage = 1;
       this.cdr.detectChanges();
     });
   }
 
   loadRoles() {
-    this.apiService.getRoles().subscribe(data => {
+    this.apiService.getRoles().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.roles = data;
       this.cdr.detectChanges();
     });
   }
 
   loadCenters() {
-    this.apiService.getCenters().subscribe(data => {
+    this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.centers = data;
       this.cdr.detectChanges();
     });
@@ -149,7 +176,7 @@ export class UsersComponent implements OnInit {
     }
     
     if (this.isEditing && this.editingId) {
-      this.apiService.updateUser(this.editingId, payload).subscribe({
+      this.apiService.updateUser(this.editingId, payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.loadUsers();
           this.closeModal();
@@ -173,7 +200,7 @@ export class UsersComponent implements OnInit {
         }
       });
     } else {
-      this.apiService.createUser(payload).subscribe({
+      this.apiService.createUser(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.loadUsers();
           this.closeModal();
@@ -198,4 +225,12 @@ export class UsersComponent implements OnInit {
       });
     }
   }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

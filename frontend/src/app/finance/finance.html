@@ -480,7 +480,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let row of detailedRevenuesData" [class.cancelled-row]="row.status === 'cancelled'"
+            <tr *ngFor="let row of detailedRevenuesData | slice:0:100; trackBy: trackById" [class.cancelled-row]="row.status === 'cancelled'"
               [class.refunded-row]="row.status === 'refunded'">
               <td><span class="center-pill">{{ selectedCenterName }}</span></td>
               <td class="mono">{{ row.bill_no }}</td>
@@ -762,7 +762,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let item of getFilteredIncentives()" class="inc-row">
+          <tr *ngFor="let item of getFilteredIncentives() | slice:0:100" class="inc-row">
             <td>
               <div class="staff-cell">
                 <div class="staff-avatar">{{ item.staff_name?.charAt(0) || 'S' }}</div>
@@ -848,7 +848,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let item of getFilteredIncentives()" class="inc-row">
+          <tr *ngFor="let item of getFilteredIncentives() | slice:0:100" class="inc-row">
             <td>
               <div class="staff-cell">
                 <div class="staff-avatar">{{ item.staff_name?.charAt(0) || 'S' }}</div>

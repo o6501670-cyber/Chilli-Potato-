@@ -39,7 +39,6 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             'client', 'center', 'staff'
         ).prefetch_related(
             'items__content_type',
-            'items__content_object',
             'items__staff',
             'items__staff_members',
             'payments'
@@ -103,6 +102,13 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             from django.db.models import Q
             qs = qs.filter(Q(discount__gt=0) | Q(items__discount__gt=0)).distinct()
 
+        # Default: if no date range or client filter provided, limit to last 30 days
+        # to prevent unbounded full-table scans on the billing list endpoint
+        has_explicit_filter = client_id or start_date or end_date or invoice_number
+        if not has_explicit_filter:
+            from django.utils import timezone
+            qs = qs.filter(created_at__gte=timezone.now() - datetime.timedelta(days=30))
+
         return qs
 
     @action(detail=True, methods=['post'])
@@ -132,8 +138,8 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                     # no args reloads the actual row so we read the live balance inside the lock.
                     invoice.client.refresh_from_db()
                     advance_balance = invoice.client.advance_balance
-                    if advance_balance < float(amt):
-                        amt = Decimal(str(min(float(amt), max(0, advance_balance))))
+                    if advance_balance < Decimal(str(amt)):
+                        amt = Decimal(str(min(Decimal(str(amt)), max(0, advance_balance))))
                         if amt <= 0:
                             return Response(
                                 {'detail': f'Insufficient advance balance. Available: ₹{advance_balance:.2f}'},
@@ -251,7 +257,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 from clients.models import ClientPackage, ClientMembership, ClientValueCard
                 for item in invoice.items.all():
                     # 1. Restore Redeemed Package Services
-                    if float(item.unit_price) == 0 and item.description and '🎁 [Redeem]' in item.description:
+                    if Decimal(str(item.unit_price)) == 0 and item.description and '🎁 [Redeem]' in item.description:
                         if item.content_type and item.content_type.app_label == 'services':
                             svc_id_str = str(item.object_id)
                             cps = ClientPackage.objects.filter(client=invoice.client).order_by('-expiry_date')
@@ -342,7 +348,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             invoice.subtotal - invoice.discount + invoice.cgst + invoice.sgst
         )
         invoice.save()
-        return Response({'discount_applied': discount, 'new_total': float(invoice.total_amount)})
+        return Response({'discount_applied': discount, 'new_total': Decimal(str(invoice.total_amount))})
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):

@@ -224,7 +224,10 @@
     </header>
 
     <!-- Admin Sub-navigation (only on admin pages) -->
-    <div class="admin-subnav" *ngIf="isAdminPage">
+    <div *ngIf="isAdminPage" style="position: relative; z-index: 10; padding: 12px 24px 0 24px; border-bottom: 1px solid #e2e8f0;">
+      <div class="admin-subnav" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; overflow-x: auto; padding-bottom: 8px;">
+        <div class="tabs-container" style="display: flex; gap: 8px;">
+
       <a routerLink="/admin/bills" routerLinkActive="active" class="subnav-tab"
         *ngIf="isOwner || permissions.admin?.bills?.read">Bills</a>
       <a routerLink="/admin/changes" routerLinkActive="active" class="subnav-tab"
@@ -241,6 +244,38 @@
         *ngIf="isOwner || permissions.admin?.services?.read">Services</a>
       <a routerLink="/admin/roles" routerLinkActive="active" class="subnav-tab"
         *ngIf="isOwner || permissions.admin?.roles?.read">Roles &amp; Permissions</a>
+        </div>
+        
+        <!-- Global Admin Filters -->
+        <div class="right-controls" style="display: flex; gap: 8px; align-items: center; pointer-events: auto;">
+          
+          <app-location-selector
+            [centers]="centers"
+            [hasGlobalAccess]="hasGlobalAccess"
+            [selectedCenterId]="adminFilterService.currentCenterId"
+            (selectedCenterIdChange)="adminFilterService.setCenterId($event); adminFilterService.triggerApply()">
+          </app-location-selector>
+          
+
+
+          <div class="control-pill-group" style="display: flex; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; overflow: hidden; align-items: center; height: 28px;">
+            <div class="date-pill" style="display: flex; align-items: center; gap: 6px; padding: 2px 6px; border-right: 1px solid #e2e8f0;">
+              
+              <input type="date" [ngModel]="adminFilterService.currentFromDate" (ngModelChange)="adminFilterService.setFromDate($event)" (change)="adminFilterService.triggerApply()" style="border: none; outline: none; background: transparent; font-size: 11px; font-weight: 500; height: 24px;" />
+            </div>
+            <div class="date-pill" style="display: flex; align-items: center; gap: 6px; padding: 2px 6px;">
+              
+              <input type="date" [ngModel]="adminFilterService.currentToDate" (ngModelChange)="adminFilterService.setToDate($event)" (change)="adminFilterService.triggerApply()" style="border: none; outline: none; background: transparent; font-size: 11px; font-weight: 500; height: 24px;" />
+            </div>
+          </div>
+          
+          <button class="pill-btn black-btn" (click)="adminFilterService.triggerApply()" style="background: #0f172a; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; height: 28px; cursor: pointer;">Apply</button>
+          
+          <button class="pill-btn" style="background: transparent; border: 1px solid #10b981; color: #10b981; padding: 0 6px; height: 28px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;" (click)="adminFilterService.triggerExport()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polyline points="16 13 12 17 8 13"></polyline><line x1="12" y1="17" x2="12" y2="9"></line><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Router Outlet -->

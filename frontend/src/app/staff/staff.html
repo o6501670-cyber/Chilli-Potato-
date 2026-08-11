@@ -163,7 +163,7 @@
       </label>
 
       <div class="staff-list">
-        <div class="staff-item" *ngFor="let staff of filteredStaff" [class.active]="selectedStaff?.id === staff.id"
+        <div class="staff-item" *ngFor="let staff of filteredStaff; trackBy: trackById" [class.active]="selectedStaff?.id === staff.id"
           (mousedown)="selectStaff(staff)">
           <img *ngIf="staff.image" [src]="staff.image" class="avatar-circle" style="object-fit: cover;">
           <div *ngIf="!staff.image" class="avatar-circle">{{ getInitials(staff) }}</div>
@@ -205,7 +205,7 @@
               style="padding: 4px 8px; font-size: 12px;">Refresh</button>
           </div>
           <div class="feed-container">
-            <div class="feed-item" *ngFor="let item of activityFeed">
+            <div class="feed-item" *ngFor="let item of activityFeed; trackBy: trackByIndex">
               <div class="feed-icon" [ngClass]="item.type">
                 <span *ngIf="item.type === 'service'"><svg width='16' height='16' viewBox='0 0 24 24' fill='none'
                     stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
@@ -369,7 +369,7 @@
                 <input type="text" list="designationListEdit" class="inline-input" [ngModel]="selectedStaff.designation"
                   (change)="updateStaffField('designation', $event)">
                 <datalist id="designationListEdit">
-                  <option *ngFor="let d of designations" [value]="d.name">{{ d.name }}</option>
+                  <option *ngFor="let d of designations; trackBy: trackById" [value]="d.name">{{ d.name }}</option>
                 </datalist>
                 <span class="edit-icon"><svg width='16' height='16' viewBox='0 0 24 24' fill='none'
                     stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
@@ -522,7 +522,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let t of staffTools">
+                <tr *ngFor="let t of staffTools; trackBy: trackById">
                   <td>{{ t.tool_name }}</td>
                   <td>{{ t.details || '-' }}</td>
                   <td>{{ t.amount }}</td>
@@ -557,7 +557,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let tr of staffTransfers">
+                <tr *ngFor="let tr of staffTransfers; trackBy: trackById">
                   <td>
                     <span class="type-badge"
                       [ngStyle]="{'background': tr.transfer_type === 'Permanent' ? '#fce4ec' : '#fff3e0', 'color': tr.transfer_type === 'Permanent' ? '#c2185b' : '#e65100'}">
@@ -635,7 +635,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let log of combinedLogs">
+              <tr *ngFor="let log of combinedLogs; trackBy: trackById">
                 <td>{{ log.date | date:'dd MMM yyyy' }}</td>
                 <td>{{ log.time }}</td>
                 <td>
@@ -682,7 +682,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let p of payrolls">
+            <tr *ngFor="let p of payrolls; trackBy: trackById">
               <td>{{ p.month }}/{{ p.year }}</td>
               <td>{{ p.base_salary | currency:'INR' }}</td>
               <td>{{ p.service_commission | currency:'INR' }}</td>
@@ -755,7 +755,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let d of designations">
+          <tr *ngFor="let d of designations; trackBy: trackById">
             <td style="font-weight: 600;">{{ d.name }}</td>
             <td>{{ d.salary | currency:'INR' }}</td>
             <td>{{ d.commission_percentage }}%</td>
@@ -816,7 +816,7 @@
             <input type="text" list="addStaffDesignationList" class="form-control" [(ngModel)]="newStaff.designation"
               (ngModelChange)="onNewStaffDesignationChange($event)" name="designation" required>
             <datalist id="addStaffDesignationList">
-              <option *ngFor="let d of designations" [value]="d.name">{{ d.name }}</option>
+              <option *ngFor="let d of designations; trackBy: trackById" [value]="d.name">{{ d.name }}</option>
             </datalist>
           </div>
           <div class="form-group">
@@ -1008,14 +1008,14 @@
 
       <!-- Global Datalists for Autocomplete -->
       <datalist id="clientOptions">
-        <option *ngFor="let c of clients" [value]="c.name || (c.first_name + ' ' + (c.last_name || ''))">{{ c.phone }}
+        <option *ngFor="let c of clients | slice:0:200; trackBy: trackById" [value]="c.name || (c.first_name + ' ' + (c.last_name || ''))">{{ c.phone }}
         </option>
       </datalist>
       <datalist id="serviceOptions">
-        <option *ngFor="let s of services" [value]="s.name">{{ s.name }}</option>
+        <option *ngFor="let s of services | slice:0:500" [value]="s.name">{{ s.name }}</option>
       </datalist>
       <datalist id="perkServiceOptions">
-        <option *ngFor="let s of services" [value]="s.name">{{ s.name }}</option>
+        <option *ngFor="let s of services | slice:0:500" [value]="s.name">{{ s.name }}</option>
       </datalist>
 
       <div class="modal-actions mt-4" style="text-align: right;">
@@ -1083,7 +1083,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let item of revenueReport.breakdown">
+            <tr *ngFor="let item of revenueReport.breakdown; trackBy: trackByIndex">
               <td>{{ item.staff_name }}</td>
               <td>{{ item.location }}</td>
               <td class="text-right">{{ item.services }}</td>
@@ -1150,7 +1150,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let item of usageReport.breakdown">
+            <tr *ngFor="let item of usageReport.breakdown; trackBy: trackByIndex">
               <td>{{ item.service_name }}</td>
               <td><span class="type-badge">{{ item.service_type }}</span></td>
               <td class="text-right">{{ item.times_used }}</td>
@@ -1199,7 +1199,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let item of commissionReport">
+            <tr *ngFor="let item of commissionReport; trackBy: trackById">
               <td class="font-weight-bold">{{ item.staff_name }}</td>
               <td>{{item.display_name || item.center_name}}</td>
               <td class="text-right">{{ item.service_revenue | currency:'INR':'symbol':'1.0-0' }}</td>
@@ -1520,7 +1520,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let t of staffTools">
+          <tr *ngFor="let t of staffTools; trackBy: trackById">
             <td>{{ t.tool_name }}</td>
             <td>{{ t.details || '-' }}</td>
             <td>{{ t.amount }}</td>

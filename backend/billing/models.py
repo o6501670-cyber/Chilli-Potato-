@@ -83,6 +83,8 @@ class Payment(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['invoice'], name='pay_invoice_idx'),
+            models.Index(fields=['created_at'], name='pay_created_idx'),
+            models.Index(fields=['payment_method', 'created_at'], name='pay_method_date_idx'),
         ]
 
 

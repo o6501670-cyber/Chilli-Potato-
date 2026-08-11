@@ -43,6 +43,8 @@ class StaffMember(models.Model):
         indexes = [
             models.Index(fields=['center'], name='staff_center_idx'),
             models.Index(fields=['is_active'], name='staff_active_idx'),
+            models.Index(fields=['center', 'is_active'], name='staff_center_active_idx'),
+            models.Index(fields=['created_at'], name='staff_created_idx'),
         ]
 
 class Designation(models.Model):
@@ -54,6 +56,11 @@ class Designation(models.Model):
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['created_at'], name='desig_created_idx'),
+        ]
 
 class ServiceLog(models.Model):
     TYPE_CHOICES = (
@@ -81,9 +88,11 @@ class ServiceLog(models.Model):
         indexes = [
             models.Index(fields=['staff', 'date'], name='slog_staff_date_idx'),
             models.Index(fields=['center', 'date'], name='slog_center_date_idx'),
+            models.Index(fields=['center', 'date', 'staff'], name='slog_center_date_staff_idx'),
             models.Index(fields=['center'], name='slog_center_idx'),
             models.Index(fields=['invoice'], name='slog_invoice_idx'),
             models.Index(fields=['date'], name='slog_date_idx'),
+            models.Index(fields=['created_at'], name='slog_created_idx'),
         ]
 
 class StaffConsumptionLog(models.Model):
@@ -103,6 +112,13 @@ class StaffConsumptionLog(models.Model):
 
     def __str__(self):
         return f"{self.staff.first_name} consumed {self.service_name}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['staff', 'date'], name='scon_staff_date_idx'),
+            models.Index(fields=['center', 'date'], name='scon_center_date_idx'),
+            models.Index(fields=['created_at'], name='scon_created_idx'),
+        ]
 
 class StaffTransfer(models.Model):
     TRANSFER_CHOICES = (
@@ -127,6 +143,13 @@ class StaffTransfer(models.Model):
     def __str__(self):
         return f"{self.staff.first_name} -> {self.to_center.center_name}"
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['staff'], name='stransfer_staff_idx'),
+            models.Index(fields=['status'], name='stransfer_status_idx'),
+            models.Index(fields=['created_at'], name='stransfer_created_idx'),
+        ]
+
 class PayrollRecord(models.Model):
     STATUS_CHOICES = (
         ('Draft', 'Draft'),
@@ -149,7 +172,9 @@ class PayrollRecord(models.Model):
     class Meta:
         unique_together = ('staff', 'month', 'year')
         indexes = [
-            models.Index(fields=['center', 'month', 'year']),
+            models.Index(fields=['center', 'month', 'year'], name='payroll_center_month_idx'),
+            models.Index(fields=['status'], name='payroll_status_idx'),
+            models.Index(fields=['created_at'], name='payroll_created_idx'),
         ]
 
     def __str__(self):
@@ -172,4 +197,11 @@ class StaffToolTracker(models.Model):
 
     def __str__(self):
         return f"{self.tool_name} - {self.staff.first_name}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['staff'], name='tool_staff_idx'),
+            models.Index(fields=['status'], name='tool_status_idx'),
+            models.Index(fields=['created_at'], name='tool_created_idx'),
+        ]
 

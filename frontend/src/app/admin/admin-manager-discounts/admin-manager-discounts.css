@@ -13,9 +13,10 @@
 
 .bills-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end; /* Align controls to the right */
   align-items: center;
   margin-bottom: 24px;
+  min-height: 38px;
 }
 
 .bills-page-title {
@@ -28,9 +29,9 @@
 .bills-controls {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 0;
 }
 
 .search-pill {
@@ -49,7 +50,7 @@
   border: none;
   background: transparent;
   outline: none;
-  font-size: 13px;
+  font-size: 11px;
   width: 100%;
 }
 
@@ -60,14 +61,14 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 4px;
+  padding: 2px;
 }
 
 .pill-select {
   border: none;
   background: transparent;
-  padding: 4px 10px;
-  font-size: 13px;
+  padding: 2px 6px;
+  font-size: 11px;
   font-weight: 500;
   outline: none;
   cursor: pointer;
@@ -77,21 +78,21 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  font-size: 13px;
+  padding: 2px 6px;
+  font-size: 11px;
   border-right: 1px solid var(--border);
 }
 .date-pill:last-child { border-right: none; }
 .date-pill label { color: var(--text-secondary); font-size: 12px; }
-.date-pill input { border: none; background: transparent; outline: none; font-size: 13px; font-weight: 500; }
+.date-pill input { border: none; background: transparent; outline: none; font-size: 11px; font-weight: 500; }
 
 .pill-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 4px 10px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -158,15 +159,17 @@
 }
 
 .modern-bills-table tbody tr {
-  background: var(--surface);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-  transition: transform 0.1s, box-shadow 0.1s;
-}
+    background: var(--surface);
+    border-bottom: 1px solid #f1f5f9;
+    box-shadow: none;
+    transition: background 0.1s;
+  }
 
 .modern-bills-table tbody tr:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-}
+    background: #f8fafc;
+    transform: none;
+    box-shadow: none;
+  }
 
 .modern-bills-table td {
   padding: 8px 10px;
@@ -218,7 +221,7 @@
 .badge-cancelled { background: #fee2e2; color: #991b1b; }
 .badge-refunded { background: #fef9c3; color: #854d0e; }
 
-.amount-pop { font-weight: 700; color: var(--text-primary); font-size: 13px; }
+.amount-pop { font-weight: 700; color: var(--text-primary); font-size: 11px; }
 
 .bills-sidebar {
   display: flex;
@@ -245,7 +248,17 @@
   flex-direction: column;
   gap: 4px;
 }
+.kpi-card-white:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07);
+}
 .kpi-card-white {
+  background: #fff;
+  border: 1.5px solid #f3f4f6;
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s, box-shadow 0.2s;
   background: var(--surface);
   border: 1px solid var(--border);
   padding: 20px;

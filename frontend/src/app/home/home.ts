@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, OnInit, inject, ChangeDetectorRef, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -23,6 +24,7 @@ interface ModuleCard {
   styleUrl: './home.css',
 })
 export class HomeComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   router = inject(Router);
   sanitizer = inject(DomSanitizer);
   apiService = inject(ApiService);
@@ -139,7 +141,7 @@ export class HomeComponent implements OnInit {
       },
     ];
 
-    this.apiService.getCenters(true).subscribe((data: any) => {
+    this.apiService.getCenters(true).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data: any) => {
       this.centers = Array.isArray(data) ? data : (data.results || []);
       if (!this.isOwner) {
         const u = localStorage.getItem('user');
@@ -173,7 +175,7 @@ export class HomeComponent implements OnInit {
     if (centerId) params.center_id = centerId;
 
     // Get Monthly Revenue and Target (and full summary)
-    this.apiService.get('salon_admin/api/dashboard/summary/', params).subscribe({
+    this.apiService.get('salon_admin/api/dashboard/summary/', params).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res: any) => {
         this.summaryData = res;
         this.monthlyRevenue = res?.revenue || 0;
@@ -184,7 +186,7 @@ export class HomeComponent implements OnInit {
     });
 
     // Get Today's Collection
-    this.apiService.get('salon_admin/api/dashboard/summary/', { start_date: todayStr, end_date: todayStr, ...(centerId && {center_id: centerId}) }).subscribe({
+    this.apiService.get('salon_admin/api/dashboard/summary/', { start_date: todayStr, end_date: todayStr, ...(centerId && {center_id: centerId}) }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res: any) => {
         this.todayCollectionWithTax = res?.revenue || 0;
         this.todayCollectionWithoutTax = res?.revenue_without_tax || 0;
@@ -194,7 +196,7 @@ export class HomeComponent implements OnInit {
     });
     
     // Get Revenue By Day for Chart
-    this.apiService.get('salon_admin/api/dashboard/', params).subscribe({
+    this.apiService.get('salon_admin/api/dashboard/', params).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res: any) => {
         if (res?.revenue_by_day) {
           setTimeout(() => {
@@ -215,7 +217,7 @@ export class HomeComponent implements OnInit {
     }
     
     // PATCH to backend
-    this.apiService.patch(`salon_admin/api/centers/${this.selectedFilterLocation}/`, { monthly_target: this.tempMonthlyTarget }).subscribe({
+    this.apiService.patch(`salon_admin/api/centers/${this.selectedFilterLocation}/`, { monthly_target: this.tempMonthlyTarget }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.monthlyTarget = this.tempMonthlyTarget;
         this.isEditingTarget = false;

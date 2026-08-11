@@ -1,34 +1,41 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { AdminFilterService } from '../admin-filter.service';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api';
 import { CsvService } from '../../services/csv.service';
 import { ToastService } from '../../services/toast.service';
-import { LocationSelectorComponent } from '../../components/location-selector/location-selector';
 
 @Component({
   selector: 'app-admin-bills',
   standalone: true,
-  imports: [CommonModule, FormsModule, LocationSelectorComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './admin-bills.html',
-  styleUrl: './admin-bills.css'
+  styleUrl: './admin-bills.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminBillsComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   permissions: any = {};
   isOwner = false;
   hasGlobalAccess = false;
 
   apiService = inject(ApiService);
+  adminFilterService = inject(AdminFilterService);
   cdr = inject(ChangeDetectorRef);
   csvService = inject(CsvService);
 
   centers: any[] = [];
-  selectedCenterId: number | null = null;
-  
-  fromDate: string = '';
-  toDate: string = '';
   searchInvoiceNo: string = '';
+  
+  
+  
+  
+  
+  currentPage: number = 1;
+  totalPages: number = 1;
   
   invoices: any[] = [];
   isLoading = false;
@@ -39,6 +46,13 @@ export class AdminBillsComponent implements OnInit {
   paymentMethodChange: string = 'Cash';
 
   ngOnInit() {
+    this.adminFilterService.apply$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.getInvoices();
+    });
+    this.adminFilterService.export$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.exportExcel();
+    });
+
     const userStr = localStorage.getItem('user');
     if (userStr) {
       try {
@@ -49,21 +63,21 @@ export class AdminBillsComponent implements OnInit {
       } catch (e) {}
     }
     this.setDefaultDates();
-    this.loadCenters();
+    this.getInvoices();
   }
 
   setDefaultDates() {
     const today = new Date();
-    this.toDate = today.toISOString().split('T')[0];
+    this.adminFilterService.setToDate(today.toISOString().split('T')[0]);
     
     // Default from date = 30 days ago
-    const from = new Date();
-    from.setDate(from.getDate() - 30);
-    this.fromDate = from.toISOString().split('T')[0];
+    
+    
+    
   }
 
   loadCenters() {
-    this.apiService.getCenters().subscribe({
+    this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data: any) => {
         this.centers = Array.isArray(data) ? data : (data.results || []);
         this.getInvoices();
@@ -75,12 +89,37 @@ export class AdminBillsComponent implements OnInit {
     });
   }
 
+  resetAndGetInvoices() {
+    this.searchInvoiceNo = '';
+
+    this.currentPage = 1;
+    this.getInvoices();
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+      this.getInvoices();
+    }
+  }
+
+  prevPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+      this.getInvoices();
+    }
+  }
+
   getInvoices() {
     this.isLoading = true;
-    let url = `billing/invoices/?center_id=${this.selectedCenterId || ''}&start_date=${this.fromDate || ''}&end_date=${this.toDate || ''}&exclude_drafts=true`;
-    this.apiService.get(url).subscribe({
+    this.cdr.detectChanges();
+    let url = `billing/invoices/?center_id=${this.adminFilterService.currentCenterId || ''}&start_date=${this.adminFilterService.currentFromDate || ''}&end_date=${this.adminFilterService.currentToDate || ''}&invoice_number=${this.searchInvoiceNo || ''}&exclude_drafts=true&page_size=500&page=${this.currentPage}`;
+    this.apiService.get(url).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data: any) => {
         let rawInvoices = Array.isArray(data) ? data : (data.results || []);
+        if (!Array.isArray(data) && data.count) {
+          this.totalPages = Math.ceil(data.count / 500);
+        }
         
         // Pre-compute template values to dramatically improve performance
         this.invoices = rawInvoices.map((inv: any) => {
@@ -97,6 +136,7 @@ export class AdminBillsComponent implements OnInit {
         });
 
         this.isLoading = false;
+        this.cdr.detectChanges();
         this.cdr.detectChanges();
       },
       error: err => {
@@ -136,7 +176,7 @@ export class AdminBillsComponent implements OnInit {
     this.isLoading = true;
     
     if (this.actionConfirmType === 'cancel') {
-      this.apiService.post(`billing/invoices/${this.selectedInvoice.id}/cancel/`, {}).subscribe({
+      this.apiService.post(`billing/invoices/${this.selectedInvoice.id}/cancel/`, {}).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.actionConfirmType = null;
           this.closeInvoiceModal();
@@ -149,7 +189,7 @@ export class AdminBillsComponent implements OnInit {
         }
       });
     } else if (this.actionConfirmType === 'refund') {
-      this.apiService.post(`billing/invoices/${this.selectedInvoice.id}/refund/`, {}).subscribe({
+      this.apiService.post(`billing/invoices/${this.selectedInvoice.id}/refund/`, {}).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.actionConfirmType = null;
           this.closeInvoiceModal();
@@ -166,7 +206,7 @@ export class AdminBillsComponent implements OnInit {
 
   updatePaymentMethod() {
     if (!this.selectedInvoice || !this.paymentMethodChange) return;
-    this.apiService.post(`billing/invoices/${this.selectedInvoice.id}/change_payment/`, { payment_method: this.paymentMethodChange }).subscribe({
+    this.apiService.post(`billing/invoices/${this.selectedInvoice.id}/change_payment/`, { payment_method: this.paymentMethodChange }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         alert('Payment method updated successfully.');
         this.closeInvoiceModal();
@@ -197,23 +237,25 @@ export class AdminBillsComponent implements OnInit {
 
   getServiceCount(invoice: any): number {
     return invoice.items?.filter((i: any) => {
-       if (!i.content_type) return false;
-       return !['inventory', 'marketing'].includes(i.content_type.split('.')[0] || i.content_type.app_label);
+      if (!i.content_type) return false;
+      const ct = typeof i.content_type === 'string' ? i.content_type.toLowerCase() : (i.content_type.app_label || '').toLowerCase();
+      return !ct.includes('inventory') && !ct.includes('marketing');
     }).reduce((acc: number, item: any) => acc + item.quantity, 0) || 0;
   }
 
   getProductCount(invoice: any): number {
     return invoice.items?.filter((i: any) => {
-       if (!i.content_type) return false;
-       return (i.content_type.split('.')[0] || i.content_type.app_label) === 'inventory';
+      if (!i.content_type) return false;
+      const ct = typeof i.content_type === 'string' ? i.content_type.toLowerCase() : (i.content_type.app_label || '').toLowerCase();
+      return ct.includes('inventory');
     }).reduce((acc: number, item: any) => acc + item.quantity, 0) || 0;
   }
 
   getMembershipCount(invoice: any): number {
     return invoice.items?.filter((i: any) => {
-       if (!i.content_type) return false;
-       const ct = i.content_type;
-       return ct.includes('membership') || ct.includes('package') || ct.includes('valuecard');
+      if (!i.content_type) return false;
+      const ct = typeof i.content_type === 'string' ? i.content_type.toLowerCase() : (i.content_type.app_label || '').toLowerCase();
+      return ct.includes('membership') || ct.includes('package') || ct.includes('valuecard');
     }).reduce((acc: number, item: any) => acc + item.quantity, 0) || 0;
   }
 
@@ -288,5 +330,13 @@ export class AdminBillsComponent implements OnInit {
       inv.status || ''
     ]);
     this.csvService.exportToCsv('Admin_Bills_Report', headers, rows);
+  }
+
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
   }
 }

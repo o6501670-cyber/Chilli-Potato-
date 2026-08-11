@@ -13,9 +13,10 @@
 
 .bills-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end; /* Align controls to the right */
   align-items: center;
   margin-bottom: 24px;
+  min-height: 38px;
 }
 
 .bills-page-title {
@@ -28,9 +29,9 @@
 .bills-controls {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 0;
 }
 
 .search-pill {
@@ -41,15 +42,13 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 14px;
-  flex: 1;
-  min-width: 200px;
 }
 .search-pill svg { color: var(--text-tertiary); }
 .search-pill input {
   border: none;
   background: transparent;
   outline: none;
-  font-size: 13px;
+  font-size: 11px;
   width: 100%;
 }
 
@@ -60,14 +59,14 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 4px;
+  padding: 2px;
 }
 
 .pill-select {
   border: none;
   background: transparent;
-  padding: 4px 10px;
-  font-size: 13px;
+  padding: 2px 6px;
+  font-size: 11px;
   font-weight: 500;
   outline: none;
   cursor: pointer;
@@ -77,22 +76,22 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  font-size: 13px;
+  padding: 2px 6px;
+  font-size: 11px;
   border-right: 1px solid var(--border);
 }
 .date-pill:last-child { border-right: none; }
-.date-pill label { color: var(--text-secondary); font-size: 12px; }
-.date-pill input { border: none; background: transparent; outline: none; font-size: 13px; font-weight: 500; }
+.date-pill label { color: var(--text-secondary); font-size: 11px; }
+.date-pill input { border: none; background: transparent; outline: none; font-size: 11px; font-weight: 500; }
 
 .pill-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 4px 10px;
   border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
   border: none;
@@ -158,20 +157,22 @@
 }
 
 .modern-bills-table tbody tr {
-  background: var(--surface);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-  transition: transform 0.1s, box-shadow 0.1s;
-}
+    background: var(--surface);
+    border-bottom: 1px solid #f1f5f9;
+    box-shadow: none;
+    transition: background 0.1s;
+  }
 
 .modern-bills-table tbody tr:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-}
+    background: #f8fafc;
+    transform: none;
+    box-shadow: none;
+  }
 
 .modern-bills-table td {
   padding: 8px 10px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 11px;
   vertical-align: middle;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
@@ -225,7 +226,7 @@
 }
 .status-badge {
   font-size: 11px;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: 12px;
   font-weight: 600;
 }
@@ -237,7 +238,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
 }
 .meta-item { display: flex; align-items: center; gap: 4px; }
@@ -247,11 +248,11 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
   margin-top: 4px;
 }
-.amount-pop { font-weight: 700; color: var(--text-primary); font-size: 13px; }
+.amount-pop { font-weight: 700; color: var(--text-primary); font-size: 11px; }
 
 .bill-card-right {
   display: flex;
@@ -259,7 +260,7 @@
   align-items: flex-end;
   justify-content: space-between;
 }
-.bill-date { font-size: 12px; color: var(--text-tertiary); font-weight: 500;}
+.bill-date { font-size: 11px; color: var(--text-tertiary); font-weight: 500;}
 .icon-action-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary); transition: all 0.2s;}
 .icon-action-btn:hover { background: var(--bg-2); color: var(--text-primary); }
 
@@ -288,7 +289,17 @@
   flex-direction: column;
   gap: 4px;
 }
+.kpi-card-white:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07);
+}
 .kpi-card-white {
+  background: #fff;
+  border: 1.5px solid #f3f4f6;
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s, box-shadow 0.2s;
   background: var(--surface);
   border: 1px solid var(--border);
   padding: 16px;
@@ -301,7 +312,7 @@
 
 .kpi-panel-title { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--text-tertiary); margin-bottom: 16px; text-transform: uppercase;}
 .kpi-snapshot-list { display: flex; flex-direction: column; gap: 12px; }
-.snapshot-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.snapshot-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 500; color: var(--text-secondary); }
 .snapshot-name { display: flex; align-items: center; gap: 8px; width: 100px;}
 .dot { width: 6px; height: 6px; border-radius: 50%; }
 .dot.paid { background: #22c55e; }
@@ -328,7 +339,8 @@
   height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03); /* Flat smooth design */
+  border: 1px solid var(--border);
   border-radius: 16px;
   overflow: hidden;
 }
@@ -372,7 +384,7 @@
 
 .summary-table {
   width: 100%;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .summary-table td {
@@ -388,7 +400,7 @@
   color: var(--text-secondary);
   text-decoration: underline;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .right-panel {
@@ -444,7 +456,7 @@
 .details-table th, .details-table td {
   padding: 10px;
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
   border-bottom: 1px solid var(--border);
   border-top: 1px solid var(--border);
   color: var(--text-primary);

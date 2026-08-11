@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -9,9 +10,11 @@ import { ToastService } from '../services/toast.service';
   selector: 'app-roles',
   imports: [CommonModule, FormsModule],
   templateUrl: './roles.html',
-  styleUrl: './roles.css'
+  styleUrl: './roles.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RolesComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   toastService = inject(ToastService);
 
   apiService = inject(ApiService);
@@ -97,7 +100,7 @@ export class RolesComponent implements OnInit {
   }
 
   loadRoles() {
-    this.apiService.getRoles().subscribe(data => {
+    this.apiService.getRoles().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.roles = data;
       if (this.roles.length > 0) {
         this.selectRole(this.roles[0]);
@@ -164,9 +167,9 @@ export class RolesComponent implements OnInit {
     if (this.selectedRole && !this.isSaving) {
       this.isSaving = true;
       if (this.selectedRole.id) {
-        this.apiService.updateRole(this.selectedRole.id, this.selectedRole).subscribe({
+        this.apiService.updateRole(this.selectedRole.id, this.selectedRole).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: () => {
-            this.apiService.getRoles().subscribe(data => {
+            this.apiService.getRoles().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
               this.roles = data;
               const foundRole = this.roles.find(r => r.id === this.selectedRole.id) || this.roles[0];
               if (foundRole) this.selectRole(foundRole);
@@ -181,9 +184,9 @@ export class RolesComponent implements OnInit {
           }
         });
       } else {
-        this.apiService.createRole(this.selectedRole).subscribe({
+        this.apiService.createRole(this.selectedRole).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (createdRole) => {
-            this.apiService.getRoles().subscribe(data => {
+            this.apiService.getRoles().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
               this.roles = data;
               const foundRole = this.roles.find(r => r.id === createdRole.id) || this.roles[0];
               if (foundRole) this.selectRole(foundRole);
@@ -205,7 +208,7 @@ export class RolesComponent implements OnInit {
     if (this.selectedRole && this.selectedRole.id && !this.isSaving) {
       if (!confirm('Are you sure you want to delete this role? This action cannot be undone.')) return;
       this.isSaving = true;
-      this.apiService.deleteRole(this.selectedRole.id).subscribe({
+      this.apiService.deleteRole(this.selectedRole.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.toastService.showSuccess('Role deleted successfully');
           this.isSaving = false;
@@ -280,4 +283,12 @@ export class RolesComponent implements OnInit {
       this.selectedRole.permissions[modName][sub].delete = checked;
     }
   }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

@@ -1,4 +1,5 @@
-import { Component, inject, HostListener, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, inject, HostListener, OnInit, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../services/auth';
@@ -10,6 +11,7 @@ import { AuthService } from '../services/auth';
   styleUrl: './login.css',
 })
 export class LoginComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   authService = inject(AuthService);
 
   credentials = {
@@ -42,7 +44,7 @@ export class LoginComponent implements OnInit {
   onSubmit() {
     this.error = '';
     this.isLoading = true;
-    this.authService.login(this.credentials).subscribe({
+    this.authService.login(this.credentials).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.isLoading = false;
       },

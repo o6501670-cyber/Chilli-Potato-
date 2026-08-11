@@ -48,6 +48,10 @@ class DailyClosing(models.Model):
     
     class Meta:
         unique_together = ('center', 'date')
+        indexes = [
+            models.Index(fields=['center', 'date'], name='dc_center_date_idx'),
+            models.Index(fields=['created_at'], name='dc_created_idx'),
+        ]
         
     def __str__(self):
         return f"Closing {self.center.center_name} - {self.date}"
@@ -171,6 +175,11 @@ class IncentiveRule(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['center', 'is_active'], name='ir_center_active_idx'),
+            models.Index(fields=['is_active', 'category'], name='ir_active_cat_idx'),
+            models.Index(fields=['created_at'], name='ir_created_idx'),
+        ]
 
     def __str__(self):
         center_str = self.center.display_name if self.center else 'All Centers'

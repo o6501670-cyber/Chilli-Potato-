@@ -1,19 +1,21 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api';
 import { CsvService } from '../services/csv.service';
-import { LocationSelectorComponent } from '../components/location-selector/location-selector';
 
 @Component({
   selector: 'app-clients',
   standalone: true,
-  imports: [CommonModule, FormsModule, LocationSelectorComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './clients.html',
-  styleUrls: ['./clients.css']
+  styleUrls: ['./clients.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ClientsComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
   csvService = inject(CsvService);
   cdr = inject(ChangeDetectorRef);
@@ -67,7 +69,7 @@ export class ClientsComponent implements OnInit {
   }
 
   loadCenters() {
-    this.apiService.getCenters().subscribe((data: any[]) => {
+    this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data: any[]) => {
       this.centers = data || [];
       // Only auto-select the first center if not an owner (owners default to 'All Locations' = null)
       if (this.centers.length > 0 && !this.selectedCenterId && !this.isOwner) {
@@ -80,7 +82,7 @@ export class ClientsComponent implements OnInit {
   loadClients(page: number = 1) {
     this.currentPage = page;
     const centerFilter = this.selectedCenterId || undefined;
-    this.apiService.getClients(this.searchPhone, centerFilter, this.currentPage).subscribe((data: any) => {
+    this.apiService.getClients(this.searchPhone, centerFilter, this.currentPage).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data: any) => {
       if (data && data.results) {
         this.clients = data.results || [];
         this.totalRecords = data.count || 0;
@@ -137,19 +139,19 @@ export class ClientsComponent implements OnInit {
     }
     // Load invoice, advance, and service log history for this client
     if (this.client.id) {
-      this.apiService.getInvoices(this.client.id).subscribe((d: any[]) => { this.invoices = d || []; });
+      this.apiService.getInvoices(this.client.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => { this.invoices = d || []; });
       
-      this.apiService.getAdvances(this.client.id).subscribe((d: any[]) => { 
+      this.apiService.getAdvances(this.client.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => { 
         this.advances = d || []; 
         this.advanceBalance = this.advances.reduce((sum, a) => sum + (+a.amount), 0);
       });
 
-      this.apiService.getClientServiceHistory(this.client.id).subscribe((d: any[]) => {
+      this.apiService.getClientServiceHistory(this.client.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => {
         this.serviceLogs = d || [];
         this.cdr.detectChanges();
       });
 
-      this.apiService.getClientProfile(this.client.id).subscribe((prof: any) => {
+      this.apiService.getClientProfile(this.client.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((prof: any) => {
         this.client.ltv = prof.ltv;
         this.client.last_visit = prof.last_visit;
         this.cdr.detectChanges();
@@ -203,7 +205,7 @@ export class ClientsComponent implements OnInit {
       target_id: this.carryOverTargetId,
       new_expiry: this.carryOverNewExpiry
     };
-    this.apiService.carryOverClientPerk(this.client.id, payload).subscribe({
+    this.apiService.carryOverClientPerk(this.client.id, payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         alert("Carry Over Successful!");
         this.showCarryOverModal = false;
@@ -288,7 +290,7 @@ export class ClientsComponent implements OnInit {
     };
 
     if (this.client.id) {
-      this.apiService.updateClient(this.client.id, this.client).subscribe({
+      this.apiService.updateClient(this.client.id, this.client).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           alert('Client updated!');
           this.isSaving = false;
@@ -302,7 +304,7 @@ export class ClientsComponent implements OnInit {
     } else {
       // ensure center is set for new client
       this.client.center = this.client.center || this.selectedCenterId || null;
-      this.apiService.createClient(this.client).subscribe({
+      this.apiService.createClient(this.client).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res: any) => {
           this.client = res;
           alert('Client created!');
@@ -321,7 +323,7 @@ export class ClientsComponent implements OnInit {
     const file = event.target.files[0];
     if (!file) return;
     this.isSaving = true;
-    this.apiService.uploadFile('clients/api/clients/bulk_upload/', file).subscribe({
+    this.apiService.uploadFile('clients/api/clients/bulk_upload/', file).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.isSaving = false;
         alert(res.message || 'File uploaded successfully');
@@ -358,4 +360,12 @@ export class ClientsComponent implements OnInit {
     ]);
     this.csvService.exportToCsv('Clients_Report', headers, rows);
   }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

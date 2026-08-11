@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectorRef, HostListener } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
 
 import { ActivatedRoute } from '@angular/router';
 
@@ -23,10 +24,14 @@ import { ApiService } from '../services/api';
   templateUrl: './billing.html',
 
   styleUrls: ['./billing.css']
-
+,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class BillingComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
+  @ViewChild('clientSearchInput') clientSearchInput!: ElementRef;
+  @ViewChild('serviceSearchInput') serviceSearchInput!: ElementRef;
   // Toast Notifications
   toastMessage: string = '';
   toastType: 'success' | 'error' | 'info' = 'info';
@@ -255,7 +260,7 @@ export class BillingComponent implements OnInit {
 
   ngOnInit(): void {
 
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
 
       if (params['appointment_id']) {
 
@@ -289,7 +294,7 @@ export class BillingComponent implements OnInit {
 
   loadAppointmentIntoBilling(appointmentId: string | number) {
 
-    this.apiService.get('appointments/api/appointments/' + appointmentId + '/').subscribe((appt: any) => {
+    this.apiService.get('appointments/api/appointments/' + appointmentId + '/').pipe(takeUntilDestroyed(this.destroyRef)).subscribe((appt: any) => {
 
       if (!appt) return;
       this.selectedAppointmentId = appointmentId;
@@ -306,7 +311,7 @@ export class BillingComponent implements OnInit {
 
 
 
-      this.apiService.getClients(appt.client_phone).subscribe({
+      this.apiService.getClients(appt.client_phone).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
 
         next: (clients: any[]) => {
 
@@ -424,7 +429,7 @@ export class BillingComponent implements OnInit {
 
   loadCenters() {
 
-    this.apiService.getCenters().subscribe((data: any) => {
+    this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data: any) => {
 
       this.centers = Array.isArray(data) ? data : (data.results || []);
 
@@ -472,19 +477,19 @@ export class BillingComponent implements OnInit {
     const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
 
     // 1. Fetch Global Invoices (Only Open/Draft Invoices)
-    this.apiService.getInvoices(undefined, this.selectedCenterId || undefined).subscribe((d: any[]) => {
+    this.apiService.getInvoices(undefined, this.selectedCenterId || undefined).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => {
       this.globalInvoices = (d || []).filter(inv => inv.status === 'draft');
       this.cdr.detectChanges();
     });
 
   // 2. Fetch Appointments for today
-    this.apiService.getAppointments(this.selectedCenterId || undefined, today).subscribe((d: any[]) => {
+    this.apiService.getAppointments(this.selectedCenterId || undefined, today).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => {
       this.appointments = d || [];
       this.cdr.detectChanges();
     });
 
     // 3. Fetch Staff Activity for today (using StaffRevenueReport)
-    this.apiService.getStaffRevenueReport(this.selectedCenterId || undefined, today, today).subscribe((d: any) => {
+    this.apiService.getStaffRevenueReport(this.selectedCenterId || undefined, today, today).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any) => {
 
       this.staffActivity = (d?.breakdown || []).map((b: any) => ({
          staff_name: b.staff_name,
@@ -501,7 +506,7 @@ export class BillingComponent implements OnInit {
 
   deleteDraftInvoice(inv: any) {
     if (!confirm("Are you sure you want to permanently delete this draft invoice?")) return;
-    this.apiService.deleteInvoice(inv.id).subscribe({
+    this.apiService.deleteInvoice(inv.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.showToast('Draft invoice deleted successfully.', 'success');
         this.globalInvoices = this.globalInvoices.filter(x => x.id !== inv.id);
@@ -523,17 +528,17 @@ export class BillingComponent implements OnInit {
 
     const cid = this.selectedCenterId ?? undefined;
 
-    this.apiService.getServices(cid).subscribe((d: any[]) => this.services = d || []);
+    this.apiService.getServices(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => this.services = d || []);
 
-    this.apiService.getProducts(cid).subscribe((d: any[]) => this.products = d || []);
+    this.apiService.getProducts(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => this.products = d || []);
 
-    this.apiService.getMemberships(cid).subscribe((d: any[]) => this.memberships = d || []);
+    this.apiService.getMemberships(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => this.memberships = d || []);
 
-    this.apiService.getPackages(cid).subscribe((d: any[]) => this.packages = d || []);
+    this.apiService.getPackages(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => this.packages = d || []);
 
-    this.apiService.getValueCards(cid).subscribe((d: any[]) => this.cards = d || []);
+    this.apiService.getValueCards(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => this.cards = d || []);
 
-    this.apiService.getStaffMembers(cid).subscribe((d: any[]) => {
+    this.apiService.getStaffMembers(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => {
 
       this.staffMembers = (d || []).filter((s: any) => s.is_active !== false);
 
@@ -541,7 +546,7 @@ export class BillingComponent implements OnInit {
 
     });
 
-    this.apiService.get('marketing/api/promotions/').subscribe((d: any[]) => this.promotions = d || []);
+    this.apiService.get('marketing/api/promotions/').pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => this.promotions = d || []);
 
 
 
@@ -551,7 +556,7 @@ export class BillingComponent implements OnInit {
 
   loadClients() {
 
-    this.apiService.getClients('').subscribe((d: any[]) => {
+    this.apiService.getClients('').pipe(takeUntilDestroyed(this.destroyRef)).subscribe((d: any[]) => {
 
       this.clients = d || [];
 
@@ -586,7 +591,7 @@ export class BillingComponent implements OnInit {
 
   discardInvoice() {
     if (this.currentInvoiceId && this.currentInvoiceStatus === 'draft') {
-      this.apiService.delete(`billing/invoices/${this.currentInvoiceId}/`).subscribe({
+      this.apiService.delete(`billing/invoices/${this.currentInvoiceId}/`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.finalizeDiscard();
         },
@@ -644,7 +649,7 @@ export class BillingComponent implements OnInit {
 
   searchClients() {
 
-    this.apiService.getClients(this.searchPhone).subscribe({
+    this.apiService.getClients(this.searchPhone).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (d: any[]) => {
         this.clients = d || [];
         this.cdr.detectChanges();
@@ -747,7 +752,7 @@ export class BillingComponent implements OnInit {
 
 
   loadClientHistory(clientId: number) {
-    this.apiService.get(`billing/invoices/?client_id=${clientId}`).subscribe((data: any) => {
+    this.apiService.get(`billing/invoices/?client_id=${clientId}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data: any) => {
       this.clientInvoices = data;
       this.buildClientHistory();
       this.cdr.detectChanges();
@@ -755,7 +760,7 @@ export class BillingComponent implements OnInit {
   }
 
   loadClientAdvances(clientId: number) {
-    this.apiService.get(`billing/advances/?client_id=${clientId}`).subscribe((data: any) => {
+    this.apiService.get(`billing/advances/?client_id=${clientId}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data: any) => {
       this.clientAdvances = data;
       this.clientAdvanceBalance = this.client?.advance_balance || 0;
       this.clientCashbackBalance = this.client?.cashback_balance || 0;
@@ -841,8 +846,8 @@ export class BillingComponent implements OnInit {
   setAnonymousClient() {
     this.client = {
       id: null,
-      first_name: 'Dummy',
-      last_name: '',
+      first_name: 'Walk-in',
+      last_name: 'Client',
       phone: '',
       email: '',
       gender: 'other',
@@ -916,7 +921,7 @@ export class BillingComponent implements OnInit {
 
     this.isSaving = true;
     if (this.client.id) {
-      this.apiService.updateClient(this.client.id, this.client).subscribe({
+      this.apiService.updateClient(this.client.id, this.client).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.isSaving = false;
           this.showToast('Client updated', 'success');
@@ -930,7 +935,7 @@ export class BillingComponent implements OnInit {
         }
       });
     } else {
-      this.apiService.createClient(this.client).subscribe({
+      this.apiService.createClient(this.client).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res: any) => {
           this.isSaving = false;
           this.client = res;
@@ -1253,7 +1258,7 @@ export class BillingComponent implements OnInit {
     }
 
     // Refresh advance balance from server before showing checkout
-    this.apiService.get(`clients/api/clients/${this.client.id}/`).subscribe({
+    this.apiService.get(`clients/api/clients/${this.client.id}/`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (c: any) => {
         if (c && c.advance_balance !== undefined) {
           this.clientAdvanceBalance = c.advance_balance;
@@ -1742,7 +1747,17 @@ export class BillingComponent implements OnInit {
 
     if (event.key === 'F2') {
       event.preventDefault();
-      if (this.cart.length > 0 && !this.showCheckoutModal) {
+      if (this.clientSearchInput) this.clientSearchInput.nativeElement.focus();
+    } else if (event.key === 'F4') {
+      event.preventDefault();
+      if (this.serviceSearchInput) {
+        this.serviceSearchInput.nativeElement.focus();
+        this.showServiceDropdown = true;
+        this.activeTab = 'search';
+      }
+    } else if (event.key === 'F8' || (event.ctrlKey && event.key === 'Enter')) {
+      event.preventDefault();
+      if (this.cart.length > 0 && this.client && !this.client.is_anonymous) {
         this.openCheckoutModal();
       }
     } else if (event.key === 'Escape') {
@@ -1752,11 +1767,10 @@ export class BillingComponent implements OnInit {
         this.selectedItemForConfig = null;
         this.configType = null;
         this.activeTab = 'search';
+      } else {
+        this.cart = [];
+        this.cdr.detectChanges();
       }
-    } else if (event.key === 'F4') {
-      event.preventDefault();
-      const el = document.getElementById('globalSearchInput');
-      if (el) el.focus();
     }
   }
 
@@ -2004,7 +2018,7 @@ export class BillingComponent implements OnInit {
 
     if (this.currentInvoiceId) {
       this.isSaving = true;
-      this.apiService.put(`billing/invoices/${this.currentInvoiceId}/`, payload).subscribe({
+      this.apiService.put(`billing/invoices/${this.currentInvoiceId}/`, payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res: any) => {
           this.handlePostSave(onHold, res);
         },
@@ -2018,7 +2032,7 @@ export class BillingComponent implements OnInit {
       });
     } else {
       this.isSaving = true;
-      this.apiService.post(`billing/invoices/`, payload).subscribe({
+      this.apiService.post(`billing/invoices/`, payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res: any) => {
           this.handlePostSave(onHold, res);
         },
@@ -2077,7 +2091,7 @@ export class BillingComponent implements OnInit {
           client: this.client.id,
           amount: advanceItem.unit_price * advanceItem.quantity,
           notes: advanceItem.description || 'Advance Payment'
-        }).subscribe({
+        }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: () => finish(),
           error: (e) => { console.error('Advance error:', e); finish(); }
         });
@@ -2123,7 +2137,7 @@ export class BillingComponent implements OnInit {
     if (invoice.client) {
       // Just fetch it by ID to be safe and populate all fields
       const clientId = typeof invoice.client === 'object' ? invoice.client.id : invoice.client;
-      this.apiService.get(`clients/api/clients/${clientId}/`).subscribe((c: any) => {
+      this.apiService.get(`clients/api/clients/${clientId}/`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((c: any) => {
         if (c && c.id) this.selectClient(c);
       });
     }
@@ -2171,7 +2185,7 @@ export class BillingComponent implements OnInit {
   viewInvoice(invoiceId: number) {
     this.isSaving = true;
     this.cdr.detectChanges();
-    this.apiService.get(`billing/invoices/${invoiceId}/`).subscribe({
+    this.apiService.get(`billing/invoices/${invoiceId}/`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (inv: any) => {
         this.completedInvoiceData = inv;
         this.showSuccessModal = true;
@@ -2185,4 +2199,12 @@ export class BillingComponent implements OnInit {
       }
     });
   }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api';
@@ -10,9 +11,11 @@ import { forkJoin } from 'rxjs';
   selector: 'app-finance',
   imports: [CommonModule, FormsModule, LocationSelectorComponent],
   templateUrl: './finance.html',
-  styleUrl: './finance.css'
+  styleUrl: './finance.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FinanceComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
   cdr = inject(ChangeDetectorRef);
 
@@ -111,7 +114,7 @@ export class FinanceComponent implements OnInit {
     const cat = this.manageCategoryFilter !== 'all' ? this.manageCategoryFilter : undefined;
     const freq = this.manageViewMode === 'daily' ? 'daily' : (this.manageFrequencyFilter !== 'all' ? this.manageFrequencyFilter : undefined);
     const cid = this.manageCenterFilter ? this.manageCenterFilter : undefined;
-    this.apiService.getIncentiveRules(cid, cat, freq).subscribe({
+    this.apiService.getIncentiveRules(cid, cat, freq).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: res => {
         this.incentiveRules = res || [];
         this.isLoading = false;
@@ -307,7 +310,7 @@ export class FinanceComponent implements OnInit {
 
   confirmDuplicateRule() {
     if (!this.selectedRuleForDuplicate) return;
-    this.apiService.duplicateIncentiveRule(this.selectedRuleForDuplicate.id, this.duplicateTargetCenterId).subscribe({
+    this.apiService.duplicateIncentiveRule(this.selectedRuleForDuplicate.id, this.duplicateTargetCenterId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.showDuplicateModal = false;
         this.selectedRuleForDuplicate = null;
@@ -363,7 +366,7 @@ export class FinanceComponent implements OnInit {
     }
 
     if (payload.id) {
-      this.apiService.updateIncentiveRule(payload.id, payload).subscribe({
+      this.apiService.updateIncentiveRule(payload.id, payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.showRuleModal = false;
           this.loadIncentiveRules();
@@ -372,7 +375,7 @@ export class FinanceComponent implements OnInit {
         error: (err) => alert(err.error?.detail || JSON.stringify(err.error) || 'Error updating rule')
       });
     } else {
-      this.apiService.createIncentiveRule(payload).subscribe({
+      this.apiService.createIncentiveRule(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.showRuleModal = false;
           this.loadIncentiveRules();
@@ -385,7 +388,7 @@ export class FinanceComponent implements OnInit {
 
   toggleRuleStatus(rule: any) {
     const updated = { ...rule, is_active: !rule.is_active };
-    this.apiService.updateIncentiveRule(rule.id, updated).subscribe({
+    this.apiService.updateIncentiveRule(rule.id, updated).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         rule.is_active = !rule.is_active;
         this.cdr.detectChanges();
@@ -396,7 +399,7 @@ export class FinanceComponent implements OnInit {
 
   deleteRule(id: number) {
     if (!confirm('Are you sure you want to delete this rule? Historical calculations prior to today will remain unaffected.')) return;
-    this.apiService.deleteIncentiveRule(id).subscribe({
+    this.apiService.deleteIncentiveRule(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => this.loadIncentiveRules(),
       error: (err) => alert(err.error?.detail || 'Error deleting rule')
     });
@@ -602,7 +605,7 @@ export class FinanceComponent implements OnInit {
     this.closingEndDate = todayStr;
     this.currentRange = 'thisMonth'; // Set default fast-pill to "This Month"
 
-    this.apiService.getCenters().subscribe((data: any) => {
+    this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data: any) => {
       this.centers = Array.isArray(data) ? data : (data.results || []);
       if (!this.isOwner) {
         const userStr2 = localStorage.getItem('user');
@@ -848,7 +851,7 @@ export class FinanceComponent implements OnInit {
 
   getCenterId(): number | undefined {
     const v = this.selectedFilterLocation;
-    if (!v || v === 'null' || v === null) return undefined;
+    if (!v || v === 'null' || v === null || v === 'undefined' || v === undefined) return undefined;
     return typeof v === 'number' ? v : parseInt(v, 10);
   }
 
@@ -857,7 +860,7 @@ export class FinanceComponent implements OnInit {
     this.isLoading = true;
     this.registerSummaryData = null;
     this.cdr.detectChanges();
-    this.apiService.getRegisterSummary(this.getCenterId(), this.startDate, this.endDate).subscribe({
+    this.apiService.getRegisterSummary(this.getCenterId(), this.startDate, this.endDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: res => {
         this.registerSummaryData = res;
         this.isLoading = false;
@@ -876,7 +879,7 @@ export class FinanceComponent implements OnInit {
     this.isLoading = true;
     this.monthlySalesData = [];
     this.cdr.detectChanges();
-    this.apiService.getMonthlySales(this.getCenterId(), this.startDate, this.endDate).subscribe({
+    this.apiService.getMonthlySales(this.getCenterId(), this.startDate, this.endDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: res => {
         this.monthlySalesData = res;
         this.isLoading = false;
@@ -893,7 +896,7 @@ export class FinanceComponent implements OnInit {
 
   runDetailedRevenues() {
     this.isLoading = true;
-    this.apiService.getDetailedRevenues(this.getCenterId(), this.startDate, this.endDate, this.detailedRevenuesPage, this.detailedRevenuesPageSize).subscribe({
+    this.apiService.getDetailedRevenues(this.getCenterId(), this.startDate, this.endDate, this.detailedRevenuesPage, this.detailedRevenuesPageSize).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: res => {
         this.detailedRevenuesData = res.results || res;
         this.detailedRevenuesTotal = res.count || 0;
@@ -907,7 +910,7 @@ export class FinanceComponent implements OnInit {
   // ---- Refunds ----
   runRefunds() {
     this.isLoading = true;
-    this.apiService.getFinanceRefunds(this.getCenterId(), this.startDate, this.endDate).subscribe({
+    this.apiService.getFinanceRefunds(this.getCenterId(), this.startDate, this.endDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.refundsData = res;
         this.isLoading = false;
@@ -920,7 +923,7 @@ export class FinanceComponent implements OnInit {
   // ---- Procurement ----
   runProcurement() {
     this.isLoading = true;
-    this.apiService.getProcurementReport(this.getCenterId(), this.startDate, this.endDate).subscribe({
+    this.apiService.getProcurementReport(this.getCenterId(), this.startDate, this.endDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: res => {
         this.procurementData = res;
         this.isLoading = false;
@@ -991,7 +994,7 @@ export class FinanceComponent implements OnInit {
       this.incentiveEndDate,
       this.getCenterId() || undefined,
       this.incentiveFrequency
-    ).subscribe({
+    ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: data => {
         this.incentivesData = data || [];
         this.isLoading = false;
@@ -1115,7 +1118,7 @@ export class FinanceComponent implements OnInit {
       this.apiService.getRegisterSummary(center.id, this.multiStartDate, this.multiEndDate)
     );
 
-    forkJoin(observables).subscribe(results => {
+    forkJoin(observables).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(results => {
       let mapped = results.map((res: any, index) => ({
         center_name: this.centers[index].display_name || this.centers[index].center_name,
         ...res
@@ -1143,7 +1146,7 @@ export class FinanceComponent implements OnInit {
   loadPettyCash() {
     const cid = this.getCenterId();
     if (!cid) return;
-    this.apiService.getPettyCashEntries(cid, this.startDate, this.endDate).subscribe(res => {
+    this.apiService.getPettyCashEntries(cid, this.startDate, this.endDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(res => {
       this.pettyCashLogs = res;
       this.cdr.detectChanges();
     });
@@ -1161,7 +1164,7 @@ export class FinanceComponent implements OnInit {
     const data = { ...this.pettyCashForm, center: cid };
 
     if (this.editingPettyCash) {
-      this.apiService.updatePettyCashEntry(this.editingPettyCash.id, data).subscribe({
+      this.apiService.updatePettyCashEntry(this.editingPettyCash.id, data).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.pettyCashForm = { description: '', amount: '', voucher_number: '', comments: '' };
           this.editingPettyCash = null;
@@ -1178,7 +1181,7 @@ export class FinanceComponent implements OnInit {
         }
       });
     } else {
-      this.apiService.createPettyCashEntry(data).subscribe({
+      this.apiService.createPettyCashEntry(data).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.pettyCashForm = { description: '', amount: '', voucher_number: '', comments: '' };
           this.isSaving = false;
@@ -1222,13 +1225,13 @@ export class FinanceComponent implements OnInit {
     const cid = this.getCenterId();
     if (!cid) return;
     // Pass the current date range so the admin view is filtered correctly
-    this.apiService.getDailyClosings(cid, undefined, this.closingStartDate, this.closingEndDate).subscribe(data => {
+    this.apiService.getDailyClosings(cid, undefined, this.closingStartDate, this.closingEndDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.closingHistory = data;
       this.cdr.detectChanges();
     });
 
     // Also load petty cash for the admin view using these dates
-    this.apiService.getPettyCashEntries(cid, this.closingStartDate, this.closingEndDate).subscribe(data => {
+    this.apiService.getPettyCashEntries(cid, this.closingStartDate, this.closingEndDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.adminPettyCashLogs = data;
       this.cdr.detectChanges();
     });
@@ -1239,7 +1242,7 @@ export class FinanceComponent implements OnInit {
     if (!cid) return;
 
     // Check if a closing already exists for this date
-    this.apiService.getDailyClosings(cid, this.closingDate).subscribe(existing => {
+    this.apiService.getDailyClosings(cid, this.closingDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(existing => {
       if (existing && existing.length > 0) {
         this.noClosingForDate = false;
         const saved = existing[0];
@@ -1251,7 +1254,7 @@ export class FinanceComponent implements OnInit {
     });
 
     // Load today's cash collection from billing
-    this.apiService.getRegisterSummary(cid, this.closingDate, this.closingDate).subscribe(res => {
+    this.apiService.getRegisterSummary(cid, this.closingDate, this.closingDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(res => {
       const cash = res?.payment_methods?.cash?.amount || 0;
       this.closingData.days_collection = cash;
       this.closingData.todays_expenses = this.todaysExpenses;
@@ -1284,7 +1287,7 @@ export class FinanceComponent implements OnInit {
   checkActiveShift() {
     const cid = this.getCenterId();
     if (!cid) return;
-    this.apiService.getShifts(cid, 'Open').subscribe(res => {
+    this.apiService.getShifts(cid, 'Open').pipe(takeUntilDestroyed(this.destroyRef)).subscribe(res => {
       if (res && res.length > 0) {
         this.activeShift = res[0];
         this.closingData.opening_balance = this.activeShift.starting_float;
@@ -1302,7 +1305,7 @@ export class FinanceComponent implements OnInit {
     if (this.shiftFloat < 0) return alert('Float cannot be negative');
 
     this.isSaving = true;
-    this.apiService.openShift(cid, this.shiftFloat).subscribe({
+    this.apiService.openShift(cid, this.shiftFloat).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         alert('Register Opened Successfully!');
         this.isSaving = false;
@@ -1315,7 +1318,7 @@ export class FinanceComponent implements OnInit {
   closeShift() {
     if (!this.activeShift || this.isSaving) return;
     this.isSaving = true;
-    this.apiService.closeShift(this.activeShift.id, this.shiftActualCash, this.expectedCash).subscribe({
+    this.apiService.closeShift(this.activeShift.id, this.shiftActualCash, this.expectedCash).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         alert(`Register Closed! Variance: Rs. ${this.shiftActualCash - this.expectedCash}`);
         // Save the daily closing as well for historical reports
@@ -1354,7 +1357,7 @@ export class FinanceComponent implements OnInit {
       nearbuy: this.closingData.nearbuy || 0,
       other: this.closingData.other || 0,
     };
-    this.apiService.submitDailyClosing(data).subscribe({
+    this.apiService.submitDailyClosing(data).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.noClosingForDate = false;
         alert('Closing submitted successfully!');
@@ -1401,4 +1404,12 @@ export class FinanceComponent implements OnInit {
     }
     return totals;
   }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

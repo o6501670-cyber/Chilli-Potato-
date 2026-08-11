@@ -3,30 +3,11 @@
   <div class="page-subheader-row" style="margin-bottom: 16px;">
     <div class="subheader-left">
       <div style="display: flex; align-items: center; gap: 8px;">
-
-      <app-location-selector
-        [centers]="centers"
-        [hasGlobalAccess]="hasGlobalAccess"
-        [(selectedCenterId)]="selectedCenterId"
-        (selectionChange)="onCenterChange()">
-      </app-location-selector>
-    </div>
+      </div>
       <span class="cl-count-badge" *ngIf="clients.length > 0">{{ clients.length }} clients</span>
     </div>
     <div class="subheader-right" style="display: flex; gap: 8px;">
       <input type="file" #fileInput (change)="uploadClients($event)" style="display: none;" accept=".csv, .xlsx" />
-      <button class="btn btn-outline"
-        style="display: flex; align-items: center; gap: 6px; color: #10b981; border-color: #10b981;"
-        (click)="exportExcel()" *ngIf="clients.length > 0">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-          <polyline points="14 2 14 8 20 8"></polyline>
-          <line x1="8" y1="13" x2="16" y2="13"></line>
-          <line x1="8" y1="17" x2="16" y2="17"></line>
-          <polyline points="10 9 9 9 8 9"></polyline>
-        </svg> Export Excel
-      </button>
       <button class="btn btn-secondary" style="display: flex; align-items: center; gap: 6px;"
         *ngIf="isOwner || permissions.admin?.clients?.create" (click)="downloadTemplate()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -66,7 +47,7 @@
         <button class="cl-search-btn" (click)="searchClient()">Go</button>
       </div>
       <div class="cl-list">
-        <div *ngFor="let c of clients" class="cl-list-item" [class.active]="client && client.id === c.id"
+        <div *ngFor="let c of clients; trackBy: trackById" class="cl-list-item" [class.active]="client && client.id === c.id"
           (mousedown)="selectClient(c)">
           <div class="cl-avatar">{{ (c.first_name || c.phone || '?')[0].toUpperCase() }}</div>
           <div class="cl-list-info">
@@ -106,19 +87,13 @@
       </div>
       <div *ngIf="client" class="cl-detail-card">
         <!-- Header -->
-        <div class="cl-detail-header">
-          <div class="cl-avatar-lg">{{ (client.first_name || client.phone || '?')[0].toUpperCase() }}</div>
-          <div class="cl-detail-hero">
-            <div class="cl-detail-name">
-              {{client.first_name}}
-              <span *ngIf="client.is_blacklisted"
-                style="background-color: #ef4444; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; vertical-align: middle;">BLACKLISTED</span>
-            </div>
-            <div class="cl-detail-phone">{{client.phone}}</div>
-            <div class="cl-detail-stats" *ngIf="client.id">
+        <div class="cl-detail-header" *ngIf="client.id" style="align-items: center; padding: 16px 24px; display: flex; gap: 16px; min-height: 72px;">
+          <div class="cl-avatar-lg" style="margin: 0; width: 40px; height: 40px; font-size: 18px; line-height: 40px; background: #e2e8f0; color: #1e293b; border-radius: 50%; text-align: center;">{{ (client.first_name || client.phone || '?')[0].toUpperCase() }}</div>
+          <div class="cl-detail-hero" style="margin: 0; display: flex; flex-direction: column; justify-content: center;">
+            <div class="cl-detail-stats" style="margin: 0; display: flex; align-items: center; gap: 12px; font-size: 13px;">
+              <span *ngIf="client.is_blacklisted" style="background-color: #ef4444; color: white; font-size: 10px; padding: 4px 8px; border-radius: 4px; font-weight: bold;">BLACKLISTED</span>
               <span class="cl-stat">LTV: <strong>Rs. {{ client.ltv | number:'1.0-0' }}</strong></span>
-              <span class="cl-stat" *ngIf="client.last_visit">Last visit: <strong>{{ client.last_visit | date:'dd MMM
-                  yyyy' }}</strong></span>
+              <span class="cl-stat" *ngIf="client.last_visit">Last visit: <strong>{{ client.last_visit | date:'dd MMM yyyy' }}</strong></span>
             </div>
           </div>
         </div>
@@ -337,7 +312,7 @@
       <div class="cl-timeline" *ngIf="client">
         <!-- Invoices -->
         <ng-container *ngIf="timelineFilter === 'all' || timelineFilter === 'invoices'">
-          <div *ngFor="let inv of invoices" class="cl-tl-item invoice">
+          <div *ngFor="let inv of invoices; trackBy: trackById" class="cl-tl-item invoice">
             <div class="cl-tl-icon inv"><i class="fa fa-file-text-o"></i></div>
             <div class="cl-tl-content">
               <div class="cl-tl-top">
@@ -357,7 +332,7 @@
         </ng-container>
         <!-- Advances -->
         <ng-container *ngIf="timelineFilter === 'all' || timelineFilter === 'advances'">
-          <div *ngFor="let adv of advances" class="cl-tl-item advance">
+          <div *ngFor="let adv of advances; trackBy: trackById" class="cl-tl-item advance">
             <div class="cl-tl-icon adv"><i class="fa fa-money"></i></div>
             <div class="cl-tl-content">
               <div class="cl-tl-top">
@@ -372,7 +347,7 @@
         </ng-container>
         <!-- Service Logs -->
         <ng-container *ngIf="timelineFilter === 'all' || timelineFilter === 'services'">
-          <div *ngFor="let log of serviceLogs" class="cl-tl-item service">
+          <div *ngFor="let log of serviceLogs; trackBy: trackById" class="cl-tl-item service">
             <div class="cl-tl-icon svc"><i class="fa fa-scissors"></i></div>
             <div class="cl-tl-content">
               <div class="cl-tl-top">

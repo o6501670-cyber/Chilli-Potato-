@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api';
@@ -9,9 +10,11 @@ import { LocationSelectorComponent } from '../components/location-selector/locat
   selector: 'app-marketing',
   imports: [CommonModule, FormsModule, LocationSelectorComponent],
   templateUrl: './marketing.html',
-  styleUrl: './marketing.css'
+  styleUrl: './marketing.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketingComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
   toastService = inject(ToastService);
   cdr = inject(ChangeDetectorRef);
@@ -77,7 +80,7 @@ export class MarketingComponent implements OnInit {
 
   fetchUsageData() {
     this.selectedUsage = null;
-    this.apiService.getPromotionUsage(this.usageStartDate, this.usageEndDate).subscribe(data => {
+    this.apiService.getPromotionUsage(this.usageStartDate, this.usageEndDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.usageData = data || [];
       this.hasRunUsageReport = true;
       this.cdr.detectChanges();
@@ -229,7 +232,7 @@ export class MarketingComponent implements OnInit {
       this.activeTab = '';
     }
 
-    this.apiService.getCenters().subscribe(data => {
+    this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.centers = data || [];
       if (this.isOwner) {
         this.selectedFilterCenterId = null;
@@ -267,29 +270,29 @@ export class MarketingComponent implements OnInit {
   loadData() {
     if (this.activeTab === 'WhatsApp') {
       const cid = this.selectedFilterCenterId ? this.selectedFilterCenterId : undefined;
-      this.apiService.getWhatsAppMessages(cid).subscribe(data => {
+      this.apiService.getWhatsAppMessages(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
         this.whatsappMessages = data;
         this.cdr.detectChanges();
       });
     } else {
       const cid = this.selectedFilterCenterId ? this.selectedFilterCenterId : undefined;
-      this.apiService.getPromotions(cid, true, true).subscribe(data => {
+      this.apiService.getPromotions(cid, true, true).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
         this.promotions = data;
         this.cdr.detectChanges();
       });
-      this.apiService.getValueCards(cid, true).subscribe(data => {
+      this.apiService.getValueCards(cid, true).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
         this.cards = data;
         this.cdr.detectChanges();
       });
-      this.apiService.getMemberships(cid, true).subscribe(data => {
+      this.apiService.getMemberships(cid, true).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
         this.memberships = data;
         this.cdr.detectChanges();
       });
-      this.apiService.getPackages(cid, true).subscribe(data => {
+      this.apiService.getPackages(cid, true).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
         this.packages = data;
         this.cdr.detectChanges();
       });
-      this.apiService.getServices().subscribe(data => {
+      this.apiService.getServices().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
         this.servicesList = data || [];
         this.cdr.detectChanges();
       });
@@ -331,7 +334,7 @@ export class MarketingComponent implements OnInit {
     }
 
     this.isSaving = true;
-    this.apiService.createPromotion(payload).subscribe({
+    this.apiService.createPromotion(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.isSaving = false;
         this.toastService.showSuccess('Promotion created successfully');
@@ -376,7 +379,7 @@ export class MarketingComponent implements OnInit {
     }
 
     this.isSaving = true;
-    this.apiService.createValueCard(payload).subscribe({
+    this.apiService.createValueCard(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.isSaving = false;
         this.toastService.showSuccess('Card created successfully');
@@ -402,7 +405,7 @@ export class MarketingComponent implements OnInit {
     }
 
     this.isSaving = true;
-    this.apiService.createMembership(payload).subscribe({
+    this.apiService.createMembership(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.isSaving = false;
         this.toastService.showSuccess('Membership created successfully');
@@ -442,7 +445,7 @@ export class MarketingComponent implements OnInit {
     }
 
     this.isSaving = true;
-    this.apiService.createPackage(payload).subscribe({
+    this.apiService.createPackage(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.isSaving = false;
         this.toastService.showSuccess('Package created successfully');
@@ -466,7 +469,7 @@ export class MarketingComponent implements OnInit {
     else if (type === 'package') obs = this.apiService.togglePackage(item.id);
 
     if (obs) {
-      obs.subscribe({
+      obs.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res: any) => {
           this.isSaving = false;
           // Optimistically update the UI state instantly
@@ -498,7 +501,7 @@ export class MarketingComponent implements OnInit {
     else if (type === 'package') obs = this.apiService.deletePackage(item.id);
 
     if (obs) {
-      obs.subscribe({
+      obs.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.isSaving = false;
           this.toastService.showSuccess('Deleted successfully');
@@ -574,7 +577,7 @@ export class MarketingComponent implements OnInit {
     else if (this.editItemType === 'package') obs = this.apiService.updatePackage(this.editItemData.id, this.editItemData);
 
     if (obs) {
-      obs.subscribe({
+      obs.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.isSaving = false;
           this.toastService.showSuccess('Updated successfully');
@@ -678,7 +681,7 @@ export class MarketingComponent implements OnInit {
     // Using native confirm for confirmation
     const target = this.campaignCenterId === 'all' ? 'all clients' : 'clients in selected center';
     if (confirm(`Send Campaign?\nAre you sure you want to send this message to ${target}?`)) {
-      this.apiService.sendWhatsAppCampaign(this.campaignCenterId, this.campaignMessage).subscribe({
+      this.apiService.sendWhatsAppCampaign(this.campaignCenterId, this.campaignMessage).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res: any) => {
           this.toastService.showSuccess(`Campaign sent successfully to ${res.count || 0} clients!`);
           this.closeNewCampaignModal();
@@ -689,6 +692,14 @@ export class MarketingComponent implements OnInit {
         }
       });
     }
+  }
+
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
   }
 
 }

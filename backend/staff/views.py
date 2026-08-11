@@ -475,10 +475,10 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
 
         report = []
         for row in logs:
-            svc_rev = float(row['service_revenue'] or 0)
-            prod_rev = float(row['product_revenue'] or 0)
-            svc_comm = svc_rev * float(row['staff__commission_percentage'] or 0) / 100
-            prod_comm = prod_rev * float(row['staff__product_commission_percentage'] or 0) / 100
+            svc_rev = Decimal(str(row['service_revenue'] or 0))
+            prod_rev = Decimal(str(row['product_revenue'] or 0))
+            svc_comm = svc_rev * Decimal(str(row['staff__commission_percentage'] or 0)) / Decimal('100')
+            prod_comm = prod_rev * Decimal(str(row['staff__product_commission_percentage'] or 0)) / Decimal('100')
             name = row['staff__first_name']
             if row['staff__last_name']:
                 name += f" {row['staff__last_name']}"
@@ -486,7 +486,7 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
                 'staff_id': row['staff_id'],
                 'staff_name': name,
                 'center_name': row['staff__center__display_name'] or 'N/A',
-                'salary': float(row['staff__salary'] or 0),
+                'salary': Decimal(str(row['staff__salary'] or 0)),
                 'service_revenue': svc_rev,
                 'product_revenue': prod_rev,
                 'total_revenue': svc_rev + prod_rev,
@@ -534,20 +534,15 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
         
         if override_multiplier and override_percent:
             try:
-                tiers = [(float(override_multiplier), float(override_percent))]
-            except ValueError:
+                tiers = [(Decimal(str(override_multiplier)), Decimal(str(override_percent)))]
+            except (ValueError, TypeError, Exception):
                 tiers = []
         else:
-            # Load IncentiveConfig tiers from DB (ordered by custom_percent descending = highest first)
-            # IncentiveConfig.category = 'multiplier_tier' entries represent threshold tiers.
-            # Each entry's use_multiple=True means "multiplier >= X", custom_percent = the incentive %.
-            # The 'name' field stores the multiplier threshold (as a float string, e.g. '7', '6', '5').
             from finance.models import IncentiveConfig
             center_id_filter = request.query_params.get('center_id')
             incentive_configs = IncentiveConfig.objects.filter(
                 category='multiplier_tier',
             ).order_by('-custom_percent')
-            # Also try center-specific ones first if we have a center filter
             if center_id_filter:
                 center_configs = incentive_configs.filter(center_id=center_id_filter)
                 if center_configs.exists():
@@ -555,27 +550,24 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
                 else:
                     incentive_configs = incentive_configs.filter(center__isnull=True)
 
-            # Build sorted (threshold, percent) pairs. Fall back to hardcoded defaults.
-            tiers = [(float(cfg.name), float(cfg.custom_percent)) for cfg in incentive_configs if _is_float(cfg.name)]
+            tiers = [(Decimal(str(cfg.name)), Decimal(str(cfg.custom_percent))) for cfg in incentive_configs if _is_decimal(cfg.name)]
             if not tiers:
-                # Default tiers: multiplier >= 7 → 5%, >= 6 → 4%, >= 5 → 3%
-                tiers = [(7.0, 5.0), (6.0, 4.0), (5.0, 3.0)]
-            # Sort highest threshold first
+                tiers = [(Decimal('7.0'), Decimal('5.0')), (Decimal('6.0'), Decimal('4.0')), (Decimal('5.0'), Decimal('3.0'))]
             tiers.sort(key=lambda t: t[0], reverse=True)
 
         for member in staff_qs:
             row = sales_by_staff.get(member.id, {})
-            total_sales = float(row.get('total_sales') or 0)
-            salary = float(member.salary or 0)
-            multiplier = total_sales / salary if salary > 0 else 0
+            total_sales = Decimal(str(row.get('total_sales') or 0))
+            salary = Decimal(str(member.salary or 0))
+            multiplier = total_sales / salary if salary > 0 else Decimal('0')
 
-            incentive_percentage = 0
+            incentive_percentage = Decimal('0')
             for threshold, pct in tiers:
                 if multiplier >= threshold:
                     incentive_percentage = pct
                     break
 
-            incentive_amount = total_sales * (incentive_percentage / 100.0)
+            incentive_amount = total_sales * (incentive_percentage / Decimal('100.0'))
 
             report.append({
                 'staff_id': member.id,
@@ -590,11 +582,11 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
 
         return Response(report)
 
-def _is_float(s):
+def _is_decimal(s):
     try:
-        float(s)
+        Decimal(str(s))
         return True
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, Exception):
         return False
 
 
@@ -604,7 +596,12 @@ class ServiceLogViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = ServiceLog.objects.exclude(invoice__status__in=['cancelled', 'refunded']).select_related('staff', 'invoice', 'invoice__client').order_by('-date', '-time')
+        queryset = (
+            ServiceLog.objects
+            .exclude(invoice__status__in=['cancelled', 'refunded'])
+            .select_related('staff', 'center', 'invoice', 'invoice__client')
+            .order_by('-date', '-time')
+        )
         role = getattr(user, 'role', None)
         is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
         perms = getattr(role, 'permissions', {}) or {}
@@ -614,6 +611,10 @@ class ServiceLogViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(center__in=user.centers.all())
             elif hasattr(user, 'center') and user.center:
                 queryset = queryset.filter(center=user.center)
+
+        center_id = self.request.query_params.get('center_id')
+        if center_id:
+            queryset = queryset.filter(center_id=center_id)
 
         staff_id = self.request.query_params.get('staff_id')
         if staff_id:
@@ -627,6 +628,14 @@ class ServiceLogViewSet(viewsets.ModelViewSet):
         end_date = self.request.query_params.get('end_date')
         if start_date and end_date:
             queryset = queryset.filter(date__range=[start_date, end_date])
+        elif start_date:
+            queryset = queryset.filter(date__gte=start_date)
+        elif end_date:
+            queryset = queryset.filter(date__lte=end_date)
+        else:
+            # Default: return last 30 days to prevent unbounded full-table scan on list
+            from datetime import date, timedelta
+            queryset = queryset.filter(date__gte=date.today() - timedelta(days=30))
 
         return queryset
 
@@ -742,7 +751,7 @@ class ServiceLogViewSet(viewsets.ModelViewSet):
 @permission_classes([permissions.IsAuthenticated])
 def revenue_report(request):
     user = request.user
-    queryset = ServiceLog.objects.all()
+    queryset = ServiceLog.objects.all().select_related('staff', 'center', 'invoice')
     role = getattr(user, 'role', None)
     is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
     perms = getattr(role, 'permissions', {}) or {}
@@ -810,7 +819,7 @@ def revenue_report(request):
 @permission_classes([permissions.IsAuthenticated])
 def usage_report(request):
     user = request.user
-    queryset = ServiceLog.objects.all()
+    queryset = ServiceLog.objects.all().select_related('staff', 'center', 'invoice')
     role = getattr(user, 'role', None)
     is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
     perms = getattr(role, 'permissions', {}) or {}
@@ -851,7 +860,7 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = StaffConsumptionLog.objects.all().order_by('-date', '-time')
+        queryset = StaffConsumptionLog.objects.all().select_related('staff', 'center', 'product').order_by('-date', '-time')
         role = getattr(user, 'role', None)
         is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
         perms = getattr(role, 'permissions', {}) or {}
@@ -1035,7 +1044,7 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
 @permission_classes([permissions.IsAuthenticated])
 def consumption_report(request):
     user = request.user
-    queryset = StaffConsumptionLog.objects.all()
+    queryset = StaffConsumptionLog.objects.all().select_related('staff', 'center', 'product')
     role = getattr(user, 'role', None)
     is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
     perms = getattr(role, 'permissions', {}) or {}
@@ -1084,7 +1093,7 @@ class StaffTransferViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         sync_staff_transfers_and_tools()
         user = self.request.user
-        queryset = StaffTransfer.objects.all().order_by('-created_at')
+        queryset = StaffTransfer.objects.all().select_related('staff', 'from_center', 'to_center').order_by('-created_at')
         role = getattr(user, 'role', None)
         is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
         perms = getattr(role, 'permissions', {}) or {}
@@ -1213,7 +1222,7 @@ class StaffTransferViewSet(viewsets.ModelViewSet):
         staff.save()
 
 class StaffToolTrackerViewSet(viewsets.ModelViewSet):
-    queryset = StaffToolTracker.objects.all().order_by('-created_at')
+    queryset = StaffToolTracker.objects.all().select_related('staff', 'center').order_by('-created_at')
     serializer_class = StaffToolTrackerSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1331,7 +1340,7 @@ class StaffToolTrackerViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 class PayrollRecordViewSet(viewsets.ModelViewSet):
-    queryset = PayrollRecord.objects.all().order_by('-created_at')
+    queryset = PayrollRecord.objects.all().select_related('staff', 'center').order_by('-created_at')
     serializer_class = PayrollRecordSerializer
     permission_classes = [permissions.IsAuthenticated]
 

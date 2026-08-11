@@ -152,11 +152,13 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
         from clients.models import Client
         import datetime
 
-        # Get clients based on center
+        # Use .only() to avoid loading ALL client fields into RAM — we only need phone, name, center_id
         if center_id and str(center_id).lower() != 'all':
-            clients = Client.objects.filter(center_id=center_id)
+            clients = Client.objects.filter(
+                center_id=center_id
+            ).only('id', 'phone', 'full_name', 'center_id').select_related('center')
         else:
-            clients = Client.objects.all()
+            clients = Client.objects.all().only('id', 'phone', 'full_name', 'center_id').select_related('center')
 
         if not clients.exists():
             return Response({'error': 'No clients found in the selected center'}, status=status.HTTP_404_NOT_FOUND)
@@ -165,13 +167,18 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
         now = datetime.datetime.now()
         date_today = now.date()
         time_now = now.time()
+        default_center = None  # cache to avoid repeated DB hit
 
-        for client in clients:
+        for client in clients.iterator(chunk_size=500):  # stream in chunks — never loads all into RAM
             if not client.phone:
                 continue
-            # Mock sending via Twilio/Meta API would happen here
+            client_center = client.center
+            if not client_center:
+                if default_center is None:
+                    default_center = Center.objects.first()
+                client_center = default_center
             messages_created.append(WhatsAppMessage(
-                center=client.center if client.center else Center.objects.first(),
+                center=client_center,
                 date=date_today,
                 time=time_now,
                 client_name=client.full_name,
@@ -179,8 +186,13 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
                 message=message,
                 status='Sent (Mock)'
             ))
+            # Bulk-create every 1000 to avoid holding massive lists in memory
+            if len(messages_created) >= 1000:
+                WhatsAppMessage.objects.bulk_create(messages_created)
+                messages_created = []
 
-        WhatsAppMessage.objects.bulk_create(messages_created)
+        if messages_created:
+            WhatsAppMessage.objects.bulk_create(messages_created)
 
         return Response({
             'message': f'Campaign sent to {len(messages_created)} clients',

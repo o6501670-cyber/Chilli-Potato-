@@ -360,12 +360,12 @@
 /* ===================================================================
    ADMIN SUB-NAV TABS
    =================================================================== */
-.admin-subnav {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  padding: 0 24px 16px;
-  flex-shrink: 0;
+
+
+
+
+.admin-subnav::-webkit-scrollbar {
+  display: none;
 }
 
 .admin-subnav::-webkit-scrollbar {
@@ -373,10 +373,11 @@
 }
 
 .subnav-tab {
-  padding: 8px 18px;
+  pointer-events: auto;
+  padding: 16px 16px;
   border: none;
   background: transparent;
-  color: #9ca3af;
+  color: #6b7280;
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
@@ -385,6 +386,7 @@
   transition: all 0.2s;
   white-space: nowrap;
   text-decoration: none;
+  margin-bottom: -1px;
 }
 
 .subnav-tab:hover {
@@ -407,8 +409,11 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0 24px 24px 24px;
+  padding: 24px;
+  position: relative; /* important for absolute positioning of child headers */
 }
+
+
 
 /* ===================================================================
    CHAT WIDGET (Premium Cinematic Theme)
@@ -806,8 +811,14 @@
   }
 
   .content-area {
-    padding: 12px;
-  }
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  position: relative; /* important for absolute positioning of child headers */
+}
+
+
 
   .chat-widget {
     right: 0;
@@ -821,4 +832,33 @@
   .page-title {
     font-size: 18px;
   }
+}
+
+/* Global override for admin child components to push their controls into the navbar */
+::ng-deep .bills-header {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end !important;
+  margin: 0 0 24px 0 !important;
+  padding: 0 !important;
+}
+
+/* Hide the redundant 'Services Master' etc. titles because they overlap the tabs and are already implied by the active tab */
+::ng-deep .bills-page-title {
+  display: none !important;
+}
+
+/* The controls inside bills-header should have no margin */
+::ng-deep .bills-controls {
+  margin: 0 0 0 auto !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap !important;
+}
+
+/* Make sure child page wrapper doesn't have extra top padding */
+::ng-deep .bills-page {
+  padding-top: 0 !important;
 }

@@ -176,7 +176,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
                     vc_id = p.get('value_card_id')
                     from clients.models import ClientValueCard
                     try:
-                        vc = ClientValueCard.objects.get(id=vc_id, client=client)
+                        vc = ClientValueCard.objects.select_for_update().get(id=vc_id, client=client)
                     except ClientValueCard.DoesNotExist:
                         raise serializers.ValidationError("Value card not found or does not belong to client.")
                     # Check balance separately so the correct error message reaches the user
@@ -455,8 +455,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
                 'phone': getattr(instance.center, 'phone', '') or '',
             }
 
-        # Enrich items with full staff_members objects
-        for item_repr, item_instance in zip(repr_data.get('items', []), instance.items.all()):
+        # Enrich items with full staff_members objects, using prefetch_related to eliminate N+1 queries
+        for item_repr, item_instance in zip(repr_data.get('items', []), instance.items.prefetch_related('staff_members').all()):
             item_repr['staff_members'] = [
                 {'id': s.id, 'name': f"{s.first_name} {s.last_name or ''}".strip()}
                 for s in item_instance.staff_members.all()

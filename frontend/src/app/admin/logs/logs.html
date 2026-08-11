@@ -84,7 +84,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let log of logs" [class.active-log]="selectedLog?.id === log.id" (click)="selectLog(log)" style="cursor: pointer;">
+              <tr *ngFor="let log of logs; trackBy: trackById" [class.active-log]="selectedLog?.id === log.id" (click)="selectLog(log)" style="cursor: pointer;">
                 <td>
                   <div style="font-weight: 600; color: #111827;">{{ log.user_name || log.user_email || 'System' }}</div>
                 </td>

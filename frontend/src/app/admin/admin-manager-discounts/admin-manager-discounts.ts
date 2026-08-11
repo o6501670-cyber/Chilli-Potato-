@@ -1,35 +1,46 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { AdminFilterService } from '../admin-filter.service';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api';
 import { CsvService } from '../../services/csv.service';
-import { LocationSelectorComponent } from '../../components/location-selector/location-selector';
 
 @Component({
   selector: 'app-admin-manager-discounts',
   standalone: true,
-  imports: [CommonModule, FormsModule, LocationSelectorComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './admin-manager-discounts.html',
-  styleUrl: './admin-manager-discounts.css'
+  styleUrl: './admin-manager-discounts.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminManagerDiscountsComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   permissions: any = {};
   isOwner = false;
   hasGlobalAccess = false;
 
   apiService = inject(ApiService);
+  adminFilterService = inject(AdminFilterService);
   cdr = inject(ChangeDetectorRef);
   csvService = inject(CsvService);
 
   centers: any[] = [];
-  selectedCenterId: number | null = null;
+  
   invoices: any[] = [];
   isLoading = false;
-  fromDate: string = '';
-  toDate: string = '';
+  
+  
 
   ngOnInit() {
+    this.adminFilterService.apply$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.getDiscountedInvoices();
+    });
+    this.adminFilterService.export$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.exportExcel();
+    });
+
     const userStr = localStorage.getItem('user');
     if (userStr) {
       try {
@@ -40,12 +51,12 @@ export class AdminManagerDiscountsComponent implements OnInit {
       } catch (e) {}
     }
     const today = new Date();
-    this.toDate = this.formatDate(today);
+    this.adminFilterService.setToDate(this.formatDate(today));
     const start = new Date();
     start.setDate(start.getDate() - 30);
-    this.fromDate = this.formatDate(start);
+    this.adminFilterService.setFromDate(this.formatDate(start));
 
-    this.loadCenters();
+    this.getDiscountedInvoices();
   }
 
   formatDate(date: Date): string {
@@ -59,11 +70,11 @@ export class AdminManagerDiscountsComponent implements OnInit {
   }
 
   loadCenters() {
-    this.apiService.getCenters().subscribe({
+    this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data: any) => {
         this.centers = Array.isArray(data) ? data : (data.results || []);
-        if (this.centers.length && !this.selectedCenterId) {
-          this.selectedCenterId = this.centers[0].id;
+        if (this.centers.length && !this.adminFilterService.currentCenterId) {
+          this.adminFilterService.setCenterId(this.centers[0].id);
         }
         this.getDiscountedInvoices();
       },
@@ -77,11 +88,11 @@ export class AdminManagerDiscountsComponent implements OnInit {
   getDiscountedInvoices() {
     this.isLoading = true;
     
-    let url = `billing/invoices/?center_id=${this.selectedCenterId || ''}&manager_discount=true`;
-    if (this.fromDate) url += `&start_date=${this.fromDate}`;
-    if (this.toDate) url += `&end_date=${this.toDate}`;
+    let url = `billing/invoices/?center_id=${this.adminFilterService.currentCenterId || ''}&manager_discount=true`;
+    if (this.adminFilterService.currentFromDate) url += `&start_date=${this.adminFilterService.currentFromDate}`;
+    if (this.adminFilterService.currentToDate) url += `&end_date=${this.adminFilterService.currentToDate}`;
     
-    this.apiService.get(url).subscribe({
+    this.apiService.get(url).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data: any) => {
         this.invoices = Array.isArray(data) ? data : (data.results || []);
         this.isLoading = false;
@@ -173,4 +184,12 @@ export class AdminManagerDiscountsComponent implements OnInit {
     });
     return sum;
   }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

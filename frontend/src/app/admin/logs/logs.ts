@@ -1,4 +1,5 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api';
@@ -25,9 +26,11 @@ const FLAG_FALLBACK = '🌐';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './logs.html',
-  styleUrl: './logs.css'
+  styleUrl: './logs.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LogsComponent implements OnInit, OnDestroy {
+  private destroyRef = inject(DestroyRef);
   logs: any[] = [];
   loading = false;
 
@@ -98,7 +101,7 @@ export class LogsComponent implements OnInit, OnDestroy {
           this.cdr.detectChanges();
         })
       )
-      .subscribe({
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (data: any) => {
           const rows = Array.isArray(data) ? data : (data.results ?? []);
 
@@ -225,69 +228,12 @@ export class LogsComponent implements OnInit, OnDestroy {
   private ipCache: Record<string, any> = {};
 
   private resolveLocation(log: any) {
-    const ip = log.ip_address;
-    if (this.ipCache[ip]) {
-      if (this.ipCache[ip] instanceof Promise) {
-        this.ipCache[ip].then((loc: any) => {
-          if (loc) {
-            this.applyLocationData(log, loc);
-          } else {
-            log.geo_country = 'Lookup Failed';
-          }
-          this.cdr.detectChanges();
-        });
-      } else {
-        this.applyLocationData(log, this.ipCache[ip]);
-      }
-      return;
+    // Rely strictly on backend geolocation to prevent CORS blocks in HTTPS environments
+    if (log.geo_country_code) {
+      log._countryFlag = this.countryFlag(log.geo_country_code);
+    } else if (!log.geo_country) {
+      log.geo_country = 'Local/Unknown';
     }
-    
-    this.ipCache[ip] = fetch(`https://freeipapi.com/api/json/${ip}`)
-      .then(res => {
-        if (!res.ok) throw new Error('API Error');
-        return res.json();
-      })
-      .then(data => {
-        if (data && data.countryName) {
-          const loc = {
-            geo_city: data.cityName || '',
-            geo_country: data.countryName || '',
-            geo_country_code: data.countryCode || '',
-            geo_region: data.regionName || ''
-          };
-          this.ipCache[ip] = loc;
-          this.applyLocationData(log, loc);
-          this.cdr.detectChanges();
-          return loc;
-        }
-        throw new Error('No Data');
-      })
-      .catch(() => {
-        // Fallback to ip-api
-        return fetch(`http://ip-api.com/json/${ip}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data && data.status === 'success') {
-              const loc = {
-                geo_city: data.city || '',
-                geo_country: data.country || '',
-                geo_country_code: data.countryCode || '',
-                geo_region: data.regionName || ''
-              };
-              this.ipCache[ip] = loc;
-              this.applyLocationData(log, loc);
-              this.cdr.detectChanges();
-              return loc;
-            }
-            throw new Error('Fallback No Data');
-          })
-          .catch(() => {
-             this.ipCache[ip] = null;
-             log.geo_country = 'Lookup Failed';
-             this.cdr.detectChanges();
-             return null;
-          });
-      });
   }
 
   private applyLocationData(log: any, loc: any) {
@@ -313,4 +259,12 @@ export class LogsComponent implements OnInit, OnDestroy {
   }
 
   moduleLabel(k: string) { return MODULE_LABELS[k] || k; }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

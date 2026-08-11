@@ -20,6 +20,14 @@ class WhatsAppMessage(models.Model):
     def __str__(self):
         return f"{self.client_name} - {self.status}"
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['center', 'created_at'], name='wa_center_date_idx'),
+            models.Index(fields=['status'], name='wa_status_idx'),
+            models.Index(fields=['created_at'], name='wa_created_idx'),
+        ]
+
+
 class Promotion(models.Model):
     PROMO_TYPES = (
         ('Discount', 'Discount on Bill/items'),
@@ -45,6 +53,13 @@ class Promotion(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['is_active', 'start_date', 'end_date'], name='promo_active_dates_idx'),
+            models.Index(fields=['created_at'], name='promo_created_idx'),
+        ]
+
+
 class PromotionUsage(models.Model):
     promotion = models.ForeignKey(Promotion, on_delete=models.CASCADE, related_name='usages')
     center = models.ForeignKey(Center, on_delete=models.CASCADE)
@@ -56,6 +71,13 @@ class PromotionUsage(models.Model):
 
     def __str__(self):
         return f"{self.promotion.name} at {self.center}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['promotion', 'center'], name='promo_usage_center_idx'),
+            models.Index(fields=['client'], name='promo_usage_client_idx'),
+        ]
+
 
 class ValueCard(models.Model):
     level = models.CharField(max_length=50, choices=LEVEL_CHOICES, default='Organisation')
@@ -73,6 +95,13 @@ class ValueCard(models.Model):
 
     def __str__(self):
         return self.title
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['is_active'], name='vc_active_idx'),
+            models.Index(fields=['created_at'], name='vc_created_idx'),
+        ]
+
 
 class Membership(models.Model):
     level = models.CharField(max_length=50, choices=LEVEL_CHOICES, default='Organisation')
@@ -92,11 +121,18 @@ class Membership(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['is_active'], name='mbr_active_idx'),
+            models.Index(fields=['created_at'], name='mbr_created_idx'),
+        ]
+
+
 class Package(models.Model):
     level = models.CharField(max_length=50, choices=LEVEL_CHOICES, default='Organisation')
     center = models.ForeignKey(Center, on_delete=models.CASCADE, null=True, blank=True, related_name='packages')
     name = models.CharField(max_length=255)
-    service_name = models.CharField(max_length=255, blank=True, null=True) # Legacy placeholder
+    service_name = models.CharField(max_length=255, blank=True, null=True)  # Legacy placeholder
     services_json = models.JSONField(default=list, blank=True)
     description = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -106,3 +142,9 @@ class Package(models.Model):
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['is_active'], name='pkg_active_idx'),
+            models.Index(fields=['created_at'], name='pkg_created_idx'),
+        ]

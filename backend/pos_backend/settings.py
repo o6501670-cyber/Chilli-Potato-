@@ -30,7 +30,7 @@ if not DEBUG and SECRET_KEY == _INSECURE_KEY:
 
 ALLOWED_HOSTS = os.environ.get(
     'DJANGO_ALLOWED_HOSTS',
-    '38.45.94.56,localhost,127.0.0.1'
+    '38.45.94.56,localhost,127.0.0.1,testserver'
 ).split(',')
 
 # ─── Installed Apps ────────────────────────────────────────────────────────────

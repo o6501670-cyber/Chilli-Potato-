@@ -1,8 +1,8 @@
 from rest_framework import viewsets, permissions
+from django.db import transaction
 from .models import Appointment, AppointmentService
 from .serializers import AppointmentSerializer
 import datetime
-
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
@@ -12,7 +12,9 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Appointment.objects.select_related(
             'client', 'center'
-        ).prefetch_related('services', 'services__staff', 'invoices').order_by('date', 'start_time')
+        ).prefetch_related(
+            'services', 'services__staff'
+        ).order_by('-date', '-start_time')
         role = getattr(user, 'role', None)
         is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
         perms = getattr(role, 'permissions', {}) or {}
@@ -59,6 +61,14 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             if not svc_time or not hasattr(svc_time, 'hour'):
                 continue
 
+            # Lock the staff member to serialize appointment creation for them
+            from staff.models import StaffMember
+            try:
+                staff_obj = StaffMember.objects.select_for_update().get(id=staff_id)
+                staff_name = f"{staff_obj.first_name} {staff_obj.last_name or ''}".strip()
+            except StaffMember.DoesNotExist:
+                staff_name = f"Staff #{staff_id}"
+
             # Find all other active appointments for this staff member on the same date
             existing_services = AppointmentService.objects.filter(
                 staff_id=staff_id,
@@ -82,13 +92,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
                 # True overlap: new starts before existing ends AND new ends after existing starts
                 if new_start < existing_end and new_end > existing_start:
-                    from staff.models import StaffMember
-                    try:
-                        staff_obj = StaffMember.objects.get(id=staff_id)
-                        staff_name = f"{staff_obj.first_name} {staff_obj.last_name or ''}".strip()
-                    except StaffMember.DoesNotExist:
-                        staff_name = f"Staff #{staff_id}"
-
                     return True, (
                         f"{staff_name} already has an appointment at "
                         f"{existing_time.strftime('%I:%M %p')} on {appt_date}. "
@@ -97,6 +100,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         return False, None
 
+    @transaction.atomic
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
@@ -132,6 +136,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         appt = serializer.save()
         self._link_client(appt)
 
+    @transaction.atomic
     def perform_update(self, serializer):
         instance = serializer.instance
         services_data = serializer.validated_data.get('services', [])

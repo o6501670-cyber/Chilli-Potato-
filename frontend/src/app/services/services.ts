@@ -1,27 +1,55 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api';
 import { ToastService } from '../services/toast.service';
 import { CsvService } from '../services/csv.service';
+import { AdminFilterService } from '../admin/admin-filter.service';
 
 @Component({
   selector: 'app-services',
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './services.html',
-  styleUrls: ['./services.css']
+  styleUrls: ['./services.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ServicesComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   toastService = inject(ToastService);
 
   api = inject(ApiService);
   csvService = inject(CsvService);
   cdr = inject(ChangeDetectorRef);
+  adminFilterService = inject(AdminFilterService);
   centers: any[] = [];
   selectedCenter: number | null = null;
   services: any[] = [];
+  currentPage: number = 1;
+  pageSize: number = 500;
+
+  get paginatedServices() {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.services.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  get totalPages() {
+    return Math.ceil(this.services.length / this.pageSize) || 1;
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+    }
+  }
+
+  prevPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+    }
+  }
   showAddModal: boolean = false;
   isEditing = false;
   editingId: number | null = null;
@@ -56,35 +84,30 @@ export class ServicesComponent implements OnInit {
       } catch (e) {}
     }
 
-    this.api.getCenters().subscribe(data => {
+    this.api.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.centers = data || [];
-      if (this.centers.length) {
-        this.selectedCenter = this.centers[0].id;
-      }
+
       this.loadServices();
     });
   }
 
   loadServices() {
-    const cid = this.selectedCenter ?? undefined;
-    this.api.getServices(cid).subscribe(data => {
+    const cid = this.adminFilterService.currentCenterId ?? undefined;
+    this.api.getServices(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.services = data || [];
+        this.currentPage = 1;
       this.cdr.detectChanges();
     });
   }
 
-  onCenterChange() {
-    this.loadServices();
-  }
-
   saveOverride(s: any) {
-    if (!this.selectedCenter) {
+    if (!this.adminFilterService.currentCenterId) {
       this.toastService.showError('Please select a center first');
       return;
     }
     const price = s.center_override ? s.center_override.price : s.default_price;
     const isActive = s.center_override ? s.center_override.is_active : true;
-    this.api.overrideCenterService(this.selectedCenter, s.id, price, isActive).subscribe({
+    this.api.overrideCenterService(this.adminFilterService.currentCenterId, s.id, price, isActive).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.toastService.showSuccess('Override saved');
         this.loadServices();
@@ -116,7 +139,7 @@ export class ServicesComponent implements OnInit {
 
   deleteService(s: any) {
     if (confirm('Are you sure you want to delete this service?')) {
-      this.api.deleteService(s.id).subscribe({
+      this.api.deleteService(s.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.loadServices();
         },
@@ -173,7 +196,7 @@ export class ServicesComponent implements OnInit {
     };
 
     if (this.isEditing && this.editingId) {
-      this.api.updateService(this.editingId, payload, this.selectedCenter).subscribe({
+      this.api.updateService(this.editingId, payload, this.adminFilterService.currentCenterId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.toastService.showSuccess('Service updated');
           this.showAddModal = false;
@@ -186,7 +209,7 @@ export class ServicesComponent implements OnInit {
         }
       });
     } else {
-      this.api.createService(payload).subscribe({
+      this.api.createService(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.toastService.showSuccess('Service created');
           this.showAddModal = false;
@@ -211,7 +234,7 @@ export class ServicesComponent implements OnInit {
     if (!file) return;
     this.isSaving = true;
     // Center-aware upload
-    this.api.uploadFile('services/api/master/bulk_upload/', file, this.selectedCenter).subscribe({
+    this.api.uploadFile('services/api/master/bulk_upload/', file, this.adminFilterService.currentCenterId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res: any) => {
         this.isSaving = false;
         const msg = res.message || 'File uploaded successfully';
@@ -269,4 +292,12 @@ export class ServicesComponent implements OnInit {
     ]);
     this.csvService.exportToCsv('Services_Report', headers, rows);
   }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

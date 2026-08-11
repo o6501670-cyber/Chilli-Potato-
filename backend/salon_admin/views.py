@@ -101,7 +101,7 @@ def dashboard_view(request):
     
     # Generate daily breakdown directly efficiently
     daily_rev = invoices.annotate(day=Cast('created_at', DateField())).values('day').annotate(revenue=Sum('total_amount')).order_by('day')
-    revenue_by_day = [{'day': item['day'].strftime('%Y-%m-%d') if hasattr(item['day'], 'strftime') else str(item['day']), 'revenue': float(item['revenue'] or 0)} for item in daily_rev if item['day']]
+    revenue_by_day = [{'day': item['day'].strftime('%Y-%m-%d') if hasattr(item['day'], 'strftime') else str(item['day']), 'revenue': _Decimal(str(item['revenue'] or 0))} for item in daily_rev if item['day']]
     
     daily_appts = appointments.values('date').annotate(count=Count('id')).order_by('date')
     appointments_by_day = [{'day': item['date'].strftime('%Y-%m-%d') if isinstance(item['date'], datetime) else str(item['date']), 'count': item['count']} for item in daily_appts if item['date']]
@@ -157,7 +157,7 @@ def dashboard_view(request):
             revenue=Sum('total_price')
         ).order_by('-revenue')
 
-        service_revenue_breakdown = [{'name': s['description'] or 'Unknown', 'revenue': float(s['revenue'] or 0)} for s in service_revenue]
+        service_revenue_breakdown = [{'name': s['description'] or 'Unknown', 'revenue': _Decimal(str(s['revenue'] or 0))} for s in service_revenue]
         top_5_services = service_revenue_breakdown[:5]
     except Exception as e:
         service_revenue_breakdown = []
@@ -171,7 +171,7 @@ def dashboard_view(request):
         'total_appointments': total_appointments,
         'total_clients': total_clients,
         'footfall': footfall,
-        'avg_spend': round(float(avg_spend), 2),
+        'avg_spend': round(_Decimal(str(avg_spend)), 2),
         'revenue_by_day': revenue_by_day,
         'service_type_breakdown': service_type_breakdown,
         'service_revenue_breakdown': service_revenue_breakdown,

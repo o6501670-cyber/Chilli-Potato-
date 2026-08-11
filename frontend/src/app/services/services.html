@@ -1,19 +1,35 @@
-<div class="bills-page">
-  <div class="bills-header">
-    <div class="bills-page-title" style="margin-right: auto;">Services Master</div>
-    <div class="bills-controls" style="margin-bottom: 0;">
-      <div class="control-pill-group">
-        <select class="pill-select" [(ngModel)]="selectedCenter" (change)="onCenterChange()">
-          <option [ngValue]="null" *ngIf="hasGlobalAccess">All Locations</option>
-          <option *ngFor="let c of centers" [ngValue]="c.id">{{c.display_name || c.center_name}}</option>
-        </select>
+<div class="bills-page" style="display: flex; flex-direction: column; height: calc(100vh - 180px); overflow: hidden;">
+  <div class="bills-header" style="width: 100%; display: flex; align-items: center; margin-bottom: 16px;">
+    
+    <!-- Left Side: KPIs and Pagination -->
+    <div style="display: flex; gap: 1rem; align-items: center; margin-right: auto; overflow: hidden; flex: 1;">
+      
+      <!-- Compact Total Services -->
+      <div class="kpi-card-dark" style="display: flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 6px; background: #0f172a; color: white; white-space: nowrap;">
+        <div style="font-size: 10px; font-weight: 600; color: #94a3b8;">TOTAL</div>
+        <div style="font-size: 14px; font-weight: 700;">{{ services.length }}</div>
+      </div>
+      
+      <!-- Compact Instructions -->
+      <div class="kpi-card-light" style="display: flex; align-items: center; gap: 8px; background: #fffbe8; border: 1px solid #fde047; padding: 4px 12px; border-radius: 6px; white-space: nowrap; overflow: hidden;">
+        <div style="color: #a16207; font-size: 10px; font-weight: 700;">INFO:</div>
+        <div style="font-size: 11px; color: #854d0e; display: flex; gap: 12px; font-weight: 500;">
+          <span>• Click headers to sort</span>
+          <span>• Edit center prices inline</span>
+          <span>• Delete price to deactivate</span>
+        </div>
       </div>
 
-      <button class="pill-btn outline-btn" (click)="exportExcel()" *ngIf="services.length > 0">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-        Export
-      </button>
+      <!-- Pagination -->
+      <div class="pagination-controls" style="display: flex; gap: 0.25rem; align-items: center;" *ngIf="services.length > 0">
+          <button class="pill-btn outline-btn" style="padding: 2px 8px; font-size: 11px; min-height: 24px;" (click)="prevPage()" [disabled]="currentPage === 1">Prev</button>
+          <span style="font-size: 11px; font-weight: 500; white-space: nowrap;">{{ currentPage }} / {{ totalPages }}</span>
+          <button class="pill-btn outline-btn" style="padding: 2px 8px; font-size: 11px; min-height: 24px;" (click)="nextPage()" [disabled]="currentPage === totalPages">Next</button>
+      </div>
+    </div>
 
+    <!-- Right Side: Buttons -->
+    <div class="bills-controls" style="margin-bottom: 0; display: flex; gap: 8px; flex-shrink: 0;">
       <button class="pill-btn outline-btn" *ngIf="isOwner || permissions.admin?.services?.create" (click)="downloadTemplate()">
         Template
       </button>
@@ -29,12 +45,11 @@
     </div>
   </div>
 
-  <div class="bills-layout-grid">
-    <!-- Left Column: Services Table -->
-    <div class="bills-list">
-      <div class="date-divider" *ngIf="services.length > 0">ALL SERVICES</div>
+  <div class="bills-list" style="flex: 1; overflow-y: auto; overflow-x: auto; width: 100%;">
 
-      <table class="modern-bills-table" *ngIf="services.length > 0">
+    <div class="date-divider" *ngIf="services.length > 0">ALL SERVICES</div>
+
+    <table class="modern-bills-table" *ngIf="services.length > 0" style="width: 100%;">
         <thead>
           <tr>
             <th>Code</th>
@@ -47,12 +62,12 @@
             <th>Default Price</th>
             <th>Duration</th>
             <th>Centers</th>
-            <th class="center-col-header">{{ centers.find(c=>c.id==selectedCenter)?.display_name || 'Center' }} Price</th>
+            <th class="center-col-header">{{ centers.find(c=>c.id==adminFilterService.currentCenterId)?.display_name || 'Center' }} Price</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let s of services">
+          <tr *ngFor="let s of paginatedServices">
             <td class="text-secondary">{{s.service_code || '-'}}</td>
             <td>{{s.brand || '-'}}</td>
             <td><span class="font-bold">{{s.name}}</span></td>
@@ -93,26 +108,7 @@
         No services found. Click "+ New Service" to create one.
       </div>
     </div>
-
-    <!-- Right Column: KPI Snapshot -->
-    <div class="bills-sidebar">
-      <div class="kpi-card-dark">
-        <div class="kpi-label">Total Services</div>
-        <div class="kpi-value">{{ services.length }}</div>
-      </div>
-      
-      <div class="kpi-card-light" style="background: #fffbe8; border-color: #fde047;">
-        <div class="kpi-label" style="color: #a16207;">Instructions</div>
-        <div style="font-size: 11px; color: #854d0e; line-height: 1.4;">
-          - Click on headers to sort<br>
-          - Click on individual center prices to change them<br>
-          - To deactivate a service for a center, delete the price and hit enter<br>
-          - Prices are BEFORE tax
-        </div>
-      </div>
-    </div>
   </div>
-</div>
 
   <!-- Add Service Modal -->
   <div class="modal" *ngIf="showAddModal">

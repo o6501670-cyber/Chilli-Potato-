@@ -1,7 +1,8 @@
+from decimal import Decimal
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.db.models import Sum, Count, Q, DateField, Max
+from django.db.models import Sum, Count, Q, DateField, Max, F
 from django.db.models.functions import TruncDate, ExtractHour, ExtractYear, ExtractMonth, Cast, ExtractWeekDay
 from datetime import datetime, timedelta, date as date_type
 import calendar
@@ -98,24 +99,30 @@ def dashboard_summary(request):
         val = 0
         if target_month_key and target_month_key in history:
             try:
-                val = float(history[target_month_key])
+                val = Decimal(str(history[target_month_key]))
             except (ValueError, TypeError):
                 pass
                 
         if val == 0:
-            val = float(center.monthly_target or 0)
+            val = Decimal(str(center.monthly_target or 0))
             
         monthly_target += val
-    projected = float(total_revenue)
+    projected = Decimal(str(total_revenue))
     start_date_str = request.GET.get('start_date')
-    if start_date_str and total_revenue > 0:
+    end_date_str = request.GET.get('end_date')
+    if start_date_str and end_date_str and total_revenue > 0:
         try:
             sd = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            ed = datetime.strptime(end_date_str, '%Y-%m-%d').date()
             today = date_type.today()
-            days_elapsed = max((today - sd).days, 1)
-            days_in_month = calendar.monthrange(today.year, today.month)[1]
-            # Project full-month revenue based on daily run-rate
-            projected = float(total_revenue) / days_elapsed * days_in_month
+            if ed < today:
+                projected = Decimal(str(total_revenue))
+            else:
+                days_elapsed = max((today - sd).days, 1)
+                days_in_month = calendar.monthrange(sd.year, sd.month)[1]
+                if (ed - sd).days >= 28:
+                    days_in_month = (ed - sd).days + 1
+                projected = (Decimal(str(total_revenue)) / Decimal(str(days_elapsed))) * Decimal(str(days_in_month)) if days_elapsed > 0 else Decimal("0")
         except Exception:
             pass
     
@@ -130,13 +137,14 @@ def dashboard_summary(request):
     
     # Inventory - use DB aggregation instead of Python loop
     from django.db.models import F
+    from django.db.models.functions import Coalesce
     products = Product.objects.all()
     products = _apply_security(request, products)
     inv_agg = products.aggregate(
-        amount=Sum(F('current_stock') * F('price')),
+        amount=Sum(Coalesce(F('current_stock'), 0) * Coalesce(F('price'), Decimal('0.0'))),
         count=Sum('current_stock')
     )
-    inv_amount = float(inv_agg['amount'] or 0)
+    inv_amount = Decimal(str(inv_agg['amount'] or 0))
     inv_count = int(inv_agg['count'] or 0)
     
     # Invoices over weekdays (Sun-Sat)
@@ -154,11 +162,11 @@ def dashboard_summary(request):
     revenue_breakdown = { 'service': 0, 'product': 0, 'membership': 0, 'package': 0, 'card': 0 }
     for b in breakdown_qs:
         model = b['content_type__model']
-        if model == 'servicemaster': revenue_breakdown['service'] += float(b['revenue'] or 0)
-        elif model == 'product': revenue_breakdown['product'] += float(b['revenue'] or 0)
-        elif model == 'membership': revenue_breakdown['membership'] += float(b['revenue'] or 0)
-        elif model == 'package': revenue_breakdown['package'] += float(b['revenue'] or 0)
-        elif model == 'valuecard': revenue_breakdown['card'] += float(b['revenue'] or 0)
+        if model == 'servicemaster': revenue_breakdown['service'] += Decimal(str(b['revenue'] or 0))
+        elif model == 'product': revenue_breakdown['product'] += Decimal(str(b['revenue'] or 0))
+        elif model == 'membership': revenue_breakdown['membership'] += Decimal(str(b['revenue'] or 0))
+        elif model == 'package': revenue_breakdown['package'] += Decimal(str(b['revenue'] or 0))
+        elif model == 'valuecard': revenue_breakdown['card'] += Decimal(str(b['revenue'] or 0))
         
     # Balances and Memberships
     from clients.models import ClientValueCard, ClientPackage, ClientMembership
@@ -177,17 +185,17 @@ def dashboard_summary(request):
     memberships_this_month = ClientMembership.objects.filter(created_at__date__gte=start_date, created_at__date__lte=end_date, client__center_id__in=centers_ids).count()
     
     balances = {
-        'value_cards': {'count': vc_agg['count'] or 0, 'amount': float(vc_agg['total'] or 0)},
-        'services': {'count': pkg_agg['count'] or 0, 'amount': float(pkg_agg['total'] or 0)},
-        'advances': {'count': advances_agg['count'] or 0, 'amount': float(advances_agg['total'] or 0)},
+        'value_cards': {'count': vc_agg['count'] or 0, 'amount': Decimal(str(vc_agg['total'] or 0))},
+        'services': {'count': pkg_agg['count'] or 0, 'amount': Decimal(str(pkg_agg['total'] or 0))},
+        'advances': {'count': advances_agg['count'] or 0, 'amount': Decimal(str(advances_agg['total'] or 0))},
         'memberships': memberships_this_month
     }
     
     # Top Staff this month
     from staff.models import ServiceLog
-    logs_period = ServiceLog.objects.filter(invoice__status__in=['paid', 'partial'], date__gte=start_date, date__lte=end_date, staff__center_id__in=centers_ids)
+    logs_period = ServiceLog.objects.filter(invoice__status__in=['paid', 'partial'], date__gte=start_date, date__lte=end_date, center_id__in=centers_ids)
     top_staff_qs = logs_period.values('staff__first_name', 'staff__last_name').annotate(revenue=Sum('price')).order_by('-revenue')[:5]
-    top_staff = [{'name': f"{s['staff__first_name']} {s['staff__last_name'] or ''}".strip(), 'revenue': float(s['revenue'] or 0)} for s in top_staff_qs]
+    top_staff = [{'name': f"{s['staff__first_name']} {s['staff__last_name'] or ''}".strip(), 'revenue': Decimal(str(s['revenue'] or 0))} for s in top_staff_qs]
 
     
     # Top Services / Products — batch name lookup to avoid N+1 queries
@@ -200,7 +208,7 @@ def dashboard_summary(request):
         .order_by('-count')[:20]
     )
     top_services = [
-        {'name': s['description'] or f'Service #{s["object_id"]}', 'count': int(s['count'] or 0), 'revenue': float(s['revenue'] or 0)}
+        {'name': s['description'] or f'Service #{s["object_id"]}', 'count': int(s['count'] or 0), 'revenue': Decimal(str(s['revenue'] or 0))}
         for s in services_qs
     ]
 
@@ -211,7 +219,7 @@ def dashboard_summary(request):
         .order_by('-count')[:20]
     )
     top_products = [
-        {'name': p['description'] or f'Product #{p["object_id"]}', 'count': int(p['count'] or 0), 'revenue': float(p['revenue'] or 0)}
+        {'name': p['description'] or f'Product #{p["object_id"]}', 'count': int(p['count'] or 0), 'revenue': Decimal(str(p['revenue'] or 0))}
         for p in products_qs
     ]
 
@@ -222,7 +230,7 @@ def dashboard_summary(request):
         .order_by('-count')[:20]
     )
     top_memberships = [
-        {'name': m['description'] or f'Membership #{m["object_id"]}', 'count': int(m['count'] or 0), 'revenue': float(m['revenue'] or 0)}
+        {'name': m['description'] or f'Membership #{m["object_id"]}', 'count': int(m['count'] or 0), 'revenue': Decimal(str(m['revenue'] or 0))}
         for m in memberships_qs
     ]
 
@@ -233,22 +241,22 @@ def dashboard_summary(request):
         .order_by('-count')[:20]
     )
     top_packages = [
-        {'name': p['description'] or f'Package #{p["object_id"]}', 'count': int(p['count'] or 0), 'revenue': float(p['revenue'] or 0)}
+        {'name': p['description'] or f'Package #{p["object_id"]}', 'count': int(p['count'] or 0), 'revenue': Decimal(str(p['revenue'] or 0))}
         for p in packages_qs
     ]
 
     # Avg Client Spend — calculated in Python to avoid DB-level division errors with NULL clients
     total_agg = invoices.aggregate(total=Sum('total_amount'), clients=Count('client', distinct=True))
-    all_spend = (float(total_agg['total'] or 0) / max(total_agg['clients'] or 1, 1))
+    all_spend = (Decimal(str(total_agg['total'] or 0)) / max(total_agg['clients'] or 1, 1))
     
     female_agg = invoices.filter(client__gender__iexact='Female').aggregate(total=Sum('total_amount'), clients=Count('client', distinct=True))
-    female_spend = (float(female_agg['total'] or 0) / max(female_agg['clients'] or 1, 1))
+    female_spend = (Decimal(str(female_agg['total'] or 0)) / max(female_agg['clients'] or 1, 1))
     
     male_agg = invoices.filter(client__gender__iexact='Male').aggregate(total=Sum('total_amount'), clients=Count('client', distinct=True))
-    male_spend = (float(male_agg['total'] or 0) / max(male_agg['clients'] or 1, 1))
+    male_spend = (Decimal(str(male_agg['total'] or 0)) / max(male_agg['clients'] or 1, 1))
     
     unknown_agg = invoices.exclude(client__gender__iexact='Female').exclude(client__gender__iexact='Male').aggregate(total=Sum('total_amount'), clients=Count('client', distinct=True))
-    unknown_spend = (float(unknown_agg['total'] or 0) / max(unknown_agg['clients'] or 1, 1))
+    unknown_spend = (Decimal(str(unknown_agg['total'] or 0)) / max(unknown_agg['clients'] or 1, 1))
 
     tax_agg = invoices.aggregate(cgst=Sum('cgst'), sgst=Sum('sgst'))
     tax_total = (tax_agg['cgst'] or 0) + (tax_agg['sgst'] or 0)
@@ -275,10 +283,10 @@ def dashboard_summary(request):
         'top_memberships': top_memberships,
         'top_packages': top_packages,
         'avg_spend': {
-            'all': float(all_spend),
-            'female': float(female_spend),
-            'male': float(male_spend),
-            'unknown': float(unknown_spend)
+            'all': Decimal(str(all_spend)),
+            'female': Decimal(str(female_spend)),
+            'male': Decimal(str(male_spend)),
+            'unknown': Decimal(str(unknown_spend))
         }
     })
 
@@ -318,7 +326,7 @@ def dashboard_revenues(request):
         .order_by('year', 'month_num')
     )
     monthly_dict = {
-        f"{calendar.month_abbr[item['month_num']]}-{item['year']}": float(item['revenue'] or 0)
+        f"{calendar.month_abbr[item['month_num']]}-{item['year']}": Decimal(str(item['revenue'] or 0))
         for item in monthly_raw
     }
     monthly_data = []
@@ -342,7 +350,7 @@ def dashboard_revenues(request):
     # Daily for selected period
     invoices_period = _apply_dates(request, invoices, 'created_at')
     daily = invoices_period.annotate(day=Cast('created_at', DateField())).values('day').annotate(revenue=Sum('total_amount')).order_by('day')
-    daily_dict = {item['day'].strftime('%Y-%m-%d') if hasattr(item['day'], 'strftime') else str(item['day']): float(item['revenue'] or 0) for item in daily if item['day']}
+    daily_dict = {item['day'].strftime('%Y-%m-%d') if hasattr(item['day'], 'strftime') else str(item['day']): Decimal(str(item['revenue'] or 0)) for item in daily if item['day']}
     
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
@@ -366,7 +374,7 @@ def dashboard_revenues(request):
     
     # Hourly across the selected period
     hourly = invoices_period.annotate(hour=ExtractHour('created_at')).values('hour').annotate(revenue=Sum('total_amount')).order_by('hour')
-    hourly_dict = {item['hour']: float(item['revenue'] or 0) for item in hourly if item['hour'] is not None}
+    hourly_dict = {item['hour']: Decimal(str(item['revenue'] or 0)) for item in hourly if item['hour'] is not None}
     hourly_data = [{'hour': f"{h:02d}:00", 'revenue': hourly_dict.get(h, 0)} for h in range(24)]
 
     return Response({
@@ -434,13 +442,13 @@ def dashboard_clients(request):
 
         g = (item['client__gender'] or '').lower()
         if g == 'female':
-            trends[m]['female']['revenue'] += float(item['revenue'] or 0)
+            trends[m]['female']['revenue'] += Decimal(str(item['revenue'] or 0))
             trends[m]['female']['count'] += item['count']
         elif g == 'male':
-            trends[m]['male']['revenue'] += float(item['revenue'] or 0)
+            trends[m]['male']['revenue'] += Decimal(str(item['revenue'] or 0))
             trends[m]['male']['count'] += item['count']
         else:
-            trends[m]['unknown']['revenue'] += float(item['revenue'] or 0)
+            trends[m]['unknown']['revenue'] += Decimal(str(item['revenue'] or 0))
             trends[m]['unknown']['count'] += item['count']
 
     # Monthly footfall matrix
@@ -472,47 +480,51 @@ def dashboard_clients(request):
         'repeat': {'female': female_repeat, 'male': male_repeat, 'unknown': unknown_repeat, 'total': female_repeat + male_repeat + unknown_repeat},
         'total': {'female': female_total, 'male': male_total, 'unknown': unknown_total, 'total': female_total + male_total + unknown_total}
     }
-    # Monthly breakdown (New/Repeat/Member/Non-Member)
-    from clients.models import ClientMembership
-    active_member_client_ids = set(ClientMembership.objects.filter(is_active=True).values_list('client_id', flat=True))
+    
+    monthly_stats = invoices.annotate(
+        year=ExtractYear('created_at'), 
+        month_num=ExtractMonth('created_at'),
+        client_year=ExtractYear('client__created_at'),
+        client_month=ExtractMonth('client__created_at')
+    ).values('year', 'month_num').annotate(
+        total_invoices=Count('id', distinct=True),
+        member_invoices=Count('id', filter=Q(client__memberships__is_active=True), distinct=True),
+        new_clients=Count('client', filter=Q(client_year=F('year'), client_month=F('month_num')), distinct=True),
+        total_clients=Count('client', distinct=True)
+    )
     
     monthly_breakdown = {}
     for mk in months_keys:
         monthly_breakdown[mk] = {'new': 0, 'repeat': 0, 'member': 0, 'non_member': 0}
         
-    seen_clients_per_month = {mk: set() for mk in months_keys}
-    
-    invoice_data = invoices.annotate(
+    for stat in monthly_stats:
+        m = f"{calendar.month_abbr[stat['month_num']]}-{stat['year']}"
+        if m in monthly_breakdown:
+            monthly_breakdown[m]['new'] = stat['new_clients']
+            monthly_breakdown[m]['repeat'] = stat['total_clients'] - stat['new_clients']
+            monthly_breakdown[m]['member'] = stat['member_invoices']
+            monthly_breakdown[m]['non_member'] = stat['total_invoices'] - stat['member_invoices']
+            
+    # Gender-specific trends (New vs Repeat)
+    gender_stats = invoices.annotate(
         year=ExtractYear('created_at'), 
-        month_num=ExtractMonth('created_at')
-    ).values('year', 'month_num', 'client_id', 'client__created_at', 'client__gender')
+        month_num=ExtractMonth('created_at'),
+        client_year=ExtractYear('client__created_at'),
+        client_month=ExtractMonth('client__created_at')
+    ).values('year', 'month_num', 'client__gender').annotate(
+        new_clients=Count('client', filter=Q(client_year=F('year'), client_month=F('month_num')), distinct=True),
+        total_clients=Count('client', distinct=True)
+    )
     
-    for inv in invoice_data:
-        m = f"{calendar.month_abbr[inv['month_num']]}-{inv['year']}"
-        if m not in monthly_breakdown:
-            continue
+    for stat in gender_stats:
+        m = f"{calendar.month_abbr[stat['month_num']]}-{stat['year']}"
+        if m in trends:
+            g = (stat['client__gender'] or '').lower()
+            if g not in ['female', 'male']:
+                g = 'unknown'
             
-        client_id = inv['client_id']
-        client_created = inv['client__created_at']
-        g = (inv['client__gender'] or '').lower()
-        if g not in ['female', 'male']:
-            g = 'unknown'
-        
-        # Member vs Non-Member Invoices
-        if client_id in active_member_client_ids:
-            monthly_breakdown[m]['member'] += 1
-        else:
-            monthly_breakdown[m]['non_member'] += 1
-            
-        # New vs Repeat (Unique clients per month)
-        if client_id not in seen_clients_per_month[m]:
-            seen_clients_per_month[m].add(client_id)
-            if client_created and client_created.year == inv['year'] and client_created.month == inv['month_num']:
-                monthly_breakdown[m]['new'] += 1
-                trends[m][g]['new'] += 1
-            else:
-                monthly_breakdown[m]['repeat'] += 1
-                trends[m][g]['repeat'] += 1
+            trends[m][g]['new'] += stat['new_clients']
+            trends[m][g]['repeat'] += stat['total_clients'] - stat['new_clients']
 
     # Daily footfall
     from django.db.models.functions import TruncDate
@@ -604,7 +616,7 @@ def dashboard_finance(request):
             continue
 
         model = item['content_type__model']
-        rev = float(item['revenue'] or 0)
+        rev = Decimal(str(item['revenue'] or 0))
         cnt = item['count'] or 0
         
         if model == 'servicemaster': 
@@ -652,7 +664,7 @@ def dashboard_finance(request):
     for item in adv_raw:
         m = f"{calendar.month_abbr[item['month_num']]}-{item['year']}"
         if m in sources:
-            sources[m]['advances']['revenue'] += float(item['revenue'] or 0)
+            sources[m]['advances']['revenue'] += Decimal(str(item['revenue'] or 0))
             sources[m]['advances']['count'] += item['count'] or 0
 
     return Response(sources)
@@ -705,7 +717,7 @@ def dashboard_staff(request):
         .order_by('year', 'month_num')
     )
     trends_dict = {
-        f"{calendar.month_abbr[item['month_num']]}-{item['year']}": float(item['revenue'] or 0)
+        f"{calendar.month_abbr[item['month_num']]}-{item['year']}": Decimal(str(item['revenue'] or 0))
         for item in monthly_raw
     }
     trends = []
@@ -735,7 +747,7 @@ def dashboard_staff(request):
     table = []
     for s in staff_data:
         name = f"{s['staff__first_name']} {s['staff__last_name'] or ''}".strip()
-        rev = float(s['revenue'] or 0)
+        rev = Decimal(str(s['revenue'] or 0))
         clients = s['clients']
         avg = rev / clients if clients > 0 else 0
         table.append({
@@ -793,7 +805,7 @@ def dashboard_services_products(request):
     for s in svc_agg:
         oid = s['object_id']
         name = svc_map[oid].name if oid and oid in svc_map else 'Unknown'
-        services_list.append({'name': name, 'count': int(s['count'] or 0), 'revenue': float(s['revenue'] or 0)})
+        services_list.append({'name': name, 'count': int(s['count'] or 0), 'revenue': Decimal(str(s['revenue'] or 0))})
 
     # Products — group by object_id
     prod_agg = (
@@ -808,7 +820,7 @@ def dashboard_services_products(request):
     for p in prod_agg:
         oid = p['object_id']
         name = prod_map[oid].name if oid and oid in prod_map else 'Unknown'
-        products_list.append({'name': name, 'count': int(p['count'] or 0), 'revenue': float(p['revenue'] or 0)})
+        products_list.append({'name': name, 'count': int(p['count'] or 0), 'revenue': Decimal(str(p['revenue'] or 0))})
 
     return Response({
         'services': services_list,

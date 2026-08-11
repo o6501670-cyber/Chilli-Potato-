@@ -1,4 +1,5 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -28,9 +29,11 @@ function extractErrorMessage(err: any): string {
   standalone: true,
   imports: [CommonModule, FormsModule, DragDropModule, LocationSelectorComponent],
   templateUrl: './appointments.html',
-  styleUrls: ['./appointments.css']
+  styleUrls: ['./appointments.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppointmentsComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   centers: any[] = [];
   selectedCenterId: any = null;
   selectedDate: string = new Date().toISOString().split('T')[0];
@@ -104,7 +107,7 @@ export class AppointmentsComponent implements OnInit {
         this.hasGlobalAccess = this.isOwner || (user?.permissions?.all_centers === true) || (user?.role?.permissions?.all_centers === true);
     this.permissions = user?.permissions || {};
     
-    this.apiService.getCenters().subscribe(data => {
+    this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.centers = data || [];
       if (this.isOwner) {
         if (this.centers.length > 0 && !this.selectedCenterId) {
@@ -147,7 +150,7 @@ export class AppointmentsComponent implements OnInit {
 
   loadServices() {
     const cid = this.selectedCenterId ?? undefined;
-    this.apiService.getServices(cid).subscribe(data => {
+    this.apiService.getServices(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.servicesList = data || [];
       this.cdr.detectChanges();
     });
@@ -160,7 +163,7 @@ export class AppointmentsComponent implements OnInit {
 
   loadStaff() {
     const cid = this.selectedCenterId ?? undefined;
-    this.apiService.getStaffMembers(cid).subscribe(data => {
+    this.apiService.getStaffMembers(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.staffMembers = data;
       this.activeStaffMembers = data.filter(s => s.is_active);
       this.cdr.detectChanges();
@@ -169,9 +172,10 @@ export class AppointmentsComponent implements OnInit {
 
   loadAppointments() {
     const cid = this.selectedCenterId ?? undefined;
-    this.apiService.getAppointments(cid, this.selectedDate).subscribe(data => {
+    this.apiService.getAppointments(cid, this.selectedDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.appointments = data;
       this.calculateKPIs();
+      this.buildAppointmentsMap();  // pre-build cache after data loads
       this.cdr.detectChanges();
     });
   }
@@ -195,20 +199,24 @@ export class AppointmentsComponent implements OnInit {
     }
   }
 
-  getAppointmentsForStaff(staffId: number | null): any[] {
-    let result: any[] = [];
+  // Memoized map: staffId (or 'null') -> appointment+service pairs
+  private _appointmentsMap: Map<string, any[]> = new Map();
+
+  buildAppointmentsMap() {
+    this._appointmentsMap.clear();
     for (let appt of this.appointments) {
       if (!this.showCancelled && appt.status === 'Cancelled') continue;
       for (let s of appt.services) {
-        if (s.staff === staffId) {
-          result.push({
-            appointment: appt,
-            service: s
-          });
-        }
+        const key = String(s.staff ?? 'null');
+        if (!this._appointmentsMap.has(key)) this._appointmentsMap.set(key, []);
+        this._appointmentsMap.get(key)!.push({ appointment: appt, service: s });
       }
     }
-    return result;
+  }
+
+  getAppointmentsForStaff(staffId: number | null): any[] {
+    const key = String(staffId ?? 'null');
+    return this._appointmentsMap.get(key) ?? [];
   }
 
   // Calculate left percentage based on time (9am is 0%, 9pm is 100% of 12 slots, but 13 columns means we divide by 13)
@@ -297,7 +305,7 @@ export class AppointmentsComponent implements OnInit {
       return;
     }
     this.searchTimeout = setTimeout(() => {
-      this.apiService.getClients(val).subscribe((data: any) => {
+      this.apiService.getClients(val).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data: any) => {
         this.clientSearchResults = data || [];
         this.cdr.detectChanges();
       });
@@ -331,7 +339,7 @@ export class AppointmentsComponent implements OnInit {
   searchRecentVisits() {
     if (this.currentAppointment.client_phone.length >= 10) {
       this.apiService.getAppointments(this.selectedCenterId, undefined, this.currentAppointment.client_phone)
-        .subscribe(data => {
+        .pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
           // Exclude current appt
           this.recentVisits = data.filter(a => a.id !== this.currentAppointment.id);
         });
@@ -429,7 +437,7 @@ export class AppointmentsComponent implements OnInit {
     }
 
     if (this.isEdit) {
-      this.apiService.updateAppointment(this.currentAppointment.id, this.currentAppointment).subscribe({
+      this.apiService.updateAppointment(this.currentAppointment.id, this.currentAppointment).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.showModal = false;
           this.isSaving = false;
@@ -442,7 +450,7 @@ export class AppointmentsComponent implements OnInit {
         }
       });
     } else {
-      this.apiService.createAppointment(this.currentAppointment).subscribe({
+      this.apiService.createAppointment(this.currentAppointment).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.showModal = false;
           this.isSaving = false;
@@ -460,7 +468,7 @@ export class AppointmentsComponent implements OnInit {
   cancelAppointment() {
     if (this.isEdit && !this.isSaving) {
       this.isSaving = true;
-      this.apiService.updateAppointment(this.currentAppointment.id, {status: 'Cancelled'}).subscribe({
+      this.apiService.updateAppointment(this.currentAppointment.id, {status: 'Cancelled'}).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.isSaving = false;
           this.showModal = false;
@@ -478,7 +486,7 @@ export class AppointmentsComponent implements OnInit {
   restoreAppointment() {
     if (this.isEdit && !this.isSaving) {
       this.isSaving = true;
-      this.apiService.updateAppointment(this.currentAppointment.id, {status: 'Scheduled'}).subscribe({
+      this.apiService.updateAppointment(this.currentAppointment.id, {status: 'Scheduled'}).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.isSaving = false;
           this.showModal = false;
@@ -493,5 +501,13 @@ export class AppointmentsComponent implements OnInit {
     }
   }
 
+
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
 
 }

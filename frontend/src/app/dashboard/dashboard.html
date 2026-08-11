@@ -34,7 +34,23 @@
         <input type="date" [(ngModel)]="endDate" class="date-inp">
         <button class="btn-go" (click)="onFilterChange()">Apply</button>
       </div>
-    </div>
+
+      <div class="chart-controls" style="margin-left: 10px; display: flex; align-items: center; gap: 8px;">
+        <button class="btn-go" style="padding: 6px 10px; display: flex; align-items: center; justify-content: center; background: #f3f4f6; color: #374151; border: 1.5px solid #e5e7eb; border-radius: 6px; cursor: pointer;" (click)="toggleChartType()" title="Toggle Chart Type">
+          <!-- Switch to Bar View -->
+          <svg *ngIf="chartType === 'line'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <!-- Switch to Line View -->
+          <svg *ngIf="chartType === 'bar'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+            <polyline points="17 6 23 6 23 12"></polyline>
+          </svg>
+        </button>
+      </div>
+        </div>
   </div>
 
   <!-- ===== LOADER ===== -->
@@ -106,6 +122,7 @@
         style="height: 400px; display: flex; flex-direction: column; margin-bottom: 0;">
         <div class="card-head">
           <span class="card-title">Invoices over weekdays</span>
+          <i class="fa-solid fa-download" style="cursor: pointer; color: #6b7280; float: right;" (click)="downloadChart('summaryLineChart', 'summaryLineChart_export')" title="Download Chart"></i>
         </div>
         <div class="chart-wrap" style="flex: 1; min-height: 0; padding-bottom: 20px; position: relative;"><canvas
             id="summaryLineChart"></canvas></div>
@@ -115,6 +132,7 @@
         style="height: 350px; display: flex; flex-direction: column; margin-bottom: 0;">
         <div class="card-head">
           <span class="card-title">Revenue Breakdown</span>
+          <i class="fa-solid fa-download" style="cursor: pointer; color: #6b7280; float: right;" (click)="downloadChart('revenuePieChart', 'revenuePieChart_export')" title="Download Chart"></i>
         </div>
         <div class="chart-wrap" style="flex: 1; padding-bottom: 20px; position: relative;"><canvas
             id="revenuePieChart"></canvas></div>
@@ -368,7 +386,8 @@
           </table>
         </div>
         <div class="card chart-card">
-          <div class="card-head"><span class="card-title">Client Types & Memberships</span></div>
+          <div class="card-head"><span class="card-title">Client Types & Memberships</span><i class="fa-solid fa-download" style="cursor: pointer; color: #6b7280;" (click)="downloadChart('clientBreakdownChart', 'clientBreakdownChart_export')" title="Download Chart"></i>
+        </div>
           <div class="chart-wrap"><canvas id="clientBreakdownChart"></canvas></div>
         </div>
       </div>
@@ -589,4 +608,4 @@
     </ng-template>
   </div>
 
-</div>
+</div>

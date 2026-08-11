@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api';
@@ -9,12 +10,37 @@ import { ToastService } from '../services/toast.service';
   imports: [CommonModule, FormsModule],
   templateUrl: './centers.html',
   styleUrl: './centers.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CentersComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   toastService = inject(ToastService);
   apiService = inject(ApiService);
   cdr = inject(ChangeDetectorRef);
   centers: any[] = [];
+  currentPage: number = 1;
+  pageSize: number = 500;
+
+  get paginatedItems() {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.centers.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  get totalPages() {
+    return Math.ceil(this.centers.length / this.pageSize) || 1;
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+    }
+  }
+
+  prevPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+    }
+  }
   showModal = false;
   isEditing = false;
   editingId: number | null = null;
@@ -79,8 +105,9 @@ export class CentersComponent implements OnInit {
   }
 
   loadCenters() {
-    this.apiService.getCenters().subscribe(data => {
+    this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.centers = data;
+        this.currentPage = 1;
       this.cdr.detectChanges();
     });
   }
@@ -233,7 +260,7 @@ export class CentersComponent implements OnInit {
   saveDetailSettings(successMessage: string) {
     if (!this.detailCenter || this.isSaving) return;
     this.isSaving = true;
-    this.apiService.updateCenter(this.detailCenter.id, this.detailCenter).subscribe({
+    this.apiService.updateCenter(this.detailCenter.id, this.detailCenter).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         const idx = this.centers.findIndex(c => c.id === res.id);
         if (idx > -1) this.centers[idx] = res;
@@ -274,7 +301,7 @@ export class CentersComponent implements OnInit {
     }
     this.isImporting = true;
     this.importResult = null;
-    this.apiService.bulkImportCenters(this.importFile).subscribe({
+    this.apiService.bulkImportCenters(this.importFile).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.importResult = res;
         this.isImporting = false;
@@ -294,7 +321,7 @@ export class CentersComponent implements OnInit {
   downloadTemplate() {
     if (this.isDownloading) return;
     this.isDownloading = true;
-    this.apiService.downloadCentersTemplate().subscribe({
+    this.apiService.downloadCentersTemplate().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (blob: any) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -315,7 +342,7 @@ export class CentersComponent implements OnInit {
     if (this.isSaving) return;
     this.isSaving = true;
     if (this.isEditing && this.editingId) {
-      this.apiService.updateCenter(this.editingId, this.newCenter).subscribe({
+      this.apiService.updateCenter(this.editingId, this.newCenter).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.loadCenters();
           this.closeModal();
@@ -328,7 +355,7 @@ export class CentersComponent implements OnInit {
         }
       });
     } else {
-      this.apiService.createCenter(this.newCenter).subscribe({
+      this.apiService.createCenter(this.newCenter).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.loadCenters();
           this.closeModal();
@@ -342,4 +369,12 @@ export class CentersComponent implements OnInit {
       });
     }
   }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

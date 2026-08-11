@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api';
@@ -10,9 +11,11 @@ import { LocationSelectorComponent } from '../components/location-selector/locat
   selector: 'app-staff',
   imports: [CommonModule, FormsModule, LocationSelectorComponent],
   templateUrl: './staff.html',
-  styleUrl: './staff.css'
+  styleUrl: './staff.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StaffComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
   toastService = inject(ToastService);
   csvService = inject(CsvService);
@@ -139,7 +142,7 @@ export class StaffComponent implements OnInit {
     this.reportEndDate = today;
     this.newLog.date = today;
     
-      this.apiService.getCenters().subscribe(data => {
+      this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.centers = data || [];
       if (this.isOwner) {
         this.selectedFilterLocation = null;
@@ -167,14 +170,14 @@ export class StaffComponent implements OnInit {
     if (filter === 'null' || filter === null) {
       filter = undefined;
     }
-    this.apiService.getStaffActivityFeed(filter).subscribe(data => {
+    this.apiService.getStaffActivityFeed(filter).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.activityFeed = data;
       this.cdr.detectChanges();
     });
   }
 
   loadDesignations() {
-    this.apiService.getDesignations().subscribe({
+    this.apiService.getDesignations().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data: any) => { this.designations = data; },
       error: (err: any) => { console.error('Failed to load designations', err); }
     });
@@ -191,7 +194,7 @@ export class StaffComponent implements OnInit {
   
   saveDesignation() {
     if (!this.newDesignation.name) return;
-    this.apiService.createDesignation(this.newDesignation).subscribe({
+    this.apiService.createDesignation(this.newDesignation).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.designations.push(res);
         this.newDesignation = { name: '', salary: 0, commission_percentage: 0, product_commission_percentage: 0 };
@@ -203,7 +206,7 @@ export class StaffComponent implements OnInit {
   
   deleteDesignation(id: number) {
     if (confirm('Are you sure you want to delete this designation?')) {
-      this.apiService.deleteDesignation(id).subscribe({
+      this.apiService.deleteDesignation(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.designations = this.designations.filter(d => d.id !== id);
           this.toastService.showSuccess('Designation deleted');
@@ -217,11 +220,11 @@ export class StaffComponent implements OnInit {
     let filter: any = this.selectedFilterLocation;
     if (filter === 'null' || filter === null) filter = undefined;
 
-    this.apiService.getClients(undefined, filter).subscribe(data => {
+    this.apiService.getClients(undefined, filter).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.clients = data;
     });
 
-    this.apiService.getServices(filter).subscribe(data => {
+    this.apiService.getServices(filter).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       console.log('staff.ts getServices returned:', data);
       this.services = data;
     });
@@ -238,7 +241,7 @@ export class StaffComponent implements OnInit {
   if (filter === 'null' || filter === null) {
     filter = undefined;
   }
-  this.apiService.getStaffMembers(filter, this.showInactive).subscribe(data => {
+  this.apiService.getStaffMembers(filter, this.showInactive).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
     this.staffMembers = data;
     this.applyFilters();
     if (this.selectedStaff) {
@@ -308,7 +311,7 @@ export class StaffComponent implements OnInit {
           salary: selectedDesig.salary,
           commission_percentage: selectedDesig.commission_percentage,
           product_commission_percentage: selectedDesig.product_commission_percentage
-        }).subscribe();
+        }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
       }
     }
     
@@ -320,7 +323,7 @@ export class StaffComponent implements OnInit {
       this.selectedStaff[field] = val;
     }
 
-    this.apiService.updateStaffMember(this.selectedStaff.id, payload).subscribe({
+    this.apiService.updateStaffMember(this.selectedStaff.id, payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.selectedStaff[field] = res[field];
         this.loadStaff(); // Refresh list to reflect changes
@@ -333,7 +336,7 @@ export class StaffComponent implements OnInit {
   if (!this.selectedStaff || this.isSaving) return;
   if (confirm('Are you sure you want to delete this staff member?')) {
     this.isSaving = true;
-    this.apiService.deleteStaffMember(this.selectedStaff.id).subscribe({
+    this.apiService.deleteStaffMember(this.selectedStaff.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.isSaving = false;
         this.selectedStaff = null;
@@ -353,7 +356,7 @@ export class StaffComponent implements OnInit {
   downloadStaffTemplate() {
     if (this.isDownloadingStaffTemplate) return;
     this.isDownloadingStaffTemplate = true;
-    this.apiService.downloadStaffTemplate().subscribe({
+    this.apiService.downloadStaffTemplate().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (blob: any) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -377,7 +380,7 @@ export class StaffComponent implements OnInit {
     if (!file) return;
 
     this.isSaving = true;
-    this.apiService.uploadFile('staff/api/members/bulk_upload/', file, this.selectedFilterLocation || undefined).subscribe({
+    this.apiService.uploadFile('staff/api/members/bulk_upload/', file, this.selectedFilterLocation || undefined).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.isSaving = false;
         this.toastService.showSuccess('Staff uploaded successfully.');
@@ -398,7 +401,7 @@ export class StaffComponent implements OnInit {
     if (file && this.selectedStaff) {
       const formData = new FormData();
       formData.append('image', file);
-      this.apiService.uploadStaffImage(this.selectedStaff.id, formData).subscribe({
+      this.apiService.uploadStaffImage(this.selectedStaff.id, formData).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res) => {
           this.selectedStaff.image = res.image;
           this.loadStaff();
@@ -412,7 +415,7 @@ export class StaffComponent implements OnInit {
   if (!this.selectedStaff || this.isSaving) return;
   this.isSaving = true;
   const newStatus = !this.selectedStaff.is_active;
-  this.apiService.updateStaffMember(this.selectedStaff.id, { is_active: newStatus }).subscribe({
+  this.apiService.updateStaffMember(this.selectedStaff.id, { is_active: newStatus }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
     next: (res) => {
       this.isSaving = false;
       this.selectedStaff.is_active = res.is_active;
@@ -429,7 +432,7 @@ export class StaffComponent implements OnInit {
   // --- Payroll Methods ---
   loadPayrolls() {
     if (!this.selectedStaff) return;
-    this.apiService.getPayrolls(this.selectedFilterLocation || undefined).subscribe(res => {
+    this.apiService.getPayrolls(this.selectedFilterLocation || undefined).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(res => {
       this.payrolls = res.filter(p => p.staff === this.selectedStaff.id);
     });
   }
@@ -438,7 +441,7 @@ export class StaffComponent implements OnInit {
     if (this.isSaving) return;
     if (confirm('Are you sure you want to lock this payroll?')) {
       this.isSaving = true;
-      this.apiService.lockPayroll(id).subscribe({
+      this.apiService.lockPayroll(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.isSaving = false;
           this.loadPayrolls();
@@ -455,7 +458,7 @@ export class StaffComponent implements OnInit {
     if (this.isSaving) return;
     if (confirm('Are you sure you want to mark this payroll as paid?')) {
       this.isSaving = true;
-      this.apiService.markPayrollPaid(id).subscribe({
+      this.apiService.markPayrollPaid(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.isSaving = false;
           this.loadPayrolls();
@@ -512,14 +515,14 @@ export class StaffComponent implements OnInit {
         }
     };
 
-    this.apiService.getServiceLogs(this.selectedStaff.id, this.logStartDate, this.logEndDate).subscribe(data => {
+    this.apiService.getServiceLogs(this.selectedStaff.id, this.logStartDate, this.logEndDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.serviceLogs = data;
       this.revenueCollected = data.reduce((sum: number, item: any) => sum + Number(item.price), 0);
       loadedServices = true;
       combineAndSort();
     });
 
-    this.apiService.getStaffConsumptions(this.selectedStaff.id, this.logStartDate, this.logEndDate).subscribe(data => {
+    this.apiService.getStaffConsumptions(this.selectedStaff.id, this.logStartDate, this.logEndDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.staffConsumptions = data;
       loadedConsumptions = true;
       combineAndSort();
@@ -557,7 +560,7 @@ export class StaffComponent implements OnInit {
     }
     
     this.isSaving = true;
-    this.apiService.createStaffMember(payload).subscribe({
+    this.apiService.createStaffMember(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.isSaving = false;
         this.showAddStaffModal = false;
@@ -602,7 +605,7 @@ export class StaffComponent implements OnInit {
       this.newLog.center = staff.center;
 
       this.isSaving = true;
-      this.apiService.createServiceLog(this.newLog).subscribe({
+      this.apiService.createServiceLog(this.newLog).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.isSaving = false;
           this.showAddLogModal = false;
@@ -625,7 +628,7 @@ export class StaffComponent implements OnInit {
       this.newConsumptionLog.center = staff.center;
 
       this.isSaving = true;
-      this.apiService.createStaffConsumption(this.newConsumptionLog).subscribe({
+      this.apiService.createStaffConsumption(this.newConsumptionLog).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.isSaving = false;
           this.showAddLogModal = false;
@@ -667,7 +670,7 @@ export class StaffComponent implements OnInit {
     let cid: any = this.reportCenterId;
     if (cid === 'null' || cid === null) cid = undefined;
     
-    this.apiService.getRevenueReport(cid, this.reportStartDate, this.reportEndDate).subscribe(data => {
+    this.apiService.getRevenueReport(cid, this.reportStartDate, this.reportEndDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.revenueReport = data;
       this.cdr.detectChanges();
     });
@@ -688,7 +691,7 @@ export class StaffComponent implements OnInit {
     this.showToolReportModal = true;
     this.allToolsReport = [];
     // Load ALL tools across the system, no date or specific staff logic
-    this.apiService.getStaffTools().subscribe(data => {
+    this.apiService.getStaffTools().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.allToolsReport = data;
       this.cdr.detectChanges();
     });
@@ -705,7 +708,7 @@ export class StaffComponent implements OnInit {
   openTransferReport() {
     this.showTransferReportModal = true;
     this.allTransfersReport = [];
-    this.apiService.getStaffTransfers().subscribe(data => {
+    this.apiService.getStaffTransfers().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.allTransfersReport = data;
       this.cdr.detectChanges();
     });
@@ -713,7 +716,7 @@ export class StaffComponent implements OnInit {
 
   loadUsageReport() {
     this.apiService.getUsageReport(this.reportStartDate, this.reportEndDate, this.reportCenterId || undefined)
-      .subscribe(data => {
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
         this.usageReport = data;
         this.cdr.detectChanges();
       });
@@ -721,7 +724,7 @@ export class StaffComponent implements OnInit {
 
   loadCommissionReport() {
     this.apiService.getCommissionReport(this.reportStartDate, this.reportEndDate)
-      .subscribe(data => {
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
         this.commissionReport = data;
         this.cdr.detectChanges();
       });
@@ -737,7 +740,7 @@ export class StaffComponent implements OnInit {
     let cid: any = this.reportCenterId;
     if (cid === 'null' || cid === null) cid = undefined;
     
-    this.apiService.getStaffConsumptionReport(cid, this.reportStartDate, this.reportEndDate).subscribe(data => {
+    this.apiService.getStaffConsumptionReport(cid, this.reportStartDate, this.reportEndDate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.consumptionReport = data;
       this.cdr.detectChanges();
     });
@@ -761,10 +764,10 @@ export class StaffComponent implements OnInit {
     if (!payload.end_date) payload.end_date = null;
     
     this.isSaving = true;
-    this.apiService.createStaffTransfer(payload).subscribe({
+    this.apiService.createStaffTransfer(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
          const updatePayload: any = { center: payload.to_center };
-         this.apiService.updateStaffMember(payload.staff, updatePayload).subscribe((updatedStaff) => {
+         this.apiService.updateStaffMember(payload.staff, updatePayload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((updatedStaff) => {
              this.isSaving = false;
              this.showTransferModal = false;
              if (this.selectedStaff && this.selectedStaff.id == payload.staff) {
@@ -789,7 +792,7 @@ export class StaffComponent implements OnInit {
   loadStaffTools(staffId?: number) {
     const id = staffId || (this.selectedStaff ? this.selectedStaff.id : null);
     if (!id) return;
-    this.apiService.getStaffTools(id).subscribe(data => {
+    this.apiService.getStaffTools(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.staffTools = data;
       this.cdr.detectChanges();
     });
@@ -798,7 +801,7 @@ export class StaffComponent implements OnInit {
   loadStaffTransfers(staffId?: number) {
     const id = staffId || (this.selectedStaff ? this.selectedStaff.id : null);
     if (!id) return;
-    this.apiService.getStaffTransfers(id).subscribe(data => {
+    this.apiService.getStaffTransfers(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.staffTransfers = data;
       this.cdr.detectChanges();
     });
@@ -812,7 +815,7 @@ export class StaffComponent implements OnInit {
     if (!payload.expected_return_date) payload.expected_return_date = null;
     
     this.isSaving = true;
-    this.apiService.createStaffTool(payload).subscribe({
+    this.apiService.createStaffTool(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
          this.isSaving = false;
          if (this.selectedStaff && this.selectedStaff.id == payload.staff) {
@@ -828,7 +831,7 @@ export class StaffComponent implements OnInit {
   markToolReturned(tool: any) {
     if (this.isSaving) return;
     this.isSaving = true;
-    this.apiService.updateStaffTool(tool.id, { status: 'Returned', actual_return_date: new Date().toISOString().split('T')[0] }).subscribe({
+    this.apiService.updateStaffTool(tool.id, { status: 'Returned', actual_return_date: new Date().toISOString().split('T')[0] }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.isSaving = false;
         this.loadStaffTools();
@@ -858,7 +861,7 @@ export class StaffComponent implements OnInit {
        const lastDay = new Date(y, m, 0).getDate();
        const endDate = `${year}-${month}-${lastDay.toString().padStart(2, '0')}`;
        
-       this.apiService.getIncentiveReport(startDate, endDate, undefined).subscribe(data => {
+       this.apiService.getIncentiveReport(startDate, endDate, undefined).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
            this.incentiveReport = data;
            this.cdr.detectChanges();
        });
@@ -870,7 +873,7 @@ export class StaffComponent implements OnInit {
   updateStaffSalary(staffId: number, newSalary: any) {
     if (this.isSaving) return;
     this.isSaving = true;
-    this.apiService.updateStaffMember(staffId, { salary: newSalary }).subscribe({
+    this.apiService.updateStaffMember(staffId, { salary: newSalary }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.isSaving = false;
         // reload the incentive report to recalculate based on new salary
@@ -977,4 +980,12 @@ export class StaffComponent implements OnInit {
     ]);
     this.csvService.exportToCsv('Staff_Report', headers, rows);
   }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

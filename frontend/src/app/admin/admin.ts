@@ -1,4 +1,7 @@
-import { Component, OnInit, inject, OnDestroy, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
+import { AdminFilterService } from './admin-filter.service';
+import { LocationSelectorComponent } from '../components/location-selector/location-selector';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AfterViewChecked, ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -7,14 +10,29 @@ import { ApiService } from '../services/api';
 
 @Component({
   selector: 'app-admin',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, FormsModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, FormsModule, LocationSelectorComponent],
   templateUrl: './admin.html',
   styleUrl: './admin.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
+  private destroyRef = inject(DestroyRef);
   authService = inject(AuthService);
   apiService = inject(ApiService);
   router = inject(Router);
+  adminFilterService = inject(AdminFilterService);
+  centers: any[] = [];
+  
+  loadCenters() {
+    this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (data: any) => {
+        this.centers = Array.isArray(data) ? data : (data.results || []);
+        this.cdr.detectChanges();
+      },
+      error: err => console.error('Failed to load centers', err)
+    });
+  }
+
   cdr = inject(ChangeDetectorRef);
   permissions: any = {};
   isOwner = false;
@@ -58,6 +76,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.currentTheme = (savedTheme === 'default' || savedTheme === 'light') ? 'light' : savedTheme;
     this.applyTheme();
 
+    this.loadCenters();
     this.startGlobalPolling();
   }
 
@@ -179,7 +198,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   fetchUnreadChatCount() {
-    this.apiService.getUnreadChatCount().subscribe({
+    this.apiService.getUnreadChatCount().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res: any) => {
         this.consecutiveGlobalErrors = 0;
         this.unreadChatCount = res.count || 0;
@@ -192,7 +211,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   fetchLowStockCount() {
-    this.apiService.getLowStockAlerts().subscribe({
+    this.apiService.getLowStockAlerts().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res: any[]) => {
         this.consecutiveGlobalErrors = 0;
         this.lowStockCount = res ? res.length : 0;
@@ -224,7 +243,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   fetchChatUsers() {
     this.chatError = '';
-    this.apiService.get(`accounts/api/chat/users/?t=${new Date().getTime()}`).subscribe({
+    this.apiService.get(`accounts/api/chat/users/?t=${new Date().getTime()}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (users: any) => {
         // Handle potential DRF pagination wrapped object
         this.chatUsers = Array.isArray(users) ? users : (users.data || users.results || []);
@@ -263,7 +282,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   fetchChatMessages() {
     if (!this.selectedChatUser) return;
-    this.apiService.get(`accounts/api/chat/messages/?user_id=${this.selectedChatUser.id}&t=${new Date().getTime()}`).subscribe({
+    this.apiService.get(`accounts/api/chat/messages/?user_id=${this.selectedChatUser.id}&t=${new Date().getTime()}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (msgs: any) => {
         this.consecutiveChatErrors = 0;
         // Handle potential DRF pagination wrapped object
@@ -315,7 +334,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
   mentionStartIndex = -1;
 
   fetchStaffUsers() {
-    this.apiService.get('accounts/api/users/').subscribe({
+    this.apiService.get('accounts/api/users/').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res: any) => {
         this.allStaffUsers = Array.isArray(res) ? res : (res.results || res.data || []);
       },
@@ -383,7 +402,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
       formData.append('mentions', JSON.stringify(this.newMessageMentions));
     }
 
-    this.apiService.post('accounts/api/chat/messages/', formData).subscribe({
+    this.apiService.post('accounts/api/chat/messages/', formData).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res: any) => {
         this.newMessage = '';
         this.selectedImage = null;
@@ -398,4 +417,12 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.stopChatPolling();
     this.stopGlobalPolling();
   }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

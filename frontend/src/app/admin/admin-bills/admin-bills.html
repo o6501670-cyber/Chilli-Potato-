@@ -1,44 +1,17 @@
 <div class="page-wrapper bills-page">
   <!-- Modern Controls -->
-  <div class="bills-controls">
-
-    
-    <div class="control-pill-group">
-      <div style="display: flex; align-items: center; gap: 8px;">
-
-      <app-location-selector
-        [centers]="centers"
-        [hasGlobalAccess]="hasGlobalAccess"
-        [(selectedCenterId)]="selectedCenterId"
-        (selectionChange)="getInvoices()">
-      </app-location-selector>
-    </div>
-    </div>
-
-    <div class="control-pill-group">
-      <div class="date-pill">
-        <label>From:</label>
-        <input type="date" [(ngModel)]="fromDate" (change)="getInvoices()">
-      </div>
-      <div class="date-pill">
-        <label>To:</label>
-        <input type="date" [(ngModel)]="toDate" (change)="getInvoices()">
-      </div>
-    </div>
-    
-    <button class="pill-btn black-btn" (click)="getInvoices()">Apply</button>
-    <button class="pill-btn outline-btn" (click)="exportExcel()" *ngIf="invoices.length > 0">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> 
-      Export
-    </button>
-  </div>
-
-  <div class="bills-layout-grid">
+      <div class="bills-layout-grid">
     <!-- Left Column: Invoice Cards -->
     <div class="bills-list">
       <div class="loading-overlay" *ngIf="isLoading">Loading...</div>
 
-      <div class="date-divider" *ngIf="invoices.length > 0">BILLS FOUND ({{ invoices.length }})</div>
+      <div class="list-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="date-divider" style="margin: 0;" *ngIf="invoices.length > 0">BILLS FOUND ({{ invoices.length }})</div>
+        <div class="search-pill" style="display: flex; align-items: center; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; padding: 0 12px; height: 32px;">
+          <i class="fa fa-search" style="color: #9ca3af; margin-right: 8px;"></i>
+          <input type="text" [(ngModel)]="searchInvoiceNo" (keyup.enter)="resetAndGetInvoices()" placeholder="Search Bill No..." style="border: none; outline: none; background: transparent; width: 140px; font-size: 13px;">
+        </div>
+      </div>
 
       <table class="modern-bills-table" *ngIf="invoices.length > 0">
         <thead>
@@ -61,7 +34,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let inv of invoices">
+          <tr *ngFor="let inv of invoices; trackBy: trackById">
             <td class="font-bold"><span class="invoice-tag" style="background:#e0e7ff; color:#4f46e5; padding:4px 8px; border-radius:6px;">#{{ inv.id }}</span></td>
             <td class="text-secondary">{{ inv.created_at | date:'dd-MM-yyyy' }}</td>
             <td class="text-secondary">{{ inv.billerNameStr || 'N/A' }}</td>
@@ -92,7 +65,13 @@
             </td>
           </tr>
         </tbody>
-      </table>
+      
+        
+        </table>
+        
+
+
+
 
       <div class="no-bills-msg" *ngIf="invoices.length === 0 && !isLoading">
         No invoices found for the selected criteria.
@@ -122,6 +101,8 @@
             <div class="snapshot-line"></div>
             <div class="snapshot-count">{{ getPaidCount() }}</div>
           </div>
+
+
           <div class="snapshot-row">
             <div class="snapshot-name"><span class="dot cancelled"></span> Cancelled</div>
             <div class="snapshot-line"></div>
@@ -132,6 +113,15 @@
             <div class="snapshot-line"></div>
             <div class="snapshot-count">{{ getRefundedCount() }}</div>
           </div>
+        </div>
+      </div>
+
+      <!-- Pagination Controls in Sidebar -->
+      <div class="pagination-controls kpi-card-white" *ngIf="totalPages > 1" style="margin-top: 16px; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+        <span style="font-size: 13px; color: #64748b; font-weight: 600;">Page {{ currentPage }} of {{ totalPages }}</span>
+        <div style="display: flex; gap: 8px; width: 100%;">
+          <button class="pill-btn" (click)="prevPage()" [disabled]="currentPage === 1" [style.opacity]="currentPage === 1 ? '0.5' : '1'" style="flex: 1; padding: 8px 0; font-size: 13px; border: 1px solid #e2e8f0; background: #fff; border-radius: 6px; cursor: pointer; color: #1e293b; font-weight: 600;">Previous</button>
+          <button class="pill-btn" (click)="nextPage()" [disabled]="currentPage >= totalPages" [style.opacity]="currentPage >= totalPages ? '0.5' : '1'" style="flex: 1; padding: 8px 0; font-size: 13px; border: 1px solid #e2e8f0; background: #fff; border-radius: 6px; cursor: pointer; color: #1e293b; font-weight: 600;">Next</button>
         </div>
       </div>
     </div>
@@ -187,11 +177,13 @@
             <td><strong>Total Gross:</strong></td>
             <td class="text-right"><strong>{{ selectedInvoice.total_amount | number:'1.2-2' }}</strong></td>
           </tr>
-          <tr *ngFor="let p of selectedInvoice.payments">
+          <tr *ngFor="let p of selectedInvoice.payments; trackBy: trackById">
             <td>Paid by {{ p.payment_method }}:</td>
             <td class="text-right">{{ p.amount | number:'1.2-2' }}</td>
           </tr>
+        
         </table>
+
 
         <hr>
 
@@ -278,7 +270,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let item of selectedInvoice.items">
+              <tr *ngFor="let item of selectedInvoice.items; trackBy: trackByIndex">
                 <td>{{ item.description || 'Item' }}</td>
                 <td>{{ item.discount | number:'1.0-0' }}</td>
                 <td>0</td>
@@ -295,7 +287,9 @@
                 <td colspan="11" class="text-center">No items</td>
               </tr>
             </tbody>
-          </table>
+          
+        </table>
+
         </div>
       </div>
 

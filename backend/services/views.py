@@ -6,11 +6,19 @@ from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
 from .models import ServiceMaster, CenterService
 from .serializers import ServiceMasterSerializer, CenterServiceSerializer
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_headers
 
 class ServiceMasterViewSet(viewsets.ModelViewSet):
     queryset = ServiceMaster.objects.all().prefetch_related('center_overrides', 'centers')
     serializer_class = ServiceMasterSerializer
     permission_classes = [IsAuthenticated]
+
+    @method_decorator(cache_page(60 * 15))
+    @method_decorator(vary_on_headers('Authorization'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
     def get_queryset(self):
         user = self.request.user

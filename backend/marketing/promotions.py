@@ -1,3 +1,4 @@
+from decimal import Decimal
 def apply_promotion(invoice, promotion_id):
     """Apply a promotion to an invoice. Returns (discount_amount, error_message)."""
     try:
@@ -19,14 +20,14 @@ def apply_promotion(invoice, promotion_id):
         if usage_count >= promo.max_usage_per_client:
             return 0, "Usage limit reached for this client"
 
-    before = float(invoice.subtotal)
+    before = Decimal(str(invoice.subtotal))
     discount = 0
 
     if promo.promo_type == 'Discount':
         if promo.discount_type == 'Percentage':
-            discount = before * float(promo.discount_value) / 100
+            discount = before * Decimal(str(promo.discount_value)) / 100
         else:
-            discount = float(promo.discount_value)
+            discount = Decimal(str(promo.discount_value))
     elif promo.promo_type == 'FlatPrice':
         # Handled per-item — skip invoice level
         pass
@@ -35,11 +36,11 @@ def apply_promotion(invoice, promotion_id):
         pass
     elif promo.promo_type == 'Cashback':
         # Check minimum bill requirement
-        min_bill = float(promo.config.get('cashback_min_bill') or 0)
+        min_bill = Decimal(str(promo.config.get('cashback_min_bill')) or 0)
         if before >= min_bill:
             # Cashback gives money to the client's wallet for future use
             if invoice.client:
-                cashback_percent = float(promo.config.get('cashback_discount') or 0)
+                cashback_percent = Decimal(str(promo.config.get('cashback_discount')) or 0)
                 cashback_val = before * cashback_percent / 100
                 
                 if cashback_val > 0:

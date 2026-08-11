@@ -1,3 +1,4 @@
+from decimal import Decimal
 from rest_framework import viewsets, status, views
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -50,7 +51,7 @@ def _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('
     return qs
 
 
-def _compute_revenue_breakdown(invoices, invoice_ids=None):
+def _compute_revenue_breakdown(invoices):
     """Compute revenue breakdown by item type from invoices."""
     from services.models import ServiceMaster
     from inventory.models import Product
@@ -69,11 +70,7 @@ def _compute_revenue_breakdown(invoices, invoice_ids=None):
 
     from django.db.models import Sum, Q
 
-    # Use pre-fetched invoice_ids (IN lookup) when available - avoids subquery re-evaluation
-    if invoice_ids is not None:
-        items_qs = InvoiceItem.objects.filter(invoice_id__in=invoice_ids)
-    else:
-        items_qs = InvoiceItem.objects.filter(invoice__in=invoices)
+    items_qs = InvoiceItem.objects.filter(invoice__in=invoices)
 
     items = items_qs.aggregate(
         services=Sum('total_price', filter=Q(content_type=service_ct)),
@@ -84,20 +81,14 @@ def _compute_revenue_breakdown(invoices, invoice_ids=None):
         other=Sum('total_price', filter=Q(content_type__isnull=True))
     )
     
-    return {k: float(v or 0) for k, v in items.items()}
+    return {k: Decimal(str(v or 0)) for k, v in items.items()}
 
 
-def _compute_payment_breakdown(invoices, invoice_ids=None):
+def _compute_payment_breakdown(invoices):
     """Compute payment method totals from invoice payments efficiently."""
-    # Use pre-fetched invoice_ids when available for faster IN lookup
-    if invoice_ids is not None:
-        payments_agg = Payment.objects.filter(invoice_id__in=invoice_ids).values('payment_method').annotate(
-            total_amount=Sum('amount'), count=Count('id')
-        )
-    else:
-        payments_agg = Payment.objects.filter(invoice__in=invoices).values('payment_method').annotate(
-            total_amount=Sum('amount'), count=Count('id')
-        )
+    payments_agg = Payment.objects.filter(invoice__in=invoices).values('payment_method').annotate(
+        total_amount=Sum('amount'), count=Count('id')
+    )
     
     method_map = {
         'cash': ['cash'],
@@ -115,11 +106,11 @@ def _compute_payment_breakdown(invoices, invoice_ids=None):
         'other': [],
     }
 
-    result = {k: {'amount': 0.0, 'count': 0} for k in method_map}
+    result = {k: {'amount': Decimal('0.00'), 'count': 0} for k in method_map}
 
     for p in payments_agg:
         pm_lower = (p['payment_method'] or '').lower().strip()
-        amt = float(p['total_amount'] or 0)
+        amt = Decimal(str(p['total_amount'] or 0))
         cnt = p['count']
         matched = False
         
@@ -293,7 +284,7 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
             prev_closing = DailyClosing.objects.filter(
                 center_id=center_id, date=prev
             ).first()
-            balance = float(prev_closing.closing_balance) if prev_closing else 0
+            balance = Decimal(str(prev_closing.closing_balance)) if prev_closing else 0
             return Response({'opening_balance': balance, 'from_date': str(prev)})
         except Exception:
             return Response({'opening_balance': 0})
@@ -352,9 +343,9 @@ class ShiftViewSet(viewsets.ModelViewSet):
         
         actual_cash = request.data.get('actual_cash', 0)
         expected_cash = request.data.get('expected_cash', 0)
-        shift.expected_cash = float(expected_cash)
-        shift.actual_cash = float(actual_cash)
-        shift.variance = float(actual_cash) - float(expected_cash)
+        shift.expected_cash = Decimal(str(expected_cash))
+        shift.actual_cash = Decimal(str(actual_cash))
+        shift.variance = Decimal(str(actual_cash)) - Decimal(str(expected_cash))
         shift.status = 'Closed'
         shift.closed_by = request.user
         shift.closed_at = dt_module.datetime.now()
@@ -493,13 +484,8 @@ class RegisterSummaryView(views.APIView):
 
         invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
         
-        # Cache invoice IDs to avoid re-evaluating the queryset on each subsequent query.
-        # This converts the queryset into a list of IDs once, so all downstream filters
-        # are fast IN lookups rather than subqueries.
-        invoice_ids = list(invoices.values_list('id', flat=True))
-        
-        revenue = _compute_revenue_breakdown(invoices, invoice_ids)
-        payments = _compute_payment_breakdown(invoices, invoice_ids)
+        revenue = _compute_revenue_breakdown(invoices)
+        payments = _compute_payment_breakdown(invoices)
 
         # Advances received (positive advance payments in date range)
         adv_qs = AdvancePayment.objects.filter(amount__gt=0)
@@ -526,19 +512,19 @@ class RegisterSummaryView(views.APIView):
             adv_qs = adv_qs.filter(created_at__date__lte=end_date)
             adv_used_qs = adv_used_qs.filter(created_at__date__lte=end_date)
             
-        advances_total = float(adv_qs.aggregate(t=Sum('amount'))['t'] or 0)
-        advance_redemptions = abs(float(adv_used_qs.aggregate(t=Sum('amount'))['t'] or 0))
+        advances_total = Decimal(str(adv_qs.aggregate(t=Sum('amount'))['t'] or 0))
+        advance_redemptions = abs(Decimal(str(adv_used_qs.aggregate(t=Sum('amount'))['t'] or 0)))
 
         # Refunds (cancelled invoices)
         cancelled_qs = _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('cancelled', 'refunded'))
-        refunds_total = float(cancelled_qs.aggregate(t=Sum('total_amount'))['t'] or 0)
+        refunds_total = Decimal(str(cancelled_qs.aggregate(t=Sum('total_amount'))['t'] or 0))
 
         # Tax totals — combine into a single aggregate call instead of 3 separate ones
-        totals = Invoice.objects.filter(id__in=invoice_ids).aggregate(
+        totals = invoices.aggregate(
             t_cgst=Sum('cgst'), t_sgst=Sum('sgst'), t_discount=Sum('discount')
         )
-        total_tax = float(totals['t_cgst'] or 0) + float(totals['t_sgst'] or 0)
-        total_discount = float(totals['t_discount'] or 0)
+        total_tax = Decimal(str(totals['t_cgst'] or 0)) + Decimal(str(totals['t_sgst'] or 0))
+        total_discount = Decimal(str(totals['t_discount'] or 0))
 
         # Proportional tax split based on actual service vs product revenue
         total_taxable = revenue['services'] + revenue['products']
@@ -559,8 +545,8 @@ class RegisterSummaryView(views.APIView):
         ) - total_discount
         
         # Net collection: add advances (actual cash received), deduct redemptions (liabilities drawn down)
-        value_card_redemptions = float(payments['value_card']['amount'])
-        cashback_redemptions = float(payments['cashback_wallet']['amount'])
+        value_card_redemptions = Decimal(str(payments['value_card']['amount']))
+        cashback_redemptions = Decimal(str(payments['cashback_wallet']['amount']))
         
         collection_before_tax = sales_collection + advances_total - advance_redemptions - value_card_redemptions - cashback_redemptions
         including_tax = collection_before_tax + total_tax
@@ -587,7 +573,7 @@ class RegisterSummaryView(views.APIView):
                             month_abbr = calendar.month_abbr[curr_m]
                             month_key = f"{month_abbr}-{curr_y}"
                             val = history.get(month_key, 0)
-                            target += float(val or 0)
+                            target += Decimal(str(val or 0))
                             
                             curr_m += 1
                             if curr_m > 12:
@@ -598,7 +584,7 @@ class RegisterSummaryView(views.APIView):
                 
                 # Fallback to default monthly_target if no target found from history or dates missing
                 if target == 0:
-                    target = float(center_obj.monthly_target or 0)
+                    target = Decimal(str(center_obj.monthly_target or 0))
 
                 if target > 0:
                     target_achieved_percentage = round((collection_before_tax / target) * 100, 2)
@@ -706,9 +692,7 @@ class MonthlySalesView(views.APIView):
 
         invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
 
-        # Cache invoice IDs once to avoid subquery re-evaluation across multiple downstream queries
-        invoice_ids = list(invoices.values_list('id', flat=True))
-        if not invoice_ids:
+        if not invoices.exists():
             return Response([])
 
         from services.models import ServiceMaster
@@ -725,9 +709,9 @@ class MonthlySalesView(views.APIView):
         except Exception:
             return Response([])
 
-        # Fast monthly aggregations using invoice_id__in (IN lookup, not subquery)
+        # Fast monthly aggregations
         monthly = (
-            Invoice.objects.filter(id__in=invoice_ids)
+            invoices
             .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
             .values('year', 'month_num')
             .annotate(
@@ -741,7 +725,7 @@ class MonthlySalesView(views.APIView):
         )
 
         item_monthly = (
-            InvoiceItem.objects.filter(invoice_id__in=invoice_ids)
+            InvoiceItem.objects.filter(invoice__in=invoices)
             .annotate(year=ExtractYear('invoice__created_at'), month_num=ExtractMonth('invoice__created_at'))
             .values('year', 'month_num')
             .annotate(
@@ -799,10 +783,10 @@ class MonthlySalesView(views.APIView):
         )
         adv_used_dict = {(row['year'], row['month_num']): row for row in adv_used_monthly}
 
-        # Value Card and Cashback Redemptions - use invoice_id__in for fast lookup
+        # Value Card and Cashback Redemptions - use invoice__in for subquery lookup
         from billing.models import Payment
         liability_pmts = Payment.objects.filter(
-            invoice_id__in=invoice_ids
+            invoice__in=invoices
         ).filter(
             Q(payment_method__icontains='value card') | Q(payment_method__icontains='cashback')
         )
@@ -824,7 +808,7 @@ class MonthlySalesView(views.APIView):
             .annotate(refunds=Sum('total_amount'))
             .order_by('-year', '-month_num')
         )
-        refunds_dict = {(r['year'], r['month_num']): float(r['refunds'] or 0) for r in cancelled_monthly}
+        refunds_dict = {(r['year'], r['month_num']): Decimal(str(r['refunds'] or 0)) for r in cancelled_monthly}
 
         # Fetch target history
         from salon_admin.models import Center
@@ -852,21 +836,21 @@ class MonthlySalesView(views.APIView):
             month_str = f"{calendar.month_abbr[month_num]}-{year}"
 
             i_row = items_dict.get(month_key, {})
-            services = float(i_row.get('services') or 0)
-            products = float(i_row.get('products') or 0)
-            memberships = float(i_row.get('memberships') or 0)
-            packages = float(i_row.get('packages') or 0)
-            value_cards = float(i_row.get('value_cards') or 0)
-            other = float(i_row.get('other') or 0)
+            services = Decimal(str(i_row.get('services')) or 0)
+            products = Decimal(str(i_row.get('products')) or 0)
+            memberships = Decimal(str(i_row.get('memberships')) or 0)
+            packages = Decimal(str(i_row.get('packages')) or 0)
+            value_cards = Decimal(str(i_row.get('value_cards')) or 0)
+            other = Decimal(str(i_row.get('other')) or 0)
 
-            adv = float(adv_dict.get(month_key, {}).get('advances') or 0)
-            adv_used = abs(float(adv_used_dict.get(month_key, {}).get('advances_used') or 0))
-            liab_used = float(liab_used_dict.get(month_key, {}).get('liab_used') or 0)
+            adv = Decimal(str(adv_dict.get(month_key, {})).get('advances') or 0)
+            adv_used = abs(Decimal(str(adv_used_dict.get(month_key, {})).get('advances_used') or 0))
+            liab_used = Decimal(str(liab_used_dict.get(month_key, {})).get('liab_used') or 0)
             
             total_redemptions = adv_used + liab_used
 
-            total_tax = float(row['total_cgst'] or 0) + float(row['total_sgst'] or 0)
-            total_discount = float(row['total_discount'] or 0)
+            total_tax = Decimal(str(row['total_cgst'] or 0)) + Decimal(str(row['total_sgst'] or 0))
+            total_discount = Decimal(str(row['total_discount'] or 0))
             total = (services + products + memberships + packages + value_cards + other + adv - total_redemptions) - total_discount
             
             taxable_value = services + products + value_cards + memberships + packages
@@ -876,12 +860,12 @@ class MonthlySalesView(views.APIView):
                 hist = c.monthly_targets_history or {}
                 raw_t = hist.get(month_str, 0)
                 try:
-                    t = float(raw_t) if raw_t not in [None, ""] else 0.0
+                    t = Decimal(str(raw_t)) if raw_t not in [None, ""] else 0.0
                 except (ValueError, TypeError):
                     t = 0.0
                 if t == 0:
                     try:
-                        t = float(c.monthly_target) if c.monthly_target not in [None, ""] else 0.0
+                        t = Decimal(str(c.monthly_target)) if c.monthly_target not in [None, ""] else 0.0
                     except (ValueError, TypeError):
                         t = 0.0
                 target += t
@@ -970,48 +954,41 @@ class DetailedRevenuesView(views.APIView):
         except Exception:
             service_ct = product_ct = membership_ct = package_ct = valuecard_ct = None
 
+        invoices_page = list(invoices_page)  # realize the paginated slice for iteration
+
+        # Use the sliced IDs (safe — max 500 per page) for efficient batch lookups
         invoice_ids = [inv.id for inv in invoices_page]
-        invoices_page = list(invoices_page)  # realize the slice for iteration
 
         from billing.models import Payment, AdvancePayment
-        vc_used_invs = set(Payment.objects.filter(invoice_id__in=invoice_ids, value_card_id__isnull=False).values_list('invoice_id', flat=True))
-        adv_used_invs = set(AdvancePayment.objects.filter(invoice_id__in=invoice_ids, amount__lt=0).values_list('invoice_id', flat=True))
-        pkg_used_invs = set(InvoiceItem.objects.filter(invoice_id__in=invoice_ids, total_price=0, content_type__app_label='services').values_list('invoice_id', flat=True))
-
         from django.db.models import Sum, Count, Q
-        item_counts = (
-            InvoiceItem.objects.filter(invoice_id__in=invoice_ids)
-            .values('invoice_id')
-            .annotate(
-                service_count=Sum(
-                    'quantity',
-                    # Exclude ₹0 redemption items — they inflate counts but add no revenue
-                    filter=Q(content_type=service_ct, total_price__gt=0) if service_ct else Q(pk__isnull=True)
-                ),
-                product_count=Sum(
-                    'quantity',
-                    filter=Q(content_type=product_ct, total_price__gt=0) if product_ct else Q(pk__isnull=True)
-                ),
-                membership_count=Sum(
-                    'quantity',
-                    filter=Q(content_type=membership_ct) if membership_ct else Q(pk__isnull=True)
-                ),
-                package_count=Sum(
-                    'quantity',
-                    filter=Q(content_type=package_ct) if package_ct else Q(pk__isnull=True)
-                ),
-                valuecard_count=Sum(
-                    'quantity',
-                    filter=Q(content_type=valuecard_ct) if valuecard_ct else Q(pk__isnull=True)
-                ),
+
+        if invoice_ids:
+            vc_used_invs = set(Payment.objects.filter(invoice_id__in=invoice_ids, value_card_id__isnull=False).values_list('invoice_id', flat=True))
+            adv_used_invs = set(AdvancePayment.objects.filter(invoice_id__in=invoice_ids, amount__lt=0).values_list('invoice_id', flat=True))
+            pkg_used_invs = set(InvoiceItem.objects.filter(invoice_id__in=invoice_ids, total_price=0, content_type__app_label='services').values_list('invoice_id', flat=True))
+            item_counts = (
+                InvoiceItem.objects.filter(invoice_id__in=invoice_ids)
+                .values('invoice_id')
+                .annotate(
+                    service_count=Sum('quantity', filter=Q(content_type=service_ct, total_price__gt=0) if service_ct else Q(pk__isnull=True)),
+                    product_count=Sum('quantity', filter=Q(content_type=product_ct, total_price__gt=0) if product_ct else Q(pk__isnull=True)),
+                    membership_count=Sum('quantity', filter=Q(content_type=membership_ct) if membership_ct else Q(pk__isnull=True)),
+                    package_count=Sum('quantity', filter=Q(content_type=package_ct) if package_ct else Q(pk__isnull=True)),
+                    valuecard_count=Sum('quantity', filter=Q(content_type=valuecard_ct) if valuecard_ct else Q(pk__isnull=True)),
+                )
             )
-        )
+        else:
+            vc_used_invs = set()
+            adv_used_invs = set()
+            pkg_used_invs = set()
+            item_counts = []
+
         counts_by_invoice = {row['invoice_id']: row for row in item_counts}
 
-
         if request.query_params.get('export') == 'true':
-            invoices_page = invoices # Ignore pagination
-            
+            # For export: rebuild full invoice list using the full (non-paginated) queryset
+            # We must iterate page-by-page to avoid loading all IDs at once
+            invoices_page = list(invoices.select_related('client', 'center', 'staff'))
         result = []
         for inv in invoices_page:
             counts = counts_by_invoice.get(inv.id, {})
@@ -1025,7 +1002,7 @@ class DetailedRevenuesView(views.APIView):
                 client_name = f"{inv.client.first_name} {inv.client.last_name or ''}".strip()
                 client_gst = inv.client.gst_number or ''
 
-            net = float(inv.total_amount) - float(inv.cgst) - float(inv.sgst)
+            net = Decimal(str(inv.total_amount)) - Decimal(str(inv.cgst)) - Decimal(str(inv.sgst))
             
             redemptions = []
             if inv.id in vc_used_invs:
@@ -1051,12 +1028,12 @@ class DetailedRevenuesView(views.APIView):
                 'billed_by': billed_by,
                 'client': client_name,
                 'gst_no': client_gst,
-                'discount': float(inv.discount),
+                'discount': Decimal(str(inv.discount)),
                 'net': round(net, 2),
-                'cgst': float(inv.cgst),
-                'sgst': float(inv.sgst),
-                'total_gst': float(inv.cgst) + float(inv.sgst),
-                'grand_total': float(inv.total_amount),
+                'cgst': Decimal(str(inv.cgst)),
+                'sgst': Decimal(str(inv.sgst)),
+                'total_gst': Decimal(str(inv.cgst)) + Decimal(str(inv.sgst)),
+                'grand_total': Decimal(str(inv.total_amount)),
                 'services': int(counts.get('service_count') or 0),
                 'products': int(counts.get('product_count') or 0),
                 'memberships': int(counts.get('membership_count') or 0),
@@ -1129,10 +1106,10 @@ class ExportFinanceView(views.APIView):
                 inv.created_at.strftime('%Y-%m-%d %H:%M'),
                 client_name,
                 center_name,
-                float(inv.subtotal),
-                float(inv.discount),
-                float(inv.cgst + inv.sgst),
-                float(inv.total_amount),
+                Decimal(str(inv.subtotal)),
+                Decimal(str(inv.discount)),
+                Decimal(str(inv.cgst + inv.sgst)),
+                Decimal(str(inv.total_amount)),
                 inv.status
             ])
             
@@ -1184,7 +1161,7 @@ class RefundsView(views.APIView):
                 'date_time': inv.created_at.strftime('%d-%b-%Y, %H:%M'),
                 'client': client_name,
                 'billed_by': billed_by,
-                'total_amount': float(inv.total_amount),
+                'total_amount': Decimal(str(inv.total_amount)),
                 'status': inv.status,
             })
 
@@ -1212,7 +1189,7 @@ class RefundsView(views.APIView):
 
         return Response({
             'refunds': result,
-            'total_refunded': float(all_refunds_total),  # FIXED: all pages total, not current page
+            'total_refunded': Decimal(str(all_refunds_total)),  # FIXED: all pages total, not current page
             'count': total_count,
             'page': page,
             'page_size': page_size,
@@ -1261,11 +1238,11 @@ class ProcurementReportView(views.APIView):
             vendor_map[vk]['vendor_name'] = po.vendor.name
             vendor_map[vk]['gst_number'] = po.vendor.cst_number or ''
             vendor_map[vk]['num_pos'] += 1
-            vendor_map[vk]['total'] += float(po.total_amount)
+            vendor_map[vk]['total'] += Decimal(str(po.total_amount))
 
             # Tax from PO items
             for item in po.items.all():
-                tax_amt = float(item.rate) * float(item.quantity) * float(item.tax_percent) / 100
+                tax_amt = Decimal(str(item.rate)) * Decimal(str(item.quantity)) * Decimal(str(item.tax_percent)) / 100
                 vendor_map[vk]['tax_total'] += tax_amt
 
         result = []
@@ -1332,8 +1309,8 @@ class TaxReportView(views.APIView):
             total_cgst=Sum('cgst'),
             total_sgst=Sum('sgst')
         )
-        total_cgst = float(tax_summary['total_cgst'] or 0)
-        total_sgst = float(tax_summary['total_sgst'] or 0)
+        total_cgst = Decimal(str(tax_summary['total_cgst'] or 0))
+        total_sgst = Decimal(str(tax_summary['total_sgst'] or 0))
         total_tax = total_cgst + total_sgst
         
         # Also return itemized tax for invoices
@@ -1345,9 +1322,9 @@ class TaxReportView(views.APIView):
             inv['created_at'] = inv['created_at'].strftime('%Y-%m-%d %H:%M') if inv['created_at'] else None
             inv['client_name'] = f"{inv.get('client__first_name', '')} {inv.get('client__last_name', '')}".strip()
             inv['invoice_number'] = inv['id']
-            inv['tax_amount'] = float(inv['cgst'] or 0) + float(inv['sgst'] or 0)
-            inv['cgst_amount'] = float(inv['cgst'] or 0)
-            inv['sgst_amount'] = float(inv['sgst'] or 0)
+            inv['tax_amount'] = Decimal(str(inv['cgst'] or 0)) + Decimal(str(inv['sgst'] or 0))
+            inv['cgst_amount'] = Decimal(str(inv['cgst'] or 0))
+            inv['sgst_amount'] = Decimal(str(inv['sgst'] or 0))
             
         return Response({
             'summary': {
@@ -1382,9 +1359,9 @@ class ServiceDrilldownView(views.APIView):
             results.append({
                 'name': i['description'] or 'Unknown',
                 'type': 'Service' if i['type'] == 'servicemaster' else 'Product' if i['type'] == 'product' else 'Package',
-                'count': float(i['count'] or 0),
-                'revenue': float(i['revenue'] or 0),
-                'avg_price': float(i['revenue'] or 0) / float(i['count'] or 1) if float(i['count'] or 0) > 0 else 0
+                'count': Decimal(str(i['count'] or 0)),
+                'revenue': Decimal(str(i['revenue'] or 0)),
+                'avg_price': Decimal(str(i['revenue'] or 0)) / Decimal(str(i['count'] or 1)) if Decimal(str(i['count'] or 0)) > 0 else 0
             })
             
         return Response(results)
@@ -1413,8 +1390,8 @@ class StaffPerformanceReportView(views.APIView):
             name = f"{i.get('staff__first_name', '')} {i.get('staff__last_name', '')}".strip()
             results.append({
                 'staff_name': name or 'Unknown',
-                'services_done': float(i['services_done'] or 0),
-                'revenue_generated': float(i['revenue_generated'] or 0)
+                'services_done': Decimal(str(i['services_done'] or 0)),
+                'revenue_generated': Decimal(str(i['revenue_generated'] or 0))
             })
             
         return Response(results)
@@ -1442,9 +1419,9 @@ class ManagerDiscountsAuditView(views.APIView):
                 'invoice_number': inv['id'],
                 'client_name': client_name,
                 'created_at': inv['created_at'].strftime('%Y-%m-%d %H:%M') if inv['created_at'] else None,
-                'subtotal': float(inv['subtotal'] or 0),
-                'discount_amount': float(inv['discount'] or 0),
-                'total_amount': float(inv['total_amount'] or 0),
+                'subtotal': Decimal(str(inv['subtotal'] or 0)),
+                'discount_amount': Decimal(str(inv['discount'] or 0)),
+                'total_amount': Decimal(str(inv['total_amount'] or 0)),
                 'manager': manager or 'Unknown'
             })
             
@@ -1574,36 +1551,36 @@ class StaffIncentiveCalculationView(views.APIView):
                 'role': s.designation or 'Staff',
                 'center': (s.center.display_name or s.center.center_name) if s.center else 'N/A',
                 'center_id': s.center_id,
-                'salary': float(s.salary or 0),
-                'commission_percentage': float(s.commission_percentage or 0),
-                'product_commission_percentage': float(s.product_commission_percentage or 0),
-                'services_revenue': 0.0,
-                'products_revenue': 0.0,
-                'cards_revenue': 0.0,
-                'memberships_revenue': 0.0,
-                'packages_revenue': 0.0,
-                'total_sales': 0.0,
-                'revenue': 0.0,
+                'salary': Decimal(str(s.salary or 0)),
+                'commission_percentage': Decimal(str(s.commission_percentage or 0)),
+                'product_commission_percentage': Decimal(str(s.product_commission_percentage or 0)),
+                'services_revenue': Decimal('0.00'),
+                'products_revenue': Decimal('0.00'),
+                'cards_revenue': Decimal('0.00'),
+                'memberships_revenue': Decimal('0.00'),
+                'packages_revenue': Decimal('0.00'),
+                'total_sales': Decimal('0.00'),
+                'revenue': Decimal('0.00'),
                 'cards_count': 0,
                 'card_slabs': [],
-                'service_incentive': 0.0,
-                'services_incentive': 0.0,
-                'service_addon_incentive': 0.0,
-                'service_target_incentive': 0.0,
-                'daily_business_incentive': 0.0,
-                'daily_bonus': 0.0,
+                'service_incentive': Decimal('0.00'),
+                'services_incentive': Decimal('0.00'),
+                'service_addon_incentive': Decimal('0.00'),
+                'service_target_incentive': Decimal('0.00'),
+                'daily_business_incentive': Decimal('0.00'),
+                'daily_bonus': Decimal('0.00'),
                 'daily_bonus_rule': '',
                 'target_achievements': [],
-                'product_incentive': 0.0,
-                'products_incentive': 0.0,
-                'card_incentive': 0.0,
-                'cards_incentive': 0.0,
-                'membership_incentive': 0.0,
-                'memberships_incentive': 0.0,
-                'package_incentive': 0.0,
-                'packages_incentive': 0.0,
-                'total_incentive': 0.0,
-                'incentive_amount': 0.0,
+                'product_incentive': Decimal('0.00'),
+                'products_incentive': Decimal('0.00'),
+                'card_incentive': Decimal('0.00'),
+                'cards_incentive': Decimal('0.00'),
+                'membership_incentive': Decimal('0.00'),
+                'memberships_incentive': Decimal('0.00'),
+                'package_incentive': Decimal('0.00'),
+                'packages_incentive': Decimal('0.00'),
+                'total_incentive': Decimal('0.00'),
+                'incentive_amount': Decimal('0.00'),
                 'salary_multiple': 0.0,
                 'service_percent_applied': 0.0,
                 'product_percent_applied': 0.0,
@@ -1620,7 +1597,7 @@ class StaffIncentiveCalculationView(views.APIView):
                 continue
             ct_model = item.content_type.model.lower() if item.content_type else ''
             desc = (item.description or '').lower()
-            price = float(item.total_price or 0)
+            price = Decimal(str(item.total_price or 0))
             date_str = inv.created_at.strftime('%Y-%m-%d') if inv.created_at else ''
             inv_num = f"{inv.center_id or '0'}-{inv.created_at.strftime('%d%m%y') if inv.created_at else ''}-{inv.id}"
             
@@ -1667,7 +1644,7 @@ class StaffIncentiveCalculationView(views.APIView):
                 master_incentive = 0.0
                 if item.content_object and hasattr(item.content_object, 'incentive'):
                     try:
-                        master_incentive = float(item.content_object.incentive or 0)
+                        master_incentive = Decimal(str(item.content_object.incentive or 0))
                     except (ValueError, TypeError):
                         pass
 
@@ -1700,37 +1677,23 @@ class StaffIncentiveCalculationView(views.APIView):
                         r_type = card_rule.rule_type
                         if r_type in ['slab', 'slabs'] and card_rule.tiers:
                             for slab in card_rule.tiers:
-                                min_amt = float(slab.get('min_amount') or slab.get('min_price') or 0)
-                                max_amt = float(slab.get('max_amount') or slab.get('max_price') or 999999999)
+                                min_amt = Decimal(str(slab.get('min_amount')) or slab.get('min_price') or 0)
+                                max_amt = Decimal(str(slab.get('max_amount')) or slab.get('max_price') or 999999999)
                                 slab_name = (slab.get('name') or '').lower()
                                 if (min_amt <= split_price <= max_amt) or (slab_name and slab_name in desc):
-                                    card_reward = float(slab.get('incentive_amount') or slab.get('amount') or 0)
+                                    card_reward = Decimal(str(slab.get('incentive_amount')) or slab.get('amount') or 0)
                                     slab_label = slab.get('name') or f"₹{min_amt}-₹{max_amt}"
                                     break
                         elif r_type in ['percentage', 'flat_percentage']:
-                            card_reward = split_price * float(card_rule.flat_percent or 0) / 100.0
+                            card_reward = split_price * Decimal(str(card_rule.flat_percent or 0)) / 100.0
                             slab_label = f"{card_rule.flat_percent}%"
                         elif r_type in ['flat', 'flat_amount']:
-                            card_reward = float(card_rule.flat_amount or 0)
+                            card_reward = Decimal(str(card_rule.flat_amount or 0))
                             slab_label = f"₹{card_rule.flat_amount}"
                     
-                    # Default Value Card Slabs Fallback if no rule matched
-                    if card_reward == 0:
-                        if 11000 <= split_price <= 14000 or 'elite' in desc:
-                            card_reward = 200.0
-                            slab_label = 'Elite'
-                        elif 21000 <= split_price <= 30000 or 'luxe' in desc:
-                            card_reward = 400.0
-                            slab_label = 'Luxe'
-                        elif 51000 <= split_price <= 80000 or 'prestige' in desc:
-                            card_reward = 600.0
-                            slab_label = 'Prestige'
-                        elif 111000 <= split_price <= 180000 or 'infinity' in desc:
-                            card_reward = 800.0
-                            slab_label = 'Infinity'
-
+                    # No hardcoded card slab fallback — card_reward stays 0 if no active rule matches.
                     if card_reward == 0 and item.content_object and hasattr(item.content_object, 'incentive') and item.content_object.incentive:
-                        card_reward = float(item.content_object.incentive)
+                        card_reward = Decimal(str(item.content_object.incentive))
 
                     item_detail['calculated_incentive'] = round(card_reward, 2)
                     item_detail['incentive_amount'] = round(card_reward, 2)
@@ -1764,13 +1727,13 @@ class StaffIncentiveCalculationView(views.APIView):
                     mbr_rule = get_matching_rule('memberships', sm.center_id, sm.designation or 'staff')
                     if mbr_rule:
                         if mbr_rule.rule_type in ['percentage', 'flat_percentage']:
-                            mbr_reward = split_price * float(mbr_rule.flat_percent or 0) / 100.0
+                            mbr_reward = split_price * Decimal(str(mbr_rule.flat_percent or 0)) / 100.0
                             item_detail['calculation_rule'] = f"{mbr_rule.flat_percent}%"
                         elif mbr_rule.rule_type in ['flat', 'flat_amount']:
-                            mbr_reward = float(mbr_rule.flat_amount or 0)
+                            mbr_reward = Decimal(str(mbr_rule.flat_amount or 0))
                             item_detail['calculation_rule'] = f"₹{mbr_rule.flat_amount}"
                     if mbr_reward == 0 and item.content_object and hasattr(item.content_object, 'incentive') and item.content_object.incentive:
-                        mbr_reward = float(item.content_object.incentive)
+                        mbr_reward = Decimal(str(item.content_object.incentive))
                     item_detail['calculated_incentive'] = round(mbr_reward, 2)
                     item_detail['incentive_amount'] = round(mbr_reward, 2)
                     st['membership_incentive'] += mbr_reward
@@ -1784,13 +1747,13 @@ class StaffIncentiveCalculationView(views.APIView):
                     pkg_rule = get_matching_rule('packages', sm.center_id, sm.designation or 'staff')
                     if pkg_rule:
                         if pkg_rule.rule_type in ['percentage', 'flat_percentage']:
-                            pkg_reward = split_price * float(pkg_rule.flat_percent or 0) / 100.0
+                            pkg_reward = split_price * Decimal(str(pkg_rule.flat_percent or 0)) / 100.0
                             item_detail['calculation_rule'] = f"{pkg_rule.flat_percent}%"
                         elif pkg_rule.rule_type in ['flat', 'flat_amount']:
-                            pkg_reward = float(pkg_rule.flat_amount or 0)
+                            pkg_reward = Decimal(str(pkg_rule.flat_amount or 0))
                             item_detail['calculation_rule'] = f"₹{pkg_rule.flat_amount}"
                     if pkg_reward == 0 and item.content_object and hasattr(item.content_object, 'incentive') and item.content_object.incentive:
-                        pkg_reward = float(item.content_object.incentive)
+                        pkg_reward = Decimal(str(item.content_object.incentive))
                     item_detail['calculated_incentive'] = round(pkg_reward, 2)
                     item_detail['incentive_amount'] = round(pkg_reward, 2)
                     st['package_incentive'] += pkg_reward
@@ -1811,34 +1774,13 @@ class StaffIncentiveCalculationView(views.APIView):
                                 kw = (t.get('match_keyword') or t.get('service_name') or '').lower().strip()
                                 s_name = (t.get('service_name') or '').lower().strip()
                                 if kw and (kw in desc or (s_name and s_name in desc)):
-                                    addon_reward = float(t.get('incentive_amount') or t.get('bonus_amount') or 0)
+                                    addon_reward = Decimal(str(t.get('incentive_amount')) or t.get('bonus_amount') or 0)
                                     addon_label = t.get('service_name') or 'Service Add-on'
                                     break
                         if addon_reward > 0:
                             break
 
-                    # Fallback standard add-on match if no rule matched
-                    if addon_reward == 0:
-                        if 'fusio' in desc or 'scrub' in desc:
-                            addon_reward = 100.0; addon_label = 'Fusio Dose / Scrub'
-                        elif 'express ritual' in desc:
-                            addon_reward = 150.0; addon_label = 'Express Ritual'
-                        elif 'experience ritual' in desc:
-                            addon_reward = 200.0; addon_label = 'Experience Ritual'
-                        elif 'premiere ritual' in desc or 'k premiere' in desc:
-                            addon_reward = 250.0; addon_label = 'K Premiere Ritual'
-                        elif 'chronologist' in desc:
-                            addon_reward = 300.0; addon_label = 'Chronologist'
-                        elif 'be spoke' in desc or 'bespoke' in desc:
-                            addon_reward = 400.0; addon_label = 'Bespoke Signature Ritual'
-                        elif 'alga exquis' in desc:
-                            addon_reward = 200.0; addon_label = 'Alga Exquis Mani/Pedi'
-                        elif 'algae' in desc:
-                            addon_reward = 150.0; addon_label = 'Algae Mani/Pedi'
-                        elif 'footlogix' in desc or 'fondu' in desc:
-                            addon_reward = 50.0; addon_label = 'Footlogix Mani/Pedi'
-                        elif 'absolute repair' in desc:
-                            addon_reward = 100.0; addon_label = 'Absolute Repair Molecular'
+                    # No hardcoded fallback — addon_reward stays 0 if no active rule matches.
 
                     if addon_reward > 0:
                         split_addon = addon_reward / len(item_staff_list) if len(item_staff_list) > 0 else addon_reward
@@ -1873,41 +1815,23 @@ class StaffIncentiveCalculationView(views.APIView):
                 daily_rule_label = ''
 
                 if daily_rule and daily_rule.tiers:
-                    sorted_slabs = sorted(daily_rule.tiers, key=lambda t: float(t.get('min_amount') or 0), reverse=True)
+                    sorted_slabs = sorted(daily_rule.tiers, key=lambda t: Decimal(str(t.get('min_amount')) or 0), reverse=True)
                     for slab in sorted_slabs:
-                        min_amt = float(slab.get('min_amount') or 0)
+                        min_amt = Decimal(str(slab.get('min_amount')) or 0)
                         if total_sales >= min_amt:
                             b_type = slab.get('bonus_type') or 'flat'
                             if b_type in ['percentage', 'percent']:
-                                pct = float(slab.get('bonus_percent') or slab.get('percent') or 0)
+                                pct = Decimal(str(slab.get('bonus_percent')) or slab.get('percent') or 0)
                                 daily_bonus = round(total_sales * (pct / 100.0), 2)
                                 daily_rule_label = f"{pct}% bonus (Sales >= Rs.{int(min_amt):,})"
                             else:
-                                daily_bonus = float(slab.get('bonus_amount') or slab.get('amount') or 0)
+                                daily_bonus = Decimal(str(slab.get('bonus_amount')) or slab.get('amount') or 0)
                                 daily_rule_label = f"Rs.{int(daily_bonus):,} bonus (Sales >= Rs.{int(min_amt):,})"
                             break
                 else:
-                    # Default Daily Slabs Fallback
-                    role_str = (st['role'] or '').lower()
-                    is_lhds = any(k in role_str for k in ['lhds', 'uhds', 'stylist', 'hair', 'don'])
-                    if is_lhds:
-                        if total_sales >= 20000:
-                            daily_bonus = round(total_sales * 0.05, 2); daily_rule_label = 'Flat 5% (Sales >= Rs.20,000)'
-                        elif total_sales >= 15000:
-                            daily_bonus = 700.0; daily_rule_label = 'Rs.700 bonus (Sales >= Rs.15,000)'
-                        elif total_sales >= 10000:
-                            daily_bonus = 450.0; daily_rule_label = 'Rs.450 bonus (Sales >= Rs.10,000)'
-                        elif total_sales >= 8000:
-                            daily_bonus = 350.0; daily_rule_label = 'Rs.350 bonus (Sales >= Rs.8,000)'
-                    else:
-                        if total_sales >= 15000:
-                            daily_bonus = round(total_sales * 0.05, 2); daily_rule_label = 'Flat 5% (Sales >= Rs.15,000)'
-                        elif total_sales >= 10000:
-                            daily_bonus = 450.0; daily_rule_label = 'Rs.450 bonus (Sales >= Rs.10,000)'
-                        elif total_sales >= 8000:
-                            daily_bonus = 350.0; daily_rule_label = 'Rs.350 bonus (Sales >= Rs.8,000)'
-                        elif total_sales >= 6000:
-                            daily_bonus = 200.0; daily_rule_label = 'Rs.200 bonus (Sales >= Rs.6,000)'
+                    # No daily slab rule configured — daily_bonus stays 0.
+                    daily_bonus = 0.0
+                    daily_rule_label = ''
 
                 st['daily_business_incentive'] = round(daily_bonus, 2)
                 st['daily_bonus'] = round(daily_bonus, 2)
@@ -1922,7 +1846,7 @@ class StaffIncentiveCalculationView(views.APIView):
                         for tier in tr.tiers:
                             kw = (tier.get('match_keyword') or tier.get('service_name') or '').lower().strip()
                             t_cnt = int(tier.get('target_count') or 1)
-                            r_amt = float(tier.get('reward_amount') or 0)
+                            r_amt = Decimal(str(tier.get('reward_amount')) or 0)
                             # Count matching services performed by this staff
                             matched_count = sum(
                                 1 for dt in st['details']
@@ -1945,13 +1869,12 @@ class StaffIncentiveCalculationView(views.APIView):
                 st['product_incentive'] = 0.0
                 st['products_incentive'] = 0.0
 
+                # Daily total: business slab + service add-ons + service targets + value cards
                 total_inc = (
-                    st['daily_business_incentive'] +
-                    st['service_addon_incentive'] +
-                    st['service_target_incentive'] +
-                    st['card_incentive'] +
-                    st['membership_incentive'] +
-                    st['package_incentive']
+                    float(st['daily_business_incentive']) +
+                    float(st['service_addon_incentive']) +
+                    float(st['service_target_incentive']) +
+                    float(st['card_incentive'])
                 )
                 st['total_incentive'] = round(total_inc, 2)
                 st['incentive_amount'] = st['total_incentive']
@@ -1962,13 +1885,13 @@ class StaffIncentiveCalculationView(views.APIView):
                 prod_pct = 0.0
                 if prod_rule:
                     if prod_rule.rule_type in ['multiple', 'multipliers'] and prod_rule.tiers:
-                        sorted_tiers = sorted(prod_rule.tiers, key=lambda t: float(t.get('min_multiple') or 0), reverse=True)
+                        sorted_tiers = sorted(prod_rule.tiers, key=lambda t: Decimal(str(t.get('min_multiple')) or 0), reverse=True)
                         for tier in sorted_tiers:
-                            if multiple >= float(tier.get('min_multiple') or 0):
-                                prod_pct = float(tier.get('incentive_percent') or tier.get('percent') or 0)
+                            if multiple >= Decimal(str(tier.get('min_multiple')) or 0):
+                                prod_pct = Decimal(str(tier.get('incentive_percent')) or tier.get('percent') or 0)
                                 break
                     elif prod_rule.rule_type in ['percentage', 'flat_percentage']:
-                        prod_pct = float(prod_rule.flat_percent or 0)
+                        prod_pct = Decimal(str(prod_rule.flat_percent or 0))
 
                 # FALLBACK FOR PRODUCTS
                 if not prod_rule and st['product_commission_percentage'] > 0:
@@ -1980,7 +1903,7 @@ class StaffIncentiveCalculationView(views.APIView):
                     for dt in st['details']:
                         if dt['type'] == 'Product':
                             pct = dt.get('master_incentive_percent') or 0.0
-                            inc = round(dt['price'] * (pct / 100.0), 2)
+                            inc = round(float(dt['price']) * (float(pct) / 100.0), 2)
                             dt['calculated_incentive'] = inc
                             dt['incentive_amount'] = inc
                             if pct > 0:
@@ -1990,44 +1913,40 @@ class StaffIncentiveCalculationView(views.APIView):
                     st['products_incentive'] = st['product_incentive']
                     st['product_percent_applied'] = 0
                 else:
-                    st['product_incentive'] = round(st['products_revenue'] * (prod_pct / 100.0), 2)
+                    st['product_incentive'] = round(float(st['products_revenue']) * (float(prod_pct) / 100.0), 2)
                     st['products_incentive'] = st['product_incentive']
                     st['product_percent_applied'] = prod_pct
                     for dt in st['details']:
                         if dt['type'] == 'Product':
-                            dt['calculated_incentive'] = round(dt['price'] * (prod_pct / 100.0), 2)
+                            dt['calculated_incentive'] = round(float(dt['price']) * (float(prod_pct) / 100.0), 2)
                             dt['incentive_amount'] = dt['calculated_incentive']
-                            dt['calculation_rule'] = f"{prod_pct}% ({multiple}x multiple)" if prod_rule and prod_rule.rule_type in ['multiple', 'multipliers'] else f"{prod_pct}%"
+                            dt['calculation_rule'] = f"{float(prod_pct):g}% ({float(multiple):g}x multiple)" if prod_rule and prod_rule.rule_type in ['multiple', 'multipliers'] else f"{float(prod_pct):g}%"
 
                 # Service Incentive Calculation
                 serv_rule = get_matching_rule('services', st['center_id'], st['role'])
                 serv_pct = 0.0
                 if serv_rule:
                     if serv_rule.rule_type in ['multiple', 'multipliers'] and serv_rule.tiers:
-                        sorted_tiers = sorted(serv_rule.tiers, key=lambda t: float(t.get('min_multiple') or 0), reverse=True)
+                        sorted_tiers = sorted(serv_rule.tiers, key=lambda t: Decimal(str(t.get('min_multiple')) or 0), reverse=True)
                         for tier in sorted_tiers:
-                            if multiple >= float(tier.get('min_multiple') or 0):
-                                serv_pct = float(tier.get('incentive_percent') or tier.get('percent') or 0)
+                            if multiple >= Decimal(str(tier.get('min_multiple')) or 0):
+                                serv_pct = Decimal(str(tier.get('incentive_percent')) or tier.get('percent') or 0)
                                 break
                     elif serv_rule.rule_type in ['percentage', 'flat_percentage']:
-                        serv_pct = float(serv_rule.flat_percent or 0)
+                        serv_pct = Decimal(str(serv_rule.flat_percent or 0))
                 
-                # FALLBACK FOR SERVICES
+                # FALLBACK FOR SERVICES — use staff's individual commission % if no rule
                 if not serv_rule:
                     if st['commission_percentage'] > 0:
                         serv_pct = st['commission_percentage']
-                    else:
-                        # Default hardcoded multiple tiers
-                        if multiple >= 7.0: serv_pct = 5.0
-                        elif multiple >= 6.0: serv_pct = 4.0
-                        elif multiple >= 5.0: serv_pct = 3.0
+                    # else: serv_pct stays 0.0 — no hardcoded defaults
                 
                 if serv_pct == 0:
                     serv_inc = st['service_addon_incentive']
                     for dt in st['details']:
                         if dt['type'] == 'Service':
                             pct = dt.get('master_incentive_percent') or 0.0
-                            inc = round(dt['price'] * (pct / 100.0), 2)
+                            inc = round(float(dt['price']) * (float(pct) / 100.0), 2)
                             dt['calculated_incentive'] = round(dt.get('calculated_incentive', 0) + inc, 2)
                             dt['incentive_amount'] = dt['calculated_incentive']
                             if pct > 0:
@@ -2037,20 +1956,20 @@ class StaffIncentiveCalculationView(views.APIView):
                     st['services_incentive'] = st['service_incentive']
                     st['service_percent_applied'] = 0
                 else:
-                    st['service_incentive'] = round(st['services_revenue'] * (serv_pct / 100.0) + st['service_addon_incentive'], 2)
+                    st['service_incentive'] = round(float(st['services_revenue']) * (float(serv_pct) / 100.0) + float(st['service_addon_incentive']), 2)
                     st['services_incentive'] = st['service_incentive']
                     st['service_percent_applied'] = serv_pct
                     for dt in st['details']:
                         if dt['type'] == 'Service':
-                            inc = round(dt['price'] * (serv_pct / 100.0), 2)
+                            inc = round(float(dt['price']) * (float(serv_pct) / 100.0), 2)
                             dt['calculated_incentive'] = round(dt.get('calculated_incentive', 0) + inc, 2)
                             dt['incentive_amount'] = dt['calculated_incentive']
-                            rule_label = f"{serv_pct}% ({multiple}x multiple)" if multiple > 0 else f"{serv_pct}%"
+                            rule_label = f"{float(serv_pct):g}% ({float(multiple):g}x multiple)" if multiple > 0 else f"{float(serv_pct):g}%"
                             dt['calculation_rule'] = rule_label + (f" + {dt['calculation_rule']}" if dt.get('calculation_rule') else "")
 
                 total_inc = (
-                    st['service_incentive'] + st['product_incentive'] +
-                    st['card_incentive'] + st['membership_incentive'] + st['package_incentive']
+                    float(st['service_incentive']) + float(st['product_incentive']) +
+                    float(st['card_incentive']) + float(st['membership_incentive']) + float(st['package_incentive'])
                 )
                 st['total_incentive'] = round(total_inc, 2)
                 st['incentive_amount'] = st['total_incentive']
@@ -2069,7 +1988,7 @@ class StaffIncentiveCalculationView(views.APIView):
             st['packages_incentive'] = st['package_incentive']
             st['items'] = st['details']
 
-            if total_sales > 0 or salary > 0:
+            if total_sales > 0 and (st['total_incentive'] > 0 or total_sales > 0):
                 results.append(st)
 
         results.sort(key=lambda r: r['total_sales'], reverse=True)

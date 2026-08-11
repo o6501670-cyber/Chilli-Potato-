@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api';
@@ -10,9 +11,11 @@ import { LocationSelectorComponent } from '../components/location-selector/locat
   selector: 'app-inventory',
   imports: [CommonModule, FormsModule, LocationSelectorComponent],
   templateUrl: './inventory.html',
-  styleUrl: './inventory.css'
+  styleUrl: './inventory.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class InventoryComponent implements OnInit {
+  private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
   toastService = inject(ToastService);
   csvService = inject(CsvService);
@@ -131,7 +134,7 @@ export class InventoryComponent implements OnInit {
     if (newIndex === currentIndex) return;
 
     this.isSaving = true;
-    this.apiService.updatePurchaseOrder(this.selectedPO.id, { status: newStatus }).subscribe({
+    this.apiService.updatePurchaseOrder(this.selectedPO.id, { status: newStatus }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
          this.selectedPO.status = newStatus;
          const po = this.purchaseOrders.find(p => p.id === this.selectedPO.id);
@@ -190,7 +193,7 @@ export class InventoryComponent implements OnInit {
     this.activeTab = this.tabs[0];
   }
 
-  this.apiService.getCenters().subscribe(data => {
+  this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
     this.centers = data || [];
     if (this.isOwner) {
       if (this.centers.length > 0 && !this.selectedCenterId) {
@@ -218,14 +221,14 @@ export class InventoryComponent implements OnInit {
     const cid = this.selectedCenterId ? this.selectedCenterId : undefined;
     
     // Load Fast Movers
-    this.apiService.getUsageReport().subscribe(res => {
+    this.apiService.getUsageReport().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(res => {
       if (res && res.breakdown) {
           this.fastMovers = res.breakdown.filter((item: any) => item.service_type === 'Product').slice(0, 3);
           this.cdr.detectChanges();
       }
     });
 
-    this.apiService.getProducts(cid).subscribe(data => {
+    this.apiService.getProducts(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       // When "All Locations" selected (no cid), deduplicate by name/code so the same
       // product uploaded to multiple centers shows only once in the Product Master list.
       if (!cid) {
@@ -250,15 +253,15 @@ export class InventoryComponent implements OnInit {
 
       this.cdr.detectChanges();
     });
-    this.apiService.getVendors(cid).subscribe(data => {
+    this.apiService.getVendors(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.vendors = data;
       this.cdr.detectChanges();
     });
-    this.apiService.getPurchaseOrders(cid).subscribe(data => {
+    this.apiService.getPurchaseOrders(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       this.purchaseOrders = data;
       this.cdr.detectChanges();
     });
-    this.apiService.getStockTransactions(cid).subscribe(data => {
+    this.apiService.getStockTransactions(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
       // Filter for today's checkouts
       const today = new Date().toISOString().split('T')[0];
       this.todayCheckouts = data.filter(t => t.transaction_type === 'CHECKOUT' && t.created_at.startsWith(today));
@@ -410,7 +413,7 @@ export class InventoryComponent implements OnInit {
     }
 
     if (this.newPO.id) {
-      this.apiService.updatePurchaseOrder(this.newPO.id, payload).subscribe({
+      this.apiService.updatePurchaseOrder(this.newPO.id, payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.loadData();
           this.newPO = { vendor_id: null, invoice_number: '', items: [] };
@@ -424,7 +427,7 @@ export class InventoryComponent implements OnInit {
         }
       });
     } else {
-      this.apiService.createPurchaseOrder(payload).subscribe({
+      this.apiService.createPurchaseOrder(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.loadData();
           this.newPO = { vendor_id: null, invoice_number: '', items: [] };
@@ -460,7 +463,7 @@ export class InventoryComponent implements OnInit {
 
   deletePO(id: number) {
     if (!confirm('Are you sure you want to delete this Purchase Order?')) return;
-    this.apiService.deletePurchaseOrder(id).subscribe({
+    this.apiService.deletePurchaseOrder(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.loadData();
         if (this.selectedPO?.id === id) this.selectedPO = null;
@@ -476,7 +479,7 @@ export class InventoryComponent implements OnInit {
 
   deleteProduct(id: number) {
     if (!confirm('Are you sure you want to delete this product?')) return;
-    this.apiService.deleteProduct(id).subscribe({
+    this.apiService.deleteProduct(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.loadData();
         if (this.selectedProduct?.id === id) this.selectedProduct = null;
@@ -490,7 +493,7 @@ export class InventoryComponent implements OnInit {
     this.isSaving = true;
     const lotPayload = { ...this.newLot, product: this.selectedProduct.id };
     if (!lotPayload.expiry_date) lotPayload.expiry_date = null;
-    this.apiService.createProductLot(lotPayload).subscribe({
+    this.apiService.createProductLot(lotPayload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.loadData(); // Re-fetches products to update selectedProduct's lots
         this.newLot = { lot_number: '', net_price: 0, mrp: 0, expiry_date: '' };
@@ -506,7 +509,7 @@ export class InventoryComponent implements OnInit {
 
   deleteLot(id: number) {
     if (!confirm('Delete this lot?')) return;
-    this.apiService.deleteProductLot(id).subscribe({
+    this.apiService.deleteProductLot(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => this.loadData(),
       error: (err) => this.toastService.showError('Failed to delete lot: ' + JSON.stringify(err.error))
     });
@@ -527,7 +530,7 @@ export class InventoryComponent implements OnInit {
     this.isSaving = true;
     if (this.newProduct.id) {
       const updateAllCenters = !this.selectedCenterId;
-      this.apiService.updateProduct(this.newProduct.id, payload, updateAllCenters).subscribe({
+      this.apiService.updateProduct(this.newProduct.id, payload, updateAllCenters).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.loadData();
           this.newProduct = { product_id_str: '', product_code: '', name: '', brand: '', category: '', sub_category: '', vendor_name: '', is_active: true, price: null, gst_percent: 0, barcode: '', sac_code: '', reorder_level: 0, reorder_quantity: 0 };
@@ -539,7 +542,7 @@ export class InventoryComponent implements OnInit {
         }
       });
     } else {
-      this.apiService.createProduct(payload).subscribe({
+      this.apiService.createProduct(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.loadData();
           this.newProduct = { product_id_str: '', product_code: '', name: '', brand: '', category: '', sub_category: '', vendor_name: '', is_active: true, price: null, gst_percent: 0, barcode: '', sac_code: '', reorder_level: 0, reorder_quantity: 0 };
@@ -579,7 +582,7 @@ export class InventoryComponent implements OnInit {
 
   deleteVendor(id: number) {
     if (!confirm('Are you sure you want to delete this vendor?')) return;
-    this.apiService.deleteVendor(id).subscribe({
+    this.apiService.deleteVendor(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => this.loadData(),
       error: (err) => this.toastService.showError('Failed to delete: ' + JSON.stringify(err.error))
     });
@@ -599,7 +602,7 @@ export class InventoryComponent implements OnInit {
     
     this.isSaving = true;
     if (this.newVendor.id) {
-      this.apiService.updateVendor(this.newVendor.id, payload).subscribe({
+      this.apiService.updateVendor(this.newVendor.id, payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.loadData();
           this.newVendor = { vendor_code: '', name: '', short_name: '', phone: '', email: '', cst_number: '', pan_number: '', address: '', city: '', state: '', pin_code: '', mapped_products: [] };
@@ -611,7 +614,7 @@ export class InventoryComponent implements OnInit {
         }
       });
     } else {
-      this.apiService.createVendor(payload).subscribe({
+      this.apiService.createVendor(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.loadData();
           this.newVendor = { vendor_code: '', name: '', short_name: '', phone: '', email: '', cst_number: '', pan_number: '', address: '', city: '', state: '', pin_code: '', mapped_products: [] };
@@ -679,7 +682,7 @@ export class InventoryComponent implements OnInit {
       items: [{ product_id: product.id, quantity: qty }]
     };
 
-    this.apiService.inventoryCheckout(payload).subscribe({
+    this.apiService.inventoryCheckout(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.checkoutQuantities[product.id] = 0; // reset
         this.isSaving = false;
@@ -697,7 +700,7 @@ export class InventoryComponent implements OnInit {
   downloadVendorTemplate() {
     if (this.isDownloadingVendorTemplate) return;
     this.isDownloadingVendorTemplate = true;
-    this.apiService.downloadVendorsTemplate().subscribe({
+    this.apiService.downloadVendorsTemplate().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (blob: any) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -719,7 +722,7 @@ export class InventoryComponent implements OnInit {
     if (!file) return;
 
     this.isSaving = true;
-    this.apiService.uploadFile('inventory/api/vendors/bulk_upload/', file, this.selectedCenterId).subscribe({
+    this.apiService.uploadFile('inventory/api/vendors/bulk_upload/', file, this.selectedCenterId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.isSaving = false;
         this.toastService.showSuccess('Vendors uploaded successfully.');
@@ -792,7 +795,7 @@ export class InventoryComponent implements OnInit {
       items: items
     };
 
-    this.apiService.inventoryAudit(payload).subscribe({
+    this.apiService.inventoryAudit(payload).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.toastService.showSuccess(res.message || "Audit completed successfully.");
         this.auditQuantities = {};
@@ -830,7 +833,7 @@ export class InventoryComponent implements OnInit {
     if (this.isLoadingHistory) return;
     this.isLoadingHistory = true;
     const cid = this.selectedCenterId ? this.selectedCenterId : undefined;
-    this.apiService.getStockHistory(dateStr, cid).subscribe({
+    this.apiService.getStockHistory(dateStr, cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => {
         this.generateCSV(data, dateStr);
         this.isLoadingHistory = false;
@@ -847,7 +850,7 @@ export class InventoryComponent implements OnInit {
     this.isLoadingHistory = true;
     this.selectedHistoryRecords = [];
     const cid = this.selectedCenterId ? this.selectedCenterId : undefined;
-    this.apiService.getStockHistory(dateStr, cid).subscribe({
+    this.apiService.getStockHistory(dateStr, cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => {
         this.selectedHistoryRecords = data;
         this.isLoadingHistory = false;
@@ -916,7 +919,7 @@ export class InventoryComponent implements OnInit {
     this.isSaving = true;
 
     // Bulk upload is center-aware — passes center_id if a center is selected, or null for ALL centers
-    this.apiService.uploadFile('inventory/api/products/bulk_upload/', file, this.selectedCenterId).subscribe({
+    this.apiService.uploadFile('inventory/api/products/bulk_upload/', file, this.selectedCenterId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.isSaving = false;
         const msg = res.message || 'File uploaded successfully';
@@ -942,7 +945,7 @@ export class InventoryComponent implements OnInit {
   downloadTemplate() {
     if (this.isDownloadingTemplate) return;
     this.isDownloadingTemplate = true;
-    this.apiService.downloadProductsTemplate().subscribe({
+    this.apiService.downloadProductsTemplate().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (blob: any) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -975,4 +978,12 @@ export class InventoryComponent implements OnInit {
     ]);
     this.csvService.exportToCsv('Inventory_Report', headers, rows);
   }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

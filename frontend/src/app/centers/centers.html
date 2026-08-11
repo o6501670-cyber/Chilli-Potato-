@@ -1,7 +1,25 @@
-<div class="bills-page">
-  <div class="bills-header">
-    <div class="bills-page-title" style="margin-right: auto;">Centers &amp; Locations</div>
-    <div class="bills-controls" style="margin-bottom: 0; display: flex; gap: 10px;">
+<div class="bills-page" style="display: flex; flex-direction: column; height: calc(100vh - 180px); overflow: hidden;">
+  <div class="bills-header" style="width: 100%; display: flex; align-items: center; margin-bottom: 16px;">
+    
+    <!-- Left Side: KPIs and Pagination -->
+    <div style="display: flex; gap: 1rem; align-items: center; margin-right: auto; overflow: hidden; flex: 1;">
+      
+      <!-- Compact Total -->
+      <div class="kpi-card-dark" style="display: flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 6px; background: #0f172a; color: white; white-space: nowrap;">
+        <div style="font-size: 10px; font-weight: 600; color: #94a3b8;">TOTAL LOCATIONS</div>
+        <div style="font-size: 14px; font-weight: 700;">{{ centers.length }}</div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-controls" style="display: flex; gap: 0.25rem; align-items: center;" *ngIf="centers.length > 0">
+          <button class="pill-btn outline-btn" style="padding: 2px 8px; font-size: 11px; min-height: 24px;" (click)="prevPage()" [disabled]="currentPage === 1">Prev</button>
+          <span style="font-size: 11px; font-weight: 500; white-space: nowrap;">{{ currentPage }} / {{ totalPages }}</span>
+          <button class="pill-btn outline-btn" style="padding: 2px 8px; font-size: 11px; min-height: 24px;" (click)="nextPage()" [disabled]="currentPage === totalPages">Next</button>
+      </div>
+    </div>
+
+    <!-- Right Side: Buttons -->
+    <div class="bills-controls" style="margin-bottom: 0; display: flex; gap: 8px; flex-shrink: 0;">
       <button class="pill-btn" style="background: #fff; color: #374151; border: 1px solid #e2e8f0;" *ngIf="isOwner || permissions.admin?.centers?.create" (click)="openImportModal()">
         <i class="fa fa-file-excel-o" style="color: #16a34a; margin-right: 6px;"></i> Import Excel
       </button>
@@ -11,9 +29,8 @@
     </div>
   </div>
 
-  <div class="bills-layout-grid">
-    <!-- Left Column: Centers Table -->
-    <div class="bills-list">
+  <div class="bills-list" style="flex: 1; overflow-y: auto; overflow-x: auto; width: 100%;">
+
       <div class="date-divider" *ngIf="centers.length > 0">ALL CENTERS</div>
 
       <table class="modern-bills-table" *ngIf="centers.length > 0">
@@ -28,7 +45,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let center of centers" (click)="openDetail(center)" style="cursor: pointer;">
+          <tr *ngFor="let center of paginatedItems" (click)="openDetail(center)" style="cursor: pointer;">
             <td>
               <div class="table-client">
                 <div class="table-avatar">{{ (center.center_name || 'C').charAt(0).toUpperCase() }}</div>
@@ -56,17 +73,7 @@
         No centers found. Click "+ Add New Center" to create one.
       </div>
     </div>
-
-    <!-- Right Column: KPI Snapshot -->
-    <div class="bills-sidebar">
-      <div class="kpi-card-dark">
-        <div class="kpi-label">Total Locations</div>
-        <div class="kpi-value">{{ centers.length }}</div>
-      </div>
-    </div>
-  </div>
 </div>
-
   <!-- Modal -->
   <div class="modal-overlay" *ngIf="showModal">
     <div class="center-modal">

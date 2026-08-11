@@ -1,0 +1,21 @@
+
+.global-loading-bar { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    right: 0; 
+    height: 3px; 
+    background: linear-gradient(90deg, transparent, var(--primary, #3b82f6), transparent); 
+    z-index: 9999; 
+    transform: translateX(-100%); 
+    transition: transform 0.2s ease-in-out; 
+    opacity: 0;
+} 
+.global-loading-bar.active { 
+    animation: loading-bar-slide 1s infinite linear; 
+    opacity: 1;
+} 
+@keyframes loading-bar-slide { 
+    0% { transform: translateX(-100%); } 
+    100% { transform: translateX(100%); } 
+}

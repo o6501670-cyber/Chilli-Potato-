@@ -66,7 +66,7 @@
       <div class="panel-header">STAFF STATUS</div>
       <div class="staff-list">
         <!-- We skip Unallocated here because it doesn't need a status box -->
-        <div class="staff-card" *ngFor="let staff of activeStaffMembers">
+        <div class="staff-card" *ngFor="let staff of activeStaffMembers; trackBy: trackById">
           <div class="avatar-circle">
             {{ staff.first_name[0] }}{{ staff.last_name ? staff.last_name[0] : '' }}
           </div>
@@ -106,7 +106,7 @@
             </div>
 
             <!-- Appointment Blocks -->
-            <div class="appt-block" *ngFor="let item of getAppointmentsForStaff(null)"
+            <div class="appt-block" *ngFor="let item of getAppointmentsForStaff(null); trackBy: trackById"
               [style.left]="calculateLeftStyle(item.service.time)"
               [style.width]="calculateWidthStyle(item.service.duration, item.service.time)"
               [class.scheduled]="item.appointment.status === 'Scheduled'"
@@ -120,7 +120,7 @@
         </div>
 
         <!-- Staff Rows -->
-        <div class="schedule-row" *ngFor="let staff of activeStaffMembers">
+        <div class="schedule-row" *ngFor="let staff of activeStaffMembers; trackBy: trackById">
           <div class="staff-col">
             <span class="dot"></span> {{ staff.first_name }} {{ staff.last_name }}
           </div>
@@ -170,7 +170,7 @@
             <input type="text" class="form-control" placeholder="Start typing name or phone to search..."
               [(ngModel)]="searchQuery" (input)="onSearchInput($event)">
             <div class="client-search-results" *ngIf="clientSearchResults && clientSearchResults.length > 0">
-              <div class="client-result-item" *ngFor="let c of clientSearchResults" (mousedown)="selectClient(c)">
+              <div class="client-result-item" *ngFor="let c of clientSearchResults; trackBy: trackById" (mousedown)="selectClient(c)">
                 <div>
                   <strong style="color: var(--text-primary);">{{c.first_name}} {{c.last_name}}</strong>
                   <span style="color: var(--text-secondary); font-size: 11px; margin-left: 8px;">{{c.phone}}</span>
@@ -223,7 +223,7 @@
             <div class="recent-visits-box" style="max-height: 80px; overflow-y: auto;">
               <div *ngIf="recentVisits.length === 0" class="text-muted" style="font-size: 12px;">Search a client to see
                 history</div>
-              <div class="visit-item" *ngFor="let rv of recentVisits">
+              <div class="visit-item" *ngFor="let rv of recentVisits; trackBy: trackById">
                 {{ rv.date | date }} - {{ rv.services.length }} services
               </div>
             </div>

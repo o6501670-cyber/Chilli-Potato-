@@ -53,6 +53,11 @@ class Center(models.Model):
     def __str__(self):
         return self.display_name or self.center_name
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['created_at'], name='center_created_idx'),
+        ]
+
 class Role(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)

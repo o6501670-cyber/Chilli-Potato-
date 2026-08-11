@@ -21,7 +21,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = CustomUser.objects.all().order_by('full_name')
+        queryset = CustomUser.objects.all().select_related('role', 'center').prefetch_related('centers').order_by('full_name')
         
         role = getattr(user, 'role', None)
         is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')

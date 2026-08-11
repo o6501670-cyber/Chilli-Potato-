@@ -31,6 +31,8 @@ class Appointment(models.Model):
         indexes = [
             models.Index(fields=['center', 'date'], name='appt_center_date_idx'),
             models.Index(fields=['status'], name='appt_status_idx'),
+            models.Index(fields=['created_at'], name='appt_created_idx'),
+            models.Index(fields=['center', 'status'], name='appt_center_status_idx'),
         ]
 
 class AppointmentService(models.Model):

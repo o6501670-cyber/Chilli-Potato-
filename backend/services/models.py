@@ -22,6 +22,12 @@ class ServiceMaster(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['category'], name='svc_category_idx'),
+            models.Index(fields=['created_at'], name='svc_created_idx'),
+        ]
+
 class CenterService(models.Model):
     center = models.ForeignKey(Center, on_delete=models.CASCADE, related_name='services')
     service = models.ForeignKey(ServiceMaster, on_delete=models.CASCADE, related_name='center_overrides')
@@ -38,6 +44,8 @@ class CenterService(models.Model):
         unique_together = ('center', 'service')
         indexes = [
             models.Index(fields=['center', 'is_active'], name='cs_center_active_idx'),
+            models.Index(fields=['service'], name='cs_service_idx'),
+            models.Index(fields=['created_at'], name='cs_created_idx'),
         ]
 
     def __str__(self):

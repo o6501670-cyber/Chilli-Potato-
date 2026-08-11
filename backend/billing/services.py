@@ -95,7 +95,7 @@ def _deduct_package_service(invoice, item, active_packages_map):
         return
     if not item.content_type or item.content_type.app_label != 'services':
         return
-    if float(item.unit_price) != 0:
+    if Decimal(str(item.unit_price)) != 0:
         return
     if not item.description or '🎁 [Redeem]' not in item.description:
         return
@@ -160,11 +160,10 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                 product = item.content_object
                 if product and hasattr(product, 'current_stock'):
                     # Atomic update to avoid race condition on concurrent billing
-                    type(product).objects.filter(pk=product.pk).update(
-                        current_stock=F('current_stock') - int(item.quantity)
-                    )
-                    # Floor at 0 via a second update
-                    type(product).objects.filter(pk=product.pk, current_stock__lt=0).update(current_stock=0)
+                    locked_product = type(product).objects.select_for_update().get(pk=product.pk)
+                    new_stock = max(0, locked_product.current_stock - int(item.quantity))
+                    locked_product.current_stock = new_stock
+                    locked_product.save(update_fields=['current_stock'])
                     # Audit trail
                     try:
                         StockTransaction.objects.create(
@@ -202,20 +201,20 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
             #
             # Compute the ratio once per invoice (cached per call).
             if not hasattr(invoice, '_vc_incentive_ratio'):
-                total_amt = float(invoice.total_amount or 0)
+                total_amt = Decimal(str(invoice.total_amount or 0))
                 if total_amt > 0:
                     # Sum all value-card payments for this invoice
-                    vc_paid = float(
+                    vc_paid = Decimal(str(
                         invoice.payments.filter(
                             payment_method__icontains='value card'
-                        ).aggregate(s=Sum('amount'))['s'] or 0
+                        )).aggregate(s=Sum('amount'))['s'] or 0
                     )
                     real_paid = max(0, total_amt - vc_paid)
                     invoice._vc_incentive_ratio = real_paid / total_amt
                 else:
                     invoice._vc_incentive_ratio = 1.0
 
-            effective_price = float(item.total_price) * invoice._vc_incentive_ratio
+            effective_price = Decimal(str(item.total_price)) * invoice._vc_incentive_ratio
             split_price = effective_price / len(staff_list)
 
             for member in staff_list:
@@ -282,7 +281,7 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                     locked_client = Client.objects.select_for_update().get(id=invoice.client.id)
                     cashback_bal = locked_client.cashback_balance
 
-                    if float(payment.amount) > cashback_bal:
+                    if Decimal(str(payment.amount)) > cashback_bal:
                         logger.warning(
                             f"[Billing] Invoice #{invoice.id}: cashback deduction {payment.amount} "
                             f"exceeds balance {cashback_bal}. Capping deduction."
@@ -307,7 +306,7 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                     locked_client = Client.objects.select_for_update().get(id=invoice.client.id)
                     advance_bal = locked_client.advance_balance
 
-                    if float(payment.amount) > advance_bal:
+                    if Decimal(str(payment.amount)) > advance_bal:
                         logger.warning(
                             f"[Billing] Invoice #{invoice.id}: advance deduction {payment.amount} "
                             f"exceeds balance {advance_bal}. Capping deduction."
@@ -359,8 +358,8 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                     id=membership_id, client=invoice.client, is_active=True
                 ).first()
                 if cm and cm.membership.discount_percent:
-                    expected_discount = float(invoice.subtotal) * float(cm.membership.discount_percent) / 100
-                    if float(invoice.discount) > expected_discount + 1:  # Allow 1 unit rounding difference
+                    expected_discount = Decimal(str(invoice.subtotal)) * Decimal(str(cm.membership.discount_percent)) / 100
+                    if Decimal(str(invoice.discount)) > expected_discount + 1:  # Allow 1 unit rounding difference
                         logger.warning(f"[Security] Invoice #{invoice.id} claimed discount {invoice.discount} exceeds membership allowed {expected_discount}. Reverting.")
                         invoice.discount = Decimal(str(expected_discount))
                         invoice.total_amount = invoice.subtotal - invoice.discount + invoice.cgst + invoice.sgst

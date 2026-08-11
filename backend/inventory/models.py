@@ -21,6 +21,13 @@ class Vendor(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['center'], name='vendor_center_idx'),
+            models.Index(fields=['created_at'], name='vendor_created_idx'),
+        ]
+
+
 class Product(models.Model):
     product_id_str = models.CharField(max_length=100, blank=True, null=True, verbose_name="Product ID")
     product_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="Product Code")
@@ -45,6 +52,14 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['center', 'is_active'], name='product_center_active_idx'),
+            models.Index(fields=['category'], name='product_category_idx'),
+            models.Index(fields=['created_at'], name='product_created_idx'),
+        ]
+
+
 class ProductLot(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='lots')
     lot_number = models.CharField(max_length=100)
@@ -56,6 +71,13 @@ class ProductLot(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - {self.lot_number}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['product'], name='lot_product_idx'),
+            models.Index(fields=['created_at'], name='lot_created_idx'),
+        ]
+
 
 class PurchaseOrder(models.Model):
     STATUS_CHOICES = (
@@ -77,6 +99,14 @@ class PurchaseOrder(models.Model):
     def __str__(self):
         return f"PO-{self.id} ({self.vendor.name})"
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['center', 'status'], name='po_center_status_idx'),
+            models.Index(fields=['status', 'created_at'], name='po_status_date_idx'),
+            models.Index(fields=['created_at'], name='po_created_idx'),
+        ]
+
+
 class PurchaseOrderItem(models.Model):
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -88,6 +118,7 @@ class PurchaseOrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - PO-{self.purchase_order.id}"
+
 
 class StockTransaction(models.Model):
     TRANSACTION_TYPES = (
@@ -107,3 +138,10 @@ class StockTransaction(models.Model):
 
     def __str__(self):
         return f"{self.product.name} ({self.quantity_change}) - {self.transaction_type}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['center', 'created_at'], name='stock_center_date_idx'),
+            models.Index(fields=['product', 'created_at'], name='stock_product_date_idx'),
+            models.Index(fields=['transaction_type'], name='stock_type_idx'),
+        ]

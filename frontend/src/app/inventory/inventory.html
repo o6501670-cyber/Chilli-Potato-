@@ -202,7 +202,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let product of masterPaginatedProducts" (mousedown)="editProduct(product)" [class.active-row]="selectedProduct?.id === product.id" style="cursor: pointer;">
+              <tr *ngFor="let product of masterPaginatedProducts; trackBy: trackById" (mousedown)="editProduct(product)" [class.active-row]="selectedProduct?.id === product.id" style="cursor: pointer;">
                 <td class="text-secondary">{{ product.product_id_str || '-' }}</td>
                 <td class="text-secondary">{{ product.product_code || '-' }}</td>
                 <td>
@@ -368,7 +368,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let vendor of filteredVendors" (mousedown)="editVendor(vendor)" [class.active-row]="selectedVendor?.id === vendor.id" style="cursor: pointer;">
+              <tr *ngFor="let vendor of filteredVendors; trackBy: trackById" (mousedown)="editVendor(vendor)" [class.active-row]="selectedVendor?.id === vendor.id" style="cursor: pointer;">
                 <td>{{ vendor.name }}</td>
                 <td>{{ vendor.phone || '-' }}</td>
                 <td>{{ vendor.cst_number || '-' }}</td>
@@ -429,7 +429,7 @@
           <h3>Purchase Orders</h3>
         </div>
         <div class="po-list">
-          <div class="po-item" *ngFor="let po of purchaseOrders" (mousedown)="selectPO(po)" [class.active-po]="selectedPO?.id === po.id" style="cursor: pointer;">
+          <div class="po-item" *ngFor="let po of purchaseOrders; trackBy: trackById" (mousedown)="selectPO(po)" [class.active-po]="selectedPO?.id === po.id" style="cursor: pointer;">
             <div class="po-item-header">
               <span class="po-vendor-name">{{ po.vendor_details?.name }}</span>
               <span class="po-date">Created: {{ po.created_at | date:'d-MMM-yyyy HH:mm' }}</span>
@@ -644,7 +644,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr *ngFor="let item of selectedPO.items">
+                  <tr *ngFor="let item of selectedPO.items; trackBy: trackByIndex">
                     <td>{{ getProductName(item.product) }}</td>
                     <td>{{ item.quantity }}</td>
                     <td>{{ item.rate | currency:'INR' }}</td>
@@ -707,7 +707,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let product of checkoutPaginatedProducts">
+              <tr *ngFor="let product of checkoutPaginatedProducts; trackBy: trackById">
                 <td>{{ product.name }}</td>
                 <td>{{ product.brand || 'Non Brand' }}</td>
                 <td>{{ product.category }}</td>
@@ -744,7 +744,7 @@
           <h4 class="panel-title" style="background-color: #0f172a; color: var(--surface); margin: 0; padding: 10px; text-align: center; font-size: 0.9rem;">Checkouts done today</h4>
           <table class="data-table" style="margin: 0; width: 100%;">
             <tbody>
-              <tr *ngFor="let tx of todayCheckouts">
+              <tr *ngFor="let tx of todayCheckouts; trackBy: trackById">
                 <td style="font-size: 0.85rem;">{{ tx.product_name }}</td>
                 <td style="font-size: 0.85rem; font-weight: bold; color: var(--red);">{{ tx.quantity_change * -1 }} items deducted</td>
                 <td style="font-size: 0.75rem; color: #64748b;">{{ tx.created_at | date:'HH:mm' }}</td>
@@ -797,7 +797,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let product of auditPaginatedProducts">
+          <tr *ngFor="let product of auditPaginatedProducts; trackBy: trackById">
             <td>{{ product.name }}</td>
             <td>{{ product.brand || 'Non Brand' }}</td>
             <td>{{ product.category }}</td>
@@ -879,7 +879,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let item of selectedHistoryRecords">
+                <tr *ngFor="let item of selectedHistoryRecords; trackBy: trackByIndex">
                   <td>
                     <strong>{{ item.name }}</strong>
                     <div style="font-size: 0.75rem; color: #64748b;">{{ item.brand || 'Non Brand' }}</div>

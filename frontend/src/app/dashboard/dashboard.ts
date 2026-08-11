@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, ChangeDetectorRef, AfterViewInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api';
@@ -16,10 +17,12 @@ Chart.defaults.plugins.tooltip.cornerRadius = 8;
 Chart.defaults.plugins.tooltip.displayColors = false;
 Chart.defaults.plugins.tooltip.titleFont = { size: 13, family: 'Inter, sans-serif', weight: 'bold' };
 Chart.defaults.plugins.tooltip.bodyFont = { size: 12, family: 'Inter, sans-serif', weight: 'normal' };
+Chart.defaults.plugins.tooltip.filter = (tooltipItem: any) => tooltipItem.label !== '';
 Chart.defaults.elements.bar.borderRadius = 4;
 Chart.defaults.elements.bar.borderSkipped = false;
 Chart.defaults.elements.line.tension = 0.4;
 Chart.defaults.elements.line.borderWidth = 3;
+Chart.defaults.layout = { padding: { left: 20, right: 20, top: 25, bottom: 10 } };
 
 const dataLabelsPlugin = {
   id: 'dataLabelsPlugin',
@@ -34,7 +37,8 @@ const dataLabelsPlugin = {
 
       meta.data.forEach((element: any, index: number) => {
         const rawVal = dataset.data[index];
-        if (rawVal == null || rawVal === 0) return; // Skip 0 or null
+        const labelText = chart.data.labels ? chart.data.labels[index] : 'x';
+        if (rawVal == null || rawVal === 0 || labelText === '') return; // Skip 0, null, or ghost points
 
         const valStr = String(rawVal);
         ctx.font = 'bold 10px Inter, sans-serif';
@@ -99,12 +103,40 @@ const dataLabelsPlugin = {
   selector: 'app-dashboard',
   imports: [CommonModule, FormsModule, LocationSelectorComponent],
   templateUrl: './dashboard.html',
-  styleUrl: './dashboard.css'
+  styleUrl: './dashboard.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class DashboardComponent implements OnInit, AfterViewInit {
+  private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
   cdr = inject(ChangeDetectorRef);
+  chartType: 'line' | 'bar' = 'line';
+
+  toggleChartType() {
+    this.chartType = this.chartType === 'line' ? 'bar' : 'line';
+    this.onFilterChange();
+  }
+
+  downloadChart(chartId: string, fileName: string) {
+    const canvas = document.getElementById(chartId) as HTMLCanvasElement;
+    if (canvas) {
+      const link = document.createElement('a');
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const ctx = tempCanvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#ffffff'; // white background
+        ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        ctx.drawImage(canvas, 0, 0);
+      }
+      link.href = tempCanvas.toDataURL('image/png');
+      link.download = `${fileName}.png`;
+      link.click();
+    }
+  }
+
 
   activeTab: string = 'summary';
   isLoading: boolean = false;
@@ -152,7 +184,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.startDate = `${y}-${String(m + 1).padStart(2, '0')}-01`;
     this.endDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-    this.apiService.getCenters().subscribe((data: any) => {
+    this.apiService.getCenters().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data: any) => {
       this.centers = Array.isArray(data) ? data : (data.results || []);
       if (!this.isOwner) {
         const u = localStorage.getItem('user');
@@ -269,7 +301,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     const params = { center_id: cid, start_date: this.startDate, end_date: this.endDate };
 
     if (this.activeTab === 'summary') {
-      this.apiService.get('salon_admin/api/dashboard/summary/', params).subscribe({
+      this.apiService.get('salon_admin/api/dashboard/summary/', params).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res) => {
           this.summaryData = res;
           this.isLoading = false;
@@ -279,7 +311,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         error: () => { this.isLoading = false; this.cdr.detectChanges(); }
       });
     } else if (this.activeTab === 'revenues') {
-      this.apiService.get('salon_admin/api/dashboard/revenues/', params).subscribe({
+      this.apiService.get('salon_admin/api/dashboard/revenues/', params).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res) => {
           this.revenuesData = res;
           this.isLoading = false;
@@ -289,7 +321,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         error: () => { this.isLoading = false; this.cdr.detectChanges(); }
       });
     } else if (this.activeTab === 'clients') {
-      this.apiService.get('salon_admin/api/dashboard/clients/', params).subscribe({
+      this.apiService.get('salon_admin/api/dashboard/clients/', params).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res) => {
           this.clientsData = res;
           this.isLoading = false;
@@ -299,7 +331,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         error: () => { this.isLoading = false; this.cdr.detectChanges(); }
       });
     } else if (this.activeTab === 'finance') {
-      this.apiService.get('salon_admin/api/dashboard/finance/', params).subscribe({
+      this.apiService.get('salon_admin/api/dashboard/finance/', params).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res) => {
           this.financeData = res;
           this.financeDataKeys = Object.keys(res || {});
@@ -310,7 +342,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         error: () => { this.isLoading = false; this.cdr.detectChanges(); }
       });
     } else if (this.activeTab === 'services_products') {
-      this.apiService.get('salon_admin/api/dashboard/services_products/', params).subscribe({
+      this.apiService.get('salon_admin/api/dashboard/services_products/', params).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res) => {
           this.servicesProductsData = res;
           this.isLoading = false;
@@ -320,7 +352,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         error: () => { this.isLoading = false; this.cdr.detectChanges(); }
       });
     } else if (this.activeTab === 'staff') {
-      this.apiService.get('salon_admin/api/dashboard/staff/', params).subscribe({
+      this.apiService.get('salon_admin/api/dashboard/staff/', params).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (res) => {
           this.staffData = res;
           this.isLoading = false;
@@ -341,11 +373,14 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   // Pads single-point data so Chart.js draws a real line instead of a floating dot
   padSinglePoint(labels: any[], ...dataArrays: any[][]): { labels: any[], dataArrays: any[][] } {
-    if (labels.length === 1) {
-      return {
-        labels: ['', ...labels, ''],
-        dataArrays: dataArrays.map(d => [d[0], d[0], d[0]])
-      };
+    if (this.chartType === 'line' && labels && labels.length === 1) {
+      const newLabels = ['', labels[0], ''];
+      const newDataArrays = dataArrays.map(arr => {
+        const val = arr && arr.length > 0 ? arr[0] : 0;
+        const ghostVal = typeof val === 'number' && val > 0 ? val * 0.95 : 0;
+        return [ghostVal, val, ghostVal];
+      });
+      return { labels: newLabels, dataArrays: newDataArrays };
     }
     return { labels, dataArrays };
   }
@@ -356,15 +391,16 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     // Donut
     const ctxDonut = document.getElementById('revenuePieChart') as HTMLCanvasElement;
     if (ctxDonut) {
-      let svcRev = 0, prodRev = 0;
-      (this.summaryData.top_services || []).forEach((s: any) => svcRev += (s.revenue || 0));
-      (this.summaryData.top_products || []).forEach((s: any) => prodRev += (s.revenue || 0));
+      const breakdown = this.summaryData.revenue_breakdown || { service: 0, product: 0, membership: 0, package: 0, card: 0 };
 
       this.charts['donut'] = new Chart(ctxDonut, {
         type: 'doughnut',
         data: {
-          labels: ['Services', 'Products'],
-          datasets: [{ data: [svcRev, prodRev], backgroundColor: ['#0ea5e9', '#10b981'] }]
+          labels: ['Services', 'Products', 'Memberships', 'Packages', 'Value Cards'],
+          datasets: [{ 
+            data: [breakdown.service, breakdown.product, breakdown.membership, breakdown.package, breakdown.card], 
+            backgroundColor: ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'] 
+          }]
         },
         options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' } }, plugins: [dataLabelsPlugin]
       });
@@ -376,7 +412,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const data = this.summaryData.weekday_counts || [0, 0, 0, 0, 0, 0, 0];
       this.charts['sumBar'] = new Chart(ctxBar, {
-        type: 'line',
+        type: this.chartType as any,
         data: {
           labels,
           datasets: [{ 
@@ -395,7 +431,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             pointBorderColor: '#6366f1'
           }]
         },
-        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: labels.length === 1 } } }, plugins: [dataLabelsPlugin]
+        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: this.chartType === 'bar' || labels.length <= 1 } } }, plugins: [dataLabelsPlugin]
       });
     }
   }
@@ -436,7 +472,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   fetchDrillDownData(level: 'month'|'day', sd: string, ed: string) {
     const cid = this.getCenterId();
     const params = { center_id: cid, start_date: sd, end_date: ed };
-    this.apiService.get('salon_admin/api/dashboard/revenues/', params).subscribe({
+    this.apiService.get('salon_admin/api/dashboard/revenues/', params).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         if (level === 'month') {
           // Keep original monthly data, but replace daily and hourly
@@ -462,7 +498,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   fetchClientDrillDownData(level: 'month', sd: string, ed: string) {
     const cid = this.getCenterId();
     const params = { center_id: cid, start_date: sd, end_date: ed };
-    this.apiService.get('salon_admin/api/dashboard/clients/', params).subscribe({
+    this.apiService.get('salon_admin/api/dashboard/clients/', params).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         this.renderClientsCharts(res.daily_footfall);
         this.cdr.detectChanges();
@@ -486,7 +522,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       const paddedLabels = padded.labels;
       const paddedData = padded.dataArrays[0];
       this.charts[id] = new Chart(ctx, {
-        type: 'line',
+        type: this.chartType as any,
         data: {
           labels: paddedLabels,
           datasets: [{ 
@@ -512,8 +548,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           responsive: true, 
           maintainAspectRatio: false, 
           animation: { duration: 800, easing: 'easeOutQuart' },
-          scales: { x: { offset: paddedLabels.length <= 3 } },
-          onClick: onClickHandler ? (e, elements, chart) => {
+          scales: { x: { offset: this.chartType === 'bar' || paddedLabels.length <= 1 } },
+          onClick: onClickHandler ? (e: any, elements: any, chart: any) => {
             // Remap index back to original if padded
             if (!elements || !elements.length) return;
             let idx = elements[0].index;
@@ -521,7 +557,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             const fakeMeta = { ...elements[0], index: idx };
             onClickHandler(e, [fakeMeta], chart);
           } : undefined,
-          onHover: onClickHandler ? (e, elements) => {
+          onHover: onClickHandler ? (e: any, elements: any) => {
             if (e.native && e.native.target) {
               (e.native.target as HTMLElement).style.cursor = elements.length ? 'pointer' : 'default';
             }
@@ -534,7 +570,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     const rawMonthlyLabels = (this.revenuesData.monthly || []).map((d: any) => d.month);
     const rawMonthlyData = (this.revenuesData.monthly || []).map((d: any) => d.revenue);
     const monthlyLabels = rawMonthlyLabels; // Keep original for drill-down index mapping
-    renderLine('revMonthlyChart', monthlyLabels, rawMonthlyData, '#f59e0b', 'Monthly Revenue', (e, elements, chart) => {
+    renderLine('revMonthlyChart', monthlyLabels, rawMonthlyData, '#f59e0b', 'Monthly Revenue', (e: any, elements: any, chart: any) => {
       if (!elements || !elements.length) return;
       const index = elements[0].index;
       const monthStr = monthlyLabels[index]; // e.g. "Mar-2026"
@@ -582,7 +618,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     }
 
     const dailyLabels = dailyData.map((d: any) => d.day);
-    renderLine('revDailyChart', dailyLabels, dailyData.map((d: any) => d.revenue), '#10b981', dailyTitle, (e, elements, chart) => {
+    renderLine('revDailyChart', dailyLabels, dailyData.map((d: any) => d.revenue), '#10b981', dailyTitle, (e: any, elements: any, chart: any) => {
       if (!elements || !elements.length) return;
       const index = elements[0].index;
       const dayStr = dailyLabels[index]; 
@@ -622,7 +658,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       const [newClients, repeatClients, memberInvoices, nonMemberInvoices] = bDataArrays;
 
       this.charts['breakdown'] = new Chart(ctxBreakdown, {
-        type: 'line',
+        type: this.chartType as any,
         data: {
           labels: bLabels,
           datasets: [
@@ -670,7 +706,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           animation: { duration: 800, easing: 'easeOutQuart' },
           plugins: { legend: { display: true, position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } } },
           layout: { padding: { top: 30 } },
-          scales: { x: { offset: bLabels.length <= 3 } },
+          scales: { x: { offset: this.chartType === 'bar' || bLabels.length <= 1 } },
           onClick: (e: any, elements: any[], chart: any) => {
             if (!elements || elements.length === 0) return;
             const index = elements[0].index;
@@ -713,12 +749,12 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       const ghostFirst = paddedLabels[0] === '';
 
       this.charts[id] = new Chart(ctx, {
-        type: 'line',
+        type: this.chartType as any,
         data: {
           labels: paddedLabels,
           datasets: [
             { 
-              type: 'line', 
+              type: this.chartType as any, 
               label: 'New Clients', 
               data: newCounts, 
               borderColor: '#0ea5e9', 
@@ -729,7 +765,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
               yAxisID: 'y' 
             } as any,
             { 
-              type: 'line', 
+              type: this.chartType as any, 
               label: 'Repeat Clients', 
               data: repeatCounts, 
               borderColor: '#6366f1', 
@@ -740,7 +776,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
               yAxisID: 'y' 
             } as any,
             { 
-              type: 'line', 
+              type: this.chartType as any, 
               label: 'Avg Spend (Right Axes)', 
               data: avg, 
               borderColor: '#10b981', 
@@ -755,7 +791,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           plugins: { legend: { display: true, position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } } },
           layout: { padding: { top: 30 } },
           scales: {
-            x: { offset: paddedLabels.length <= 3 },
+            x: { offset: this.chartType === 'bar' || paddedLabels.length <= 1 },
             y: { type: 'linear', position: 'left', title: { display: true, text: 'Clients', color: '#0ea5e9' } },
             y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Average Spend', color: '#10b981' } }
           }
@@ -804,7 +840,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       const ghostFirst = dLabels[0] === '';
       
       this.charts['clientDaily'] = new Chart(ctxDaily, {
-        type: 'line',
+        type: this.chartType as any,
         data: {
           labels: dLabels,
           datasets: [{ 
@@ -823,7 +859,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           animation: { duration: 800, easing: 'easeOutQuart' },
           plugins: { legend: { display: false } },
           layout: { padding: { top: 30 } },
-          scales: { x: { offset: dLabels.length <= 3 } }
+          scales: { x: { offset: this.chartType === 'bar' || dLabels.length <= 1 } }
         },
         plugins: [dataLabelsPlugin]
       });
@@ -856,12 +892,12 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         const ghostFirst = paddedLabels[0] === '';
 
         this.charts[id] = new Chart(el, {
-          type: 'line',
+          type: this.chartType as any,
           data: {
             labels: paddedLabels,
             datasets: [
               {
-                type: 'line' as any,
+                type: this.chartType as any,
                 label: 'Revenue',
                 data: revData,
                 borderColor: barColor,
@@ -873,7 +909,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
                 yAxisID: 'y'
               },
               {
-                type: 'line' as any,
+                type: this.chartType as any,
                 label: 'Counts',
                 data: countData,
                 borderColor: '#3b82f6',
@@ -893,7 +929,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             plugins: { legend: { display: false } },
             scales: {
               x: {
-                offset: paddedLabels.length <= 3,
+                offset: this.chartType === 'bar' || labels.length <= 1,
                 grid: { display: false },
                 ticks: { color: '#6b7280', font: { size: 10 } }
               },
@@ -945,7 +981,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       const [data] = dataArrays;
       const ghostFirst = labels[0] === '';
       this.charts['staffMonth'] = new Chart(ctxMonth, {
-        type: 'line',
+        type: this.chartType as any,
         data: { labels, datasets: [{ 
           label: 'Revenue', 
           data, 
@@ -962,7 +998,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           pointBorderColor: '#8b5cf6',
           pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === labels.length - 1) ? 0 : 4
         }] },
-        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: labels.length <= 3 } } }, plugins: [dataLabelsPlugin]
+        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: this.chartType === 'bar' || labels.length <= 1 } } }, plugins: [dataLabelsPlugin]
       });
     }
 
@@ -974,7 +1010,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       const [data6] = dataArrays6;
       const ghostFirst6 = labels6[0] === '';
       this.charts['staff6'] = new Chart(ctx6, {
-        type: 'line',
+        type: this.chartType as any,
         data: { labels: labels6, datasets: [{ 
           label: 'Total Staff Revenue', 
           data: data6, 
@@ -992,7 +1028,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           pointBorderColor: '#10b981',
           pointRadius: (ctx: any) => ghostFirst6 && (ctx.dataIndex === 0 || ctx.dataIndex === labels6.length - 1) ? 0 : 4
         }] },
-        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: labels6.length <= 3 } } }, plugins: [dataLabelsPlugin]
+        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: this.chartType === 'bar' || labels6.length <= 1 } } }, plugins: [dataLabelsPlugin]
       });
     }
   }
@@ -1103,4 +1139,12 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       });
     }
   }
+  trackById(index: number, item: any): any {
+    return item?.id ?? index;
+  }
+
+  trackByIndex(index: number, item: any): number {
+    return index;
+  }
+
 }

@@ -42,9 +42,11 @@ class Client(models.Model):
                 .filter(client=self)
                 .aggregate(total=Sum('amount'))['total']
             ) or 0
-            return float(total)
+            from decimal import Decimal
+            return Decimal(str(total or 0)).quantize(Decimal('0.01'))
         except Exception:
-            return 0.0
+            from decimal import Decimal
+            return Decimal('0.00')
 
     @property
     def cashback_balance(self):
@@ -61,9 +63,11 @@ class Client(models.Model):
                 .filter(client=self)
                 .aggregate(total=Sum('amount'))['total']
             ) or 0
-            return float(total)
+            from decimal import Decimal
+            return Decimal(str(total or 0)).quantize(Decimal('0.01'))
         except Exception:
-            return 0.0
+            from decimal import Decimal
+            return Decimal('0.00')
 
     def __str__(self):
         return f"{self.full_name} ({self.phone})"
@@ -116,6 +120,9 @@ class Client(models.Model):
         indexes = [
             models.Index(fields=['phone'], name='client_phone_idx'),
             models.Index(fields=['center'], name='client_center_idx'),
+            models.Index(fields=['created_at'], name='client_created_idx'),
+            models.Index(fields=['center', 'created_at'], name='client_center_date_idx'),
+            models.Index(fields=['gender'], name='client_gender_idx'),
         ]
 
 
@@ -129,6 +136,13 @@ class ClientMembership(models.Model):
 
     def __str__(self):
         return f"{self.client.first_name} - {self.membership.name}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['client'], name='cm_client_idx'),
+            models.Index(fields=['is_active'], name='cm_active_idx'),
+            models.Index(fields=['created_at'], name='cm_created_idx'),
+        ]
 
 
 class ClientPackage(models.Model):
@@ -145,6 +159,13 @@ class ClientPackage(models.Model):
         pkg_name = self.package.name if self.package else 'Custom Package'
         return f"{self.client.first_name} - {pkg_name}"
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['client'], name='cpkg_client_idx'),
+            models.Index(fields=['is_active'], name='cpkg_active_idx'),
+            models.Index(fields=['created_at'], name='cpkg_created_idx'),
+        ]
+
 
 class ClientValueCard(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='value_cards')
@@ -157,3 +178,10 @@ class ClientValueCard(models.Model):
 
     def __str__(self):
         return f"{self.client.first_name} - {self.value_card.title}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['client'], name='cvc_client_idx'),
+            models.Index(fields=['is_active'], name='cvc_active_idx'),
+            models.Index(fields=['created_at'], name='cvc_created_idx'),
+        ]
