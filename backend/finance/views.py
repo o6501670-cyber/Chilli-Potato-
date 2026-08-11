@@ -532,10 +532,10 @@ class RegisterSummaryView(views.APIView):
             services_share = revenue['services'] / total_taxable
             products_share = revenue['products'] / total_taxable
         else:
-            services_share = 0.7
-            products_share = 0.3
-        services_tax = total_tax * services_share
-        products_tax = total_tax * products_share
+            services_share = Decimal('0.7')
+            products_share = Decimal('0.3')
+        services_tax = total_tax * Decimal(str(services_share))
+        products_tax = total_tax * Decimal(str(products_share))
 
         # Collection before tax = only actual sales revenue (advances are liabilities, shown separately)
         sales_collection = (
@@ -836,16 +836,16 @@ class MonthlySalesView(views.APIView):
             month_str = f"{calendar.month_abbr[month_num]}-{year}"
 
             i_row = items_dict.get(month_key, {})
-            services = Decimal(str(i_row.get('services')) or 0)
-            products = Decimal(str(i_row.get('products')) or 0)
-            memberships = Decimal(str(i_row.get('memberships')) or 0)
-            packages = Decimal(str(i_row.get('packages')) or 0)
-            value_cards = Decimal(str(i_row.get('value_cards')) or 0)
-            other = Decimal(str(i_row.get('other')) or 0)
+            services = Decimal(str(i_row.get('services') or 0))
+            products = Decimal(str(i_row.get('products') or 0))
+            memberships = Decimal(str(i_row.get('memberships') or 0))
+            packages = Decimal(str(i_row.get('packages') or 0))
+            value_cards = Decimal(str(i_row.get('value_cards') or 0))
+            other = Decimal(str(i_row.get('other') or 0))
 
-            adv = Decimal(str(adv_dict.get(month_key, {})).get('advances') or 0)
-            adv_used = abs(Decimal(str(adv_used_dict.get(month_key, {})).get('advances_used') or 0))
-            liab_used = Decimal(str(liab_used_dict.get(month_key, {})).get('liab_used') or 0)
+            adv = Decimal(str(adv_dict.get(month_key, {}).get('advances') or 0))
+            adv_used = abs(Decimal(str(adv_used_dict.get(month_key, {}).get('advances_used') or 0)))
+            liab_used = Decimal(str(liab_used_dict.get(month_key, {}).get('liab_used') or 0))
             
             total_redemptions = adv_used + liab_used
 
@@ -855,19 +855,19 @@ class MonthlySalesView(views.APIView):
             
             taxable_value = services + products + value_cards + memberships + packages
             
-            target = 0
+            target = Decimal('0.0')
             for c in centers:
                 hist = c.monthly_targets_history or {}
                 raw_t = hist.get(month_str, 0)
                 try:
-                    t = Decimal(str(raw_t)) if raw_t not in [None, ""] else 0.0
+                    t = Decimal(str(raw_t)) if raw_t not in [None, ""] else Decimal('0.0')
                 except (ValueError, TypeError):
-                    t = 0.0
-                if t == 0:
+                    t = Decimal('0.0')
+                if t == Decimal('0.0'):
                     try:
-                        t = Decimal(str(c.monthly_target)) if c.monthly_target not in [None, ""] else 0.0
+                        t = Decimal(str(c.monthly_target)) if c.monthly_target not in [None, ""] else Decimal('0.0')
                     except (ValueError, TypeError):
-                        t = 0.0
+                        t = Decimal('0.0')
                 target += t
                 
             target_achieved_percentage = 0
@@ -1050,20 +1050,19 @@ class DetailedRevenuesView(views.APIView):
             wb = openpyxl.Workbook()
             ws = wb.active
             ws.title = "Detailed Revenues"
-            ws.append(["Bill No", "Date", "Item Name", "Item Type", "Staff", "Client Name", "Quantity", "Subtotal", "Discount", "Tax", "Total"])
+            ws.append(["Bill No", "Date", "Client", "Billed By", "Net", "Tax", "Grand Total", "Status", "Payment Methods", "Applied Promos"])
             for row in result:
                 ws.append([
                     row.get('bill_no', ''),
-                    row.get('date', ''),
-                    row.get('item_name', ''),
-                    row.get('item_type', ''),
-                    row.get('staff', ''),
-                    row.get('client_name', ''),
-                    row.get('quantity', 0),
-                    row.get('subtotal', 0),
-                    row.get('discount', 0),
+                    row.get('date_time', ''),
+                    row.get('client', ''),
+                    row.get('billed_by', ''),
+                    row.get('net', 0),
                     row.get('tax', 0),
-                    row.get('total', 0)
+                    row.get('grand_total', 0),
+                    row.get('status', ''),
+                    row.get('payment_methods', ''),
+                    row.get('applied_promo', '')
                 ])
             response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             response['Content-Disposition'] = 'attachment; filename=detailed_revenues.xlsx'
@@ -1229,8 +1228,8 @@ class ProcurementReportView(views.APIView):
             'vendor_name': '',
             'gst_number': '',
             'num_pos': 0,
-            'tax_total': 0.0,
-            'total': 0.0,
+            'tax_total': Decimal('0.00'),
+            'total': Decimal('0.00'),
         })
 
         for po in pos:
@@ -1677,11 +1676,11 @@ class StaffIncentiveCalculationView(views.APIView):
                         r_type = card_rule.rule_type
                         if r_type in ['slab', 'slabs'] and card_rule.tiers:
                             for slab in card_rule.tiers:
-                                min_amt = Decimal(str(slab.get('min_amount')) or slab.get('min_price') or 0)
-                                max_amt = Decimal(str(slab.get('max_amount')) or slab.get('max_price') or 999999999)
+                                min_amt = Decimal(str(slab.get('min_amount') or slab.get('min_price') or 0))
+                                max_amt = Decimal(str(slab.get('max_amount') or slab.get('max_price') or 999999999))
                                 slab_name = (slab.get('name') or '').lower()
                                 if (min_amt <= split_price <= max_amt) or (slab_name and slab_name in desc):
-                                    card_reward = Decimal(str(slab.get('incentive_amount')) or slab.get('amount') or 0)
+                                    card_reward = Decimal(str(slab.get('incentive_amount') or slab.get('amount') or 0))
                                     slab_label = slab.get('name') or f"₹{min_amt}-₹{max_amt}"
                                     break
                         elif r_type in ['percentage', 'flat_percentage']:
@@ -1693,7 +1692,7 @@ class StaffIncentiveCalculationView(views.APIView):
                     
                     # No hardcoded card slab fallback — card_reward stays 0 if no active rule matches.
                     if card_reward == 0 and item.content_object and hasattr(item.content_object, 'incentive') and item.content_object.incentive:
-                        card_reward = Decimal(str(item.content_object.incentive))
+                        card_reward = Decimal(str(item.content_object.incentive or 0))
 
                     item_detail['calculated_incentive'] = round(card_reward, 2)
                     item_detail['incentive_amount'] = round(card_reward, 2)
@@ -1733,7 +1732,7 @@ class StaffIncentiveCalculationView(views.APIView):
                             mbr_reward = Decimal(str(mbr_rule.flat_amount or 0))
                             item_detail['calculation_rule'] = f"₹{mbr_rule.flat_amount}"
                     if mbr_reward == 0 and item.content_object and hasattr(item.content_object, 'incentive') and item.content_object.incentive:
-                        mbr_reward = Decimal(str(item.content_object.incentive))
+                        mbr_reward = Decimal(str(item.content_object.incentive or 0))
                     item_detail['calculated_incentive'] = round(mbr_reward, 2)
                     item_detail['incentive_amount'] = round(mbr_reward, 2)
                     st['membership_incentive'] += mbr_reward
@@ -1753,7 +1752,7 @@ class StaffIncentiveCalculationView(views.APIView):
                             pkg_reward = Decimal(str(pkg_rule.flat_amount or 0))
                             item_detail['calculation_rule'] = f"₹{pkg_rule.flat_amount}"
                     if pkg_reward == 0 and item.content_object and hasattr(item.content_object, 'incentive') and item.content_object.incentive:
-                        pkg_reward = Decimal(str(item.content_object.incentive))
+                        pkg_reward = Decimal(str(item.content_object.incentive or 0))
                     item_detail['calculated_incentive'] = round(pkg_reward, 2)
                     item_detail['incentive_amount'] = round(pkg_reward, 2)
                     st['package_incentive'] += pkg_reward
@@ -1774,7 +1773,7 @@ class StaffIncentiveCalculationView(views.APIView):
                                 kw = (t.get('match_keyword') or t.get('service_name') or '').lower().strip()
                                 s_name = (t.get('service_name') or '').lower().strip()
                                 if kw and (kw in desc or (s_name and s_name in desc)):
-                                    addon_reward = Decimal(str(t.get('incentive_amount')) or t.get('bonus_amount') or 0)
+                                    addon_reward = Decimal(str(t.get('incentive_amount') or t.get('bonus_amount') or 0))
                                     addon_label = t.get('service_name') or 'Service Add-on'
                                     break
                         if addon_reward > 0:
@@ -1815,17 +1814,17 @@ class StaffIncentiveCalculationView(views.APIView):
                 daily_rule_label = ''
 
                 if daily_rule and daily_rule.tiers:
-                    sorted_slabs = sorted(daily_rule.tiers, key=lambda t: Decimal(str(t.get('min_amount')) or 0), reverse=True)
+                    sorted_slabs = sorted(daily_rule.tiers, key=lambda t: Decimal(str(t.get('min_amount') or 0)), reverse=True)
                     for slab in sorted_slabs:
-                        min_amt = Decimal(str(slab.get('min_amount')) or 0)
+                        min_amt = Decimal(str(slab.get('min_amount') or 0))
                         if total_sales >= min_amt:
                             b_type = slab.get('bonus_type') or 'flat'
                             if b_type in ['percentage', 'percent']:
-                                pct = Decimal(str(slab.get('bonus_percent')) or slab.get('percent') or 0)
+                                pct = Decimal(str(slab.get('bonus_percent') or slab.get('percent') or 0))
                                 daily_bonus = round(total_sales * (pct / 100.0), 2)
                                 daily_rule_label = f"{pct}% bonus (Sales >= Rs.{int(min_amt):,})"
                             else:
-                                daily_bonus = Decimal(str(slab.get('bonus_amount')) or slab.get('amount') or 0)
+                                daily_bonus = Decimal(str(slab.get('bonus_amount') or slab.get('amount') or 0))
                                 daily_rule_label = f"Rs.{int(daily_bonus):,} bonus (Sales >= Rs.{int(min_amt):,})"
                             break
                 else:
@@ -1846,7 +1845,7 @@ class StaffIncentiveCalculationView(views.APIView):
                         for tier in tr.tiers:
                             kw = (tier.get('match_keyword') or tier.get('service_name') or '').lower().strip()
                             t_cnt = int(tier.get('target_count') or 1)
-                            r_amt = Decimal(str(tier.get('reward_amount')) or 0)
+                            r_amt = Decimal(str(tier.get('reward_amount') or 0))
                             # Count matching services performed by this staff
                             matched_count = sum(
                                 1 for dt in st['details']
@@ -1885,10 +1884,10 @@ class StaffIncentiveCalculationView(views.APIView):
                 prod_pct = 0.0
                 if prod_rule:
                     if prod_rule.rule_type in ['multiple', 'multipliers'] and prod_rule.tiers:
-                        sorted_tiers = sorted(prod_rule.tiers, key=lambda t: Decimal(str(t.get('min_multiple')) or 0), reverse=True)
+                        sorted_tiers = sorted(prod_rule.tiers, key=lambda t: Decimal(str(t.get('min_multiple') or 0)), reverse=True)
                         for tier in sorted_tiers:
-                            if multiple >= Decimal(str(tier.get('min_multiple')) or 0):
-                                prod_pct = Decimal(str(tier.get('incentive_percent')) or tier.get('percent') or 0)
+                            if multiple >= Decimal(str(tier.get('min_multiple') or 0)):
+                                prod_pct = Decimal(str(tier.get('incentive_percent') or tier.get('percent') or 0))
                                 break
                     elif prod_rule.rule_type in ['percentage', 'flat_percentage']:
                         prod_pct = Decimal(str(prod_rule.flat_percent or 0))
@@ -1927,10 +1926,10 @@ class StaffIncentiveCalculationView(views.APIView):
                 serv_pct = 0.0
                 if serv_rule:
                     if serv_rule.rule_type in ['multiple', 'multipliers'] and serv_rule.tiers:
-                        sorted_tiers = sorted(serv_rule.tiers, key=lambda t: Decimal(str(t.get('min_multiple')) or 0), reverse=True)
+                        sorted_tiers = sorted(serv_rule.tiers, key=lambda t: Decimal(str(t.get('min_multiple') or 0)), reverse=True)
                         for tier in sorted_tiers:
-                            if multiple >= Decimal(str(tier.get('min_multiple')) or 0):
-                                serv_pct = Decimal(str(tier.get('incentive_percent')) or tier.get('percent') or 0)
+                            if multiple >= Decimal(str(tier.get('min_multiple') or 0)):
+                                serv_pct = Decimal(str(tier.get('incentive_percent') or tier.get('percent') or 0))
                                 break
                     elif serv_rule.rule_type in ['percentage', 'flat_percentage']:
                         serv_pct = Decimal(str(serv_rule.flat_percent or 0))

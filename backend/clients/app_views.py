@@ -1,3 +1,4 @@
+from django.contrib.auth.hashers import make_password, check_password
 """
 Client App Views — Token-Secured API endpoints for the client mobile PWA.
 
@@ -19,7 +20,7 @@ from .models import Client
 def _generate_client_token(client):
     """Generate a signed 30-day token for the client app."""
     return _signing.dumps(
-        {'client_id': client.id, 'pin_hash': str(hash(client.app_pin or ''))},
+        {'client_id': client.id, 'pin_hash': str(client.app_pin)[-10:]},
         salt='client-app-token'
     )
 
@@ -27,7 +28,10 @@ def _verify_client_token(token):
     """Validate a client token. Returns Client or None."""
     try:
         data = _signing.loads(token, salt='client-app-token', max_age=86400 * 30)
-        return Client.objects.get(id=data['client_id'])
+        client = Client.objects.get(id=data['client_id'])
+        if data.get('pin_hash') != str(client.app_pin)[-10:]:
+            return None # Token invalid due to PIN change
+        return client
     except Exception:
         return None
 
@@ -59,13 +63,13 @@ def client_app_login(request):
         return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
 
     if not client.app_pin:
-        # First login — set PIN
+        # First login ?" set PIN
         if pin:
-            client.app_pin = pin
+            client.app_pin = make_password(str(pin))
             client.save(update_fields=['app_pin'])
         else:
             return Response({'error': 'PIN required to set your initial PIN'}, status=status.HTTP_400_BAD_REQUEST)
-    elif client.app_pin != pin:
+    elif not check_password(str(pin), client.app_pin):
         return Response({'error': 'Invalid PIN'}, status=status.HTTP_401_UNAUTHORIZED)
 
     return Response({
@@ -77,7 +81,6 @@ def client_app_login(request):
         'email': client.email,
         'gender': client.gender,
         'dnd_status': client.dnd_status,
-        'pin': client.app_pin,
         'auth_token': _generate_client_token(client),
     })
 

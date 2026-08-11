@@ -317,18 +317,26 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     def change_payment(self, request, pk=None):
         invoice = self.get_object()
         new_method = request.data.get('payment_method')
+        payment_id = request.data.get('payment_id')
+        
         if not new_method:
             return Response({'detail': 'payment_method required'}, status=400)
-
-        # Use queryset update to avoid N+1 save loop
-        invoice.payments.all().update(payment_method=new_method)
+            
+        if payment_id:
+            payment = invoice.payments.filter(id=payment_id).first()
+            if not payment:
+                return Response({'detail': 'payment_id not found for this invoice'}, status=404)
+            payment.payment_method = new_method
+            payment.save(update_fields=['payment_method'])
+        else:
+            invoice.payments.all().update(payment_method=new_method)
 
         user = request.user if request.user and request.user.is_authenticated else None
         BillChangeLog.objects.create(
             invoice=invoice,
             center=invoice.center,
             user=user,
-            action='Change Payment Type'
+            action=f"Change Payment Type {'(Partial)' if payment_id else '(All)'}"
         )
         return Response(InvoiceSerializer(invoice).data)
 

@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -36,7 +37,7 @@ class Invoice(models.Model):
 
     def save(self, *args, **kwargs):
         if self.total_amount < 0:
-            self.total_amount = 0
+            raise ValidationError({'total_amount': 'Invoice total amount cannot be negative.'})
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -104,18 +105,12 @@ class InvoiceItem(models.Model):
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)   # Pre-tax amount × tax_percentage / 100
     # total_price is stored as sent from frontend; save() guards against negative values
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    is_complimentary = models.BooleanField(default=False, help_text='Flags 0-value items intentionally given for free or redeemed')
     staff = models.ForeignKey('staff.StaffMember', null=True, blank=True, on_delete=models.SET_NULL)
     staff_members = models.ManyToManyField('staff.StaffMember', related_name='invoice_items_multi', blank=True)
 
     def save(self, *args, **kwargs):
-        # Redemption items are intentionally ₹0 and must stay ₹0 for correct reporting.
-        # Guard: treat as redemption if EITHER unit_price is 0 AND description signals redeem,
-        # OR if total_price was explicitly set to 0 with a zero unit_price (e.g. complimentary service).
-        is_redemption = (
-            (self.unit_price == 0 or self.unit_price is None) and
-            bool(self.description and '🎁 [Redeem]' in self.description)
-        )
-        if not is_redemption:
+        if not self.is_complimentary:
             calculated = ((self.unit_price or 0) * (self.quantity or 1)) - (self.discount or 0)
             if self.total_price == 0 and calculated != 0:
                 self.total_price = calculated

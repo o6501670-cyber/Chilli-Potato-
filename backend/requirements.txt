@@ -39,3 +39,4 @@ openpyxl==3.1.5
 #   PyJWT — was only needed for simplejwt
 #   drf-spectacular — optional API docs (add back if needed)
 #   django-environ — replaced with python-dotenv
+pandas

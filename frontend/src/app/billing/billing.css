@@ -845,10 +845,10 @@
 }
 
 .input-grey-center {
-  background: var(--bg-subtle) !important;
+  background: var(--bg-subtle);
   text-align: center;
-  color: var(--text-primary) !important;
-  border: 1px solid var(--border) !important;
+  color: var(--text-primary);
+  border: 1px solid var(--border);
 }
 
 .btn-green-teal {
@@ -922,23 +922,23 @@
 
 /* Utility helpers referenced inline in the template */
 .mt-2 {
-  margin-top: 6px !important;
+  margin-top: 6px;
 }
 
 .mt-3 {
-  margin-top: 10px !important;
+  margin-top: 10px;
 }
 
 .mt-4 {
-  margin-top: 14px !important;
+  margin-top: 14px;
 }
 
 .mt-5 {
-  margin-top: 16px !important;
+  margin-top: 16px;
 }
 
 .p-0 {
-  padding: 0 !important;
+  padding: 0;
 }
 
 .text-center {
@@ -1710,76 +1710,76 @@
   }
 
   ::ng-deep body * {
-    visibility: hidden !important;
+    visibility: hidden;
   }
   
   ::ng-deep .billing-subheader-row, 
   ::ng-deep .billing-content, 
   ::ng-deep .modal-overlay, 
   ::ng-deep .classic-receipt-actions {
-    display: none !important;
+    display: none;
   }
 
   /* We must show the receipt overlay but hide its background */
   ::ng-deep .inv-receipt-overlay {
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    background: none !important;
-    padding: 0 !important;
-    display: block !important;
-    backdrop-filter: none !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    z-index: 999999 !important;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background: none;
+    padding: 0;
+    display: block;
+    backdrop-filter: none;
+    width: 100vw;
+    height: 100vh;
+    z-index: 999999;
   }
 
   ::ng-deep .classic-receipt-paper, 
   ::ng-deep .classic-receipt-paper * {
-    visibility: visible !important;
-    color: #000 !important;
+    visibility: visible;
+    color: #000;
   }
 
   ::ng-deep .classic-receipt-paper {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 80mm !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 12px !important;
-    background: #fff !important;
-    font-family: 'Space Mono', 'Courier New', Courier, monospace !important;
-    font-size: 12px !important;
-    border: none !important;
-    box-shadow: none !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    max-width: 100%;
+    margin: 0;
+    padding: 12px;
+    background: #fff;
+    font-family: 'Space Mono', 'Courier New', Courier, monospace;
+    font-size: 12px;
+    border: none;
+    box-shadow: none;
   }
 
   ::ng-deep .classic-receipt-paper::before, 
   ::ng-deep .classic-receipt-paper::after {
-    display: none !important;
+    display: none;
   }
 
   /* Some inner elements might need flex or table instead of block */
   ::ng-deep .classic-receipt-paper .prt-total-row, 
   ::ng-deep .classic-receipt-paper .prt-meta-row {
-    display: flex !important;
-    justify-content: space-between !important;
-    width: 100% !important;
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
   }
   ::ng-deep .classic-receipt-paper table {
-    display: table !important;
+    display: table;
   }
   ::ng-deep .classic-receipt-paper tbody, 
   ::ng-deep .classic-receipt-paper thead {
-    display: table-row-group !important;
+    display: table-row-group;
   }
   ::ng-deep .classic-receipt-paper tr {
-    display: table-row !important;
+    display: table-row;
   }
   ::ng-deep .classic-receipt-paper th, 
   ::ng-deep .classic-receipt-paper td {
-    display: table-cell !important;
+    display: table-cell;
   }
 }
 
@@ -1791,7 +1791,7 @@
   transition: border-color 0.2s;
 }
 .minimal-client-input:focus {
-  border-bottom-color: #4f46e5 !important;
+  border-bottom-color: #4f46e5;
 }
 
 .btn-view-invoice {
@@ -1807,8 +1807,8 @@
   align-items: center;
 }
 .btn-view-invoice:hover {
-  background: #cbd5e1 !important;
-  color: #0f172a !important;
+  background: #cbd5e1;
+  color: #0f172a;
 }
 
 .btn-icon-view {

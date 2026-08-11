@@ -223,7 +223,6 @@ class ClientViewSet(viewsets.ModelViewSet):
                     phone=phone,
                     email=email,
                     gender=str(row.get('gender', '')).strip(),
-                    address=str(row.get('address', '')).strip(),
                     notes=str(row.get('notes', '')).strip()
                 ))
                 existing_phones.add(phone)
