@@ -1657,7 +1657,7 @@ class StaffIncentiveCalculationView(views.APIView):
 
                 st = staff_data[sm.id]
 
-                master_incentive = 0.0
+                master_incentive = Decimal('0')
                 if item.content_object and hasattr(item.content_object, 'incentive'):
                     try:
                         master_incentive = Decimal(str(item.content_object.incentive or 0))
@@ -1687,7 +1687,7 @@ class StaffIncentiveCalculationView(views.APIView):
                     
                     # Match Card Rule
                     card_rule = get_matching_rule('value_cards', sm.center_id, sm.designation or 'staff')
-                    card_reward = 0.0
+                    card_reward = Decimal('0')
                     slab_label = 'Value Card'
                     if card_rule:
                         r_type = card_rule.rule_type
@@ -1701,7 +1701,7 @@ class StaffIncentiveCalculationView(views.APIView):
                                     slab_label = slab.get('name') or f"₹{min_amt}-₹{max_amt}"
                                     break
                         elif r_type in ['percentage', 'flat_percentage']:
-                            card_reward = split_price * Decimal(str(card_rule.flat_percent or 0)) / 100.0
+                            card_reward = split_price * Decimal(str(card_rule.flat_percent or 0)) / 100
                             slab_label = f"{card_rule.flat_percent}%"
                         elif r_type in ['flat', 'flat_amount']:
                             card_reward = Decimal(str(card_rule.flat_amount or 0))
@@ -1739,11 +1739,11 @@ class StaffIncentiveCalculationView(views.APIView):
                     st['memberships_revenue'] += split_price
                     item_detail['type'] = 'Membership'
                     item_detail['category'] = 'memberships'
-                    mbr_reward = 0.0
+                    mbr_reward = Decimal('0')
                     mbr_rule = get_matching_rule('memberships', sm.center_id, sm.designation or 'staff')
                     if mbr_rule:
                         if mbr_rule.rule_type in ['percentage', 'flat_percentage']:
-                            mbr_reward = split_price * Decimal(str(mbr_rule.flat_percent or 0)) / 100.0
+                            mbr_reward = split_price * Decimal(str(mbr_rule.flat_percent or 0)) / 100
                             item_detail['calculation_rule'] = f"{mbr_rule.flat_percent}%"
                         elif mbr_rule.rule_type in ['flat', 'flat_amount']:
                             mbr_reward = Decimal(str(mbr_rule.flat_amount or 0))
@@ -1759,11 +1759,11 @@ class StaffIncentiveCalculationView(views.APIView):
                     st['packages_revenue'] += split_price
                     item_detail['type'] = 'Package'
                     item_detail['category'] = 'packages'
-                    pkg_reward = 0.0
+                    pkg_reward = Decimal('0')
                     pkg_rule = get_matching_rule('packages', sm.center_id, sm.designation or 'staff')
                     if pkg_rule:
                         if pkg_rule.rule_type in ['percentage', 'flat_percentage']:
-                            pkg_reward = split_price * Decimal(str(pkg_rule.flat_percent or 0)) / 100.0
+                            pkg_reward = split_price * Decimal(str(pkg_rule.flat_percent or 0)) / 100
                             item_detail['calculation_rule'] = f"{pkg_rule.flat_percent}%"
                         elif pkg_rule.rule_type in ['flat', 'flat_amount']:
                             pkg_reward = Decimal(str(pkg_rule.flat_amount or 0))
@@ -1855,7 +1855,7 @@ class StaffIncentiveCalculationView(views.APIView):
 
                 # B. Specific Service Volume Targets
                 target_rules = [r for r in all_rules if r.category == 'service_target' and r.is_active]
-                target_incentive = 0.0
+                target_incentive = Decimal('0')
                 achievements = []
                 for tr in target_rules:
                     if tr.tiers:
@@ -1898,7 +1898,7 @@ class StaffIncentiveCalculationView(views.APIView):
             else:
                 # --- MONTHLY CALCULATION ENGINE ---
                 prod_rule = get_matching_rule('products', st['center_id'], st['role'])
-                prod_pct = 0.0
+                prod_pct = Decimal('0')
                 if prod_rule:
                     if prod_rule.rule_type in ['multiple', 'multipliers'] and prod_rule.tiers:
                         sorted_tiers = sorted(prod_rule.tiers, key=lambda t: Decimal(str(t.get('min_multiple') or 0)), reverse=True)
@@ -1915,11 +1915,11 @@ class StaffIncentiveCalculationView(views.APIView):
 
                 # If no rule applies, use master-level item percentages
                 if prod_pct == 0:
-                    prod_inc = 0.0
+                    prod_inc = Decimal('0')
                     for dt in st['details']:
                         if dt['type'] == 'Product':
                             pct = dt.get('master_incentive_percent') or 0.0
-                            inc = round(float(dt['price']) * (float(pct) / 100.0), 2)
+                            inc = round(float(dt['price']) * (float(pct) / 100), 2)
                             dt['calculated_incentive'] = inc
                             dt['incentive_amount'] = inc
                             if pct > 0:
@@ -1929,18 +1929,18 @@ class StaffIncentiveCalculationView(views.APIView):
                     st['products_incentive'] = st['product_incentive']
                     st['product_percent_applied'] = 0
                 else:
-                    st['product_incentive'] = round(float(st['products_revenue']) * (float(prod_pct) / 100.0), 2)
+                    st['product_incentive'] = round(float(st['products_revenue']) * (float(prod_pct) / 100), 2)
                     st['products_incentive'] = st['product_incentive']
                     st['product_percent_applied'] = prod_pct
                     for dt in st['details']:
                         if dt['type'] == 'Product':
-                            dt['calculated_incentive'] = round(float(dt['price']) * (float(prod_pct) / 100.0), 2)
+                            dt['calculated_incentive'] = round(float(dt['price']) * (float(prod_pct) / 100), 2)
                             dt['incentive_amount'] = dt['calculated_incentive']
                             dt['calculation_rule'] = f"{float(prod_pct):g}% ({float(multiple):g}x multiple)" if prod_rule and prod_rule.rule_type in ['multiple', 'multipliers'] else f"{float(prod_pct):g}%"
 
                 # Service Incentive Calculation
                 serv_rule = get_matching_rule('services', st['center_id'], st['role'])
-                serv_pct = 0.0
+                serv_pct = Decimal('0')
                 if serv_rule:
                     if serv_rule.rule_type in ['multiple', 'multipliers'] and serv_rule.tiers:
                         sorted_tiers = sorted(serv_rule.tiers, key=lambda t: Decimal(str(t.get('min_multiple') or 0)), reverse=True)
@@ -1958,11 +1958,11 @@ class StaffIncentiveCalculationView(views.APIView):
                     # else: serv_pct stays 0.0 — no hardcoded defaults
                 
                 if serv_pct == 0:
-                    serv_inc = st['service_addon_incentive']
+                    serv_inc = Decimal(str(st['service_addon_incentive']))
                     for dt in st['details']:
                         if dt['type'] == 'Service':
                             pct = dt.get('master_incentive_percent') or 0.0
-                            inc = round(float(dt['price']) * (float(pct) / 100.0), 2)
+                            inc = round(float(dt['price']) * (float(pct) / 100), 2)
                             dt['calculated_incentive'] = round(dt.get('calculated_incentive', 0) + inc, 2)
                             dt['incentive_amount'] = dt['calculated_incentive']
                             if pct > 0:
@@ -1972,12 +1972,12 @@ class StaffIncentiveCalculationView(views.APIView):
                     st['services_incentive'] = st['service_incentive']
                     st['service_percent_applied'] = 0
                 else:
-                    st['service_incentive'] = round(float(st['services_revenue']) * (float(serv_pct) / 100.0) + float(st['service_addon_incentive']), 2)
+                    st['service_incentive'] = round(float(st['services_revenue']) * (float(serv_pct) / 100) + float(st['service_addon_incentive']), 2)
                     st['services_incentive'] = st['service_incentive']
                     st['service_percent_applied'] = serv_pct
                     for dt in st['details']:
                         if dt['type'] == 'Service':
-                            inc = round(float(dt['price']) * (float(serv_pct) / 100.0), 2)
+                            inc = round(float(dt['price']) * (float(serv_pct) / 100), 2)
                             dt['calculated_incentive'] = round(dt.get('calculated_incentive', 0) + inc, 2)
                             dt['incentive_amount'] = dt['calculated_incentive']
                             rule_label = f"{float(serv_pct):g}% ({float(multiple):g}x multiple)" if multiple > 0 else f"{float(serv_pct):g}%"

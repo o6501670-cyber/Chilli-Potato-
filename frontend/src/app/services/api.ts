@@ -51,7 +51,7 @@ export class ApiService {
 
   // Centers
   getCenters(withRevenue = false): Observable<any[]> {
-    return this.http.get<any[]>(`${this.baseUrl}/salon_admin/api/centers/?${withRevenue ? '&with_revenue=true' : ''}`);
+    return this.http.get<any[]>(`${this.baseUrl}/salon_admin/api/centers/?${withRevenue ? '${url.includes('?') ? '&' : '?'}with_revenue=true' : ''}`);
   }
 
   createCenter(data: any): Observable<any> {
@@ -79,9 +79,9 @@ export class ApiService {
 
   getClients(q?: string, centerId?: number, page?: number): Observable<any> {
     let url = `${this.baseUrl}/clients/api/clients/`;
-    if (q) url += `&q=${encodeURIComponent(q)}`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (page) url += `&page=${page}`;
+    if (q) url += `${url.includes('?') ? '&' : '?'}q=${encodeURIComponent(q)}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (page) url += `${url.includes('?') ? '&' : '?'}page=${page}`;
     return this.http.get<any>(url);
   }
 
@@ -141,13 +141,13 @@ export class ApiService {
   // --- Inventory ---
   getProducts(centerId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/inventory/api/products/`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
   getLowStockAlerts(centerId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/inventory/api/low_stock/`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
@@ -183,7 +183,7 @@ export class ApiService {
 
   getVendors(centerId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/inventory/api/vendors/`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
@@ -205,7 +205,7 @@ export class ApiService {
 
   getPurchaseOrders(centerId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/inventory/api/purchase-orders/`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
@@ -231,20 +231,20 @@ export class ApiService {
 
   getStockHistory(date: string, centerId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/inventory/api/products/stock_history/?date=${date}`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
   getStockTransactions(centerId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/inventory/api/stock-transactions/`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
   // --- Marketing ---
   getWhatsAppMessages(centerId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/marketing/api/whatsapp/`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
@@ -255,17 +255,17 @@ export class ApiService {
 
   getPromotionUsage(startDate?: string, endDate?: string): Observable<any[]> {
     let url = `${this.baseUrl}/marketing/api/promotions/usage_report/`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any[]>(url);
   }
 
   // Marketing - Promotions
   getPromotions(centerId?: any, showInactive: boolean = false, showExpired: boolean = false) { 
     let url = `${this.baseUrl}/marketing/api/promotions/`;
-    if (centerId !== undefined && centerId !== null && centerId !== 'null') url += `&center_id=${centerId}`;
-    if (showExpired) url += `&show_expired=true`;
-    if (showInactive) url += `&show_inactive=true`;
+    if (centerId !== undefined && centerId !== null && centerId !== 'null') url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (showExpired) url += `${url.includes('?') ? '&' : '?'}show_expired=true`;
+    if (showInactive) url += `${url.includes('?') ? '&' : '?'}show_inactive=true`;
     return this.http.get<any[]>(url); 
   }
   createPromotion(data: any) { return this.http.post(`${this.baseUrl}/marketing/api/promotions/`, data); }
@@ -276,8 +276,8 @@ export class ApiService {
   // Marketing - Value Cards
   getValueCards(centerId?: any, showInactive: boolean = false) { 
     let url = `${this.baseUrl}/marketing/api/cards/`;
-    if (centerId !== undefined && centerId !== null && centerId !== 'null') url += `&center_id=${centerId}`;
-    if (showInactive) url += `&show_inactive=true`;
+    if (centerId !== undefined && centerId !== null && centerId !== 'null') url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (showInactive) url += `${url.includes('?') ? '&' : '?'}show_inactive=true`;
     return this.http.get<any[]>(url); 
   }
   createValueCard(data: any) { return this.http.post(`${this.baseUrl}/marketing/api/cards/`, data); }
@@ -288,8 +288,8 @@ export class ApiService {
   // Marketing - Memberships
   getMemberships(centerId?: any, showInactive: boolean = false) { 
     let url = `${this.baseUrl}/marketing/api/memberships/`;
-    if (centerId !== undefined && centerId !== null && centerId !== 'null') url += `&center_id=${centerId}`;
-    if (showInactive) url += `&show_inactive=true`;
+    if (centerId !== undefined && centerId !== null && centerId !== 'null') url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (showInactive) url += `${url.includes('?') ? '&' : '?'}show_inactive=true`;
     return this.http.get<any[]>(url); 
   }
   createMembership(data: any) { return this.http.post(`${this.baseUrl}/marketing/api/memberships/`, data); }
@@ -300,8 +300,8 @@ export class ApiService {
   // Marketing - Packages
   getPackages(centerId?: any, showInactive: boolean = false) { 
     let url = `${this.baseUrl}/marketing/api/packages/`;
-    if (centerId !== undefined && centerId !== null && centerId !== 'null') url += `&center_id=${centerId}`;
-    if (showInactive) url += `&show_inactive=true`;
+    if (centerId !== undefined && centerId !== null && centerId !== 'null') url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (showInactive) url += `${url.includes('?') ? '&' : '?'}show_inactive=true`;
     return this.http.get<any[]>(url); 
   }
   createPackage(data: any) { return this.http.post(`${this.baseUrl}/marketing/api/packages/`, data); }
@@ -312,7 +312,7 @@ export class ApiService {
   // Services
   getServices(centerId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/services/api/master/`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
@@ -340,7 +340,7 @@ export class ApiService {
 
   getStaffMembers(centerId?: number, includeInactive: boolean = false): Observable<any[]> {
     let url = `${this.baseUrl}/staff/api/members/?include_inactive=${includeInactive}`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
@@ -348,13 +348,13 @@ export class ApiService {
   // --- Finance Export ---
   exportFinance(centerId: number | null, startDate: string, endDate: string): Observable<Blob> {
     let url = `${this.baseUrl}/finance/api/export/?start_date=${startDate}&end_date=${endDate}&type=detailed`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get(url, { responseType: 'blob' });
   }
 
   getStaffActivityFeed(centerId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/staff/api/members/activity_feed/`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
@@ -380,9 +380,9 @@ export class ApiService {
 
   getServiceLogs(staffId?: number, startDate?: string, endDate?: string): Observable<any[]> {
     let url = `${this.baseUrl}/staff/api/logs/`;
-    if (staffId) url += `&staff_id=${staffId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (staffId) url += `${url.includes('?') ? '&' : '?'}staff_id=${staffId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any[]>(url);
   }
 
@@ -392,25 +392,25 @@ export class ApiService {
 
   getServiceUsageReport(centerId?: number, startDate?: string, endDate?: string): Observable<any> {
     let url = `${this.baseUrl}/staff/api/reports/usage/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any>(url);
   }
 
   getStaffRevenueReport(centerId?: number, startDate?: string, endDate?: string): Observable<any> {
     let url = `${this.baseUrl}/staff/api/reports/revenue/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any>(url);
   }
 
   getStaffConsumptions(staffId?: number, startDate?: string, endDate?: string): Observable<any[]> {
     let url = `${this.baseUrl}/staff/api/consumptions/`;
-    if (staffId) url += `&staff_id=${staffId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (staffId) url += `${url.includes('?') ? '&' : '?'}staff_id=${staffId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any[]>(url);
   }
 
@@ -420,15 +420,15 @@ export class ApiService {
 
   getStaffConsumptionReport(centerId?: number, startDate?: string, endDate?: string): Observable<any[]> {
     let url = `${this.baseUrl}/staff/api/reports/consumption/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate && endDate) url += `&start_date=${startDate}&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate && endDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}&end_date=${endDate}`;
     return this.http.get<any>(url);
   }
 
   // Staff Transfers
   getStaffTransfers(staffId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/staff/api/transfers/`;
-    if (staffId) url += `&staff_id=${staffId}`;
+    if (staffId) url += `${url.includes('?') ? '&' : '?'}staff_id=${staffId}`;
     return this.http.get<any[]>(url);
   }
   createStaffTransfer(data: any): Observable<any> {
@@ -440,8 +440,8 @@ export class ApiService {
 
   getPayrolls(staffId?: number, centerId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/staff/api/payrolls/`;
-    if (staffId) url += `&staff_id=${staffId}`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (staffId) url += `${url.includes('?') ? '&' : '?'}staff_id=${staffId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
@@ -456,7 +456,7 @@ export class ApiService {
   // Staff Tool Tracker
   getStaffTools(staffId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/staff/api/tools/`;
-    if (staffId) url += `&staff_id=${staffId}`;
+    if (staffId) url += `${url.includes('?') ? '&' : '?'}staff_id=${staffId}`;
     return this.http.get<any[]>(url);
   }
   createStaffTool(data: any): Observable<any> {
@@ -469,8 +469,8 @@ export class ApiService {
   // --- Billing ---
   getInvoices(clientId?: number, centerId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/billing/invoices/`;
-    if (clientId) url += `&client_id=${clientId}`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (clientId) url += `${url.includes('?') ? '&' : '?'}client_id=${clientId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
@@ -501,17 +501,17 @@ export class ApiService {
 
   getAdvances(clientId?: number, centerId?: number): Observable<any[]> {
     let url = `${this.baseUrl}/billing/advances/`;
-    if (clientId) url += `&client_id=${clientId}`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (clientId) url += `${url.includes('?') ? '&' : '?'}client_id=${clientId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
   // --- Appointments ---
   getAppointments(centerId?: number, date?: string, clientPhone?: string): Observable<any[]> {
     let url = `${this.baseUrl}/appointments/api/appointments/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (date) url += `&date=${date}`;
-    if (clientPhone) url += `&client_phone=${clientPhone}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (date) url += `${url.includes('?') ? '&' : '?'}date=${date}`;
+    if (clientPhone) url += `${url.includes('?') ? '&' : '?'}client_phone=${clientPhone}`;
     return this.http.get<any[]>(url);
   }
 
@@ -533,17 +533,17 @@ export class ApiService {
 
   getRevenueReport(centerId?: number, startDate?: string, endDate?: string): Observable<any> {
     let url = `${this.baseUrl}/staff/api/reports/revenue/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any>(url);
   }
 
   getUsageReport(startDate?: string, endDate?: string, centerId?: number): Observable<any> {
     let url = `${this.baseUrl}/staff/api/reports/usage/`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any>(url);
   }
 
@@ -554,15 +554,15 @@ export class ApiService {
 
   getIncentiveReport(startDate: string, endDate: string, centerId?: number, frequency: string = 'monthly'): Observable<any[]> {
     let url = `${this.baseUrl}/finance/api/reports/incentive-calculation/?start_date=${startDate}&end_date=${endDate}&frequency=${frequency}`;
-    if (centerId) url += `&center_id=${centerId}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
     return this.http.get<any[]>(url);
   }
 
   getIncentiveRules(centerId?: any, category?: string, frequency?: string): Observable<any[]> {
     let url = `${this.baseUrl}/finance/api/rules/`;
-    if (centerId !== undefined && centerId !== null) url += `&center_id=${centerId}`;
-    if (category) url += `&category=${category}`;
-    if (frequency) url += `&frequency=${frequency}`;
+    if (centerId !== undefined && centerId !== null) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (category) url += `${url.includes('?') ? '&' : '?'}category=${category}`;
+    if (frequency) url += `${url.includes('?') ? '&' : '?'}frequency=${frequency}`;
     return this.http.get<any[]>(url);
   }
 
@@ -602,25 +602,25 @@ export class ApiService {
 
   getDashboardStaff(centerId?: number, startDate?: string, endDate?: string): Observable<any> {
     let url = `${this.baseUrl}/salon_admin/api/dashboard/staff/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any>(url);
   }
 
   getDashboardServicesProducts(centerId?: number, startDate?: string, endDate?: string): Observable<any> {
     let url = `${this.baseUrl}/salon_admin/api/dashboard/services_products/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any>(url);
   }
 
   getDashboardData(centerId?: number, startDate?: string, endDate?: string): Observable<any> {
     let url = `${this.baseUrl}/salon_admin/api/dashboard/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any>(url);
   }
 
@@ -635,17 +635,17 @@ export class ApiService {
   // --- Finance ---
   getRegisterSummary(centerId?: number, startDate?: string, endDate?: string): Observable<any> {
     let url = `${this.baseUrl}/finance/api/register_summary/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any>(url);
   }
 
   getPettyCashEntries(centerId?: number, startDate?: string, endDate?: string): Observable<any[]> {
     let url = `${this.baseUrl}/finance/api/petty-cash/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any[]>(url);
   }
 
@@ -659,10 +659,10 @@ export class ApiService {
 
   getDailyClosings(centerId?: number, date?: string, startDate?: string, endDate?: string): Observable<any[]> {
     let url = `${this.baseUrl}/finance/api/daily-closing/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (date) url += `&date=${date}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (date) url += `${url.includes('?') ? '&' : '?'}date=${date}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any[]>(url);
   }
 
@@ -672,8 +672,8 @@ export class ApiService {
 
   getShifts(centerId?: number, status?: string): Observable<any[]> {
     let url = `${this.baseUrl}/finance/api/shifts/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (status) url += `&status=${status}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (status) url += `${url.includes('?') ? '&' : '?'}status=${status}`;
     return this.http.get<any[]>(url);
   }
 
@@ -687,33 +687,33 @@ export class ApiService {
 
   getMonthlySales(centerId?: number, startDate?: string, endDate?: string): Observable<any[]> {
     let url = `${this.baseUrl}/finance/api/monthly_sales/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any[]>(url);
   }
 
   getDetailedRevenues(centerId?: number, startDate?: string, endDate?: string, page: number = 1, pageSize: number = 100): Observable<any> {
     let url = `${this.baseUrl}/finance/api/detailed_revenues/?page=${page}&page_size=${pageSize}`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any>(url);
   }
 
   getFinanceRefunds(centerId?: number, startDate?: string, endDate?: string): Observable<any> {
     let url = `${this.baseUrl}/finance/api/refunds/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any>(url);
   }
 
   getProcurementReport(centerId?: number, startDate?: string, endDate?: string): Observable<any> {
     let url = `${this.baseUrl}/finance/api/procurement/`;
-    if (centerId) url += `&center_id=${centerId}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
+    if (centerId) url += `${url.includes('?') ? '&' : '?'}center_id=${centerId}`;
+    if (startDate) url += `${url.includes('?') ? '&' : '?'}start_date=${startDate}`;
+    if (endDate) url += `${url.includes('?') ? '&' : '?'}end_date=${endDate}`;
     return this.http.get<any>(url);
   }
 

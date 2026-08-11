@@ -1131,7 +1131,7 @@ class StaffTransferViewSet(viewsets.ModelViewSet):
         staff.save()
 
 class StaffToolTrackerViewSet(viewsets.ModelViewSet):
-    queryset = StaffToolTracker.objects.all().select_related('staff', 'center').order_by('-created_at')
+    queryset = StaffToolTracker.objects.all().select_related('staff', 'staff__center').order_by('-created_at')
     serializer_class = StaffToolTrackerSerializer
     permission_classes = [permissions.IsAuthenticated]
 
