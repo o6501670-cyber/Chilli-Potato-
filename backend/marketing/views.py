@@ -167,7 +167,7 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
         total_clients = clients.count()
 
         messages_created = []
-        now = timezone.localtime(timezone.now())
+        now = timezone.now()
         date_today = now.date()
         time_now = now.time()
         default_center = None  # cache to avoid repeated DB hit

@@ -1968,7 +1968,7 @@ class StaffIncentiveCalculationView(views.APIView):
                             dt['incentive_amount'] = dt['calculated_incentive']
                             if pct > 0:
                                 dt['calculation_rule'] = f"{pct}% (Item Master)" + (f" + {dt['calculation_rule']}" if dt.get('calculation_rule') else "")
-                            serv_inc += inc
+                            serv_inc += Decimal(str(inc))
                     st['service_incentive'] = round(serv_inc, 2)
                     st['services_incentive'] = st['service_incentive']
                     st['service_percent_applied'] = 0
