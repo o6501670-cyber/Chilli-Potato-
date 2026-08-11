@@ -827,7 +827,7 @@ export class FinanceComponent implements OnInit {
     if (!url) return;
     
     const token = localStorage.getItem('token');
-    fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+    fetch(url, { headers: { 'Authorization': `Token ${token}` } })
       .then(res => {
         if (!res.ok) throw new Error('Network response was not ok');
         return res.blob();
@@ -1087,7 +1087,7 @@ export class FinanceComponent implements OnInit {
     if (cid) url += `&center_id=${cid}`;
     const token = localStorage.getItem('token');
     if (token) {
-      fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+      fetch(url, { headers: { 'Authorization': `Token ${token}` } })
         .then(res => res.blob())
         .then(blob => {
           const a = document.createElement('a');

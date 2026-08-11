@@ -46,9 +46,12 @@ def _get_authenticated_client(request):
 # ─────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ─────────────────────────────────────────────────────────────────────────────
+from pos_backend.throttles import LoginRateThrottle
+from rest_framework.decorators import throttle_classes
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([LoginRateThrottle])
 def client_app_login(request):
     """Client login. Returns client data + auth_token for subsequent requests."""
     phone = request.data.get('phone')
@@ -60,17 +63,12 @@ def client_app_login(request):
     try:
         client = Client.objects.get(phone=phone)
     except Client.DoesNotExist:
-        return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'Invalid phone number or PIN'}, status=status.HTTP_401_UNAUTHORIZED)
 
     if not client.app_pin:
-        # First login ?" set PIN
-        if pin:
-            client.app_pin = make_password(str(pin))
-            client.save(update_fields=['app_pin'])
-        else:
-            return Response({'error': 'PIN required to set your initial PIN'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'PIN has not been set yet. Please ask the front desk to set your PIN.'}, status=status.HTTP_400_BAD_REQUEST)
     elif not check_password(str(pin), client.app_pin):
-        return Response({'error': 'Invalid PIN'}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({'error': 'Invalid phone number or PIN'}, status=status.HTTP_401_UNAUTHORIZED)
 
     return Response({
         'id': client.id,

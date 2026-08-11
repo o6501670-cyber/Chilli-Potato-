@@ -36,9 +36,18 @@ class ClientSerializer(serializers.ModelSerializer):
     active_packages = serializers.SerializerMethodField()
     active_value_cards = serializers.SerializerMethodField()
     # advance_balance uses the model property — it is computed per-client on read.
-    # For list views with many clients, prefer annotating at queryset level.
-    advance_balance = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    cashback_balance = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    advance_balance = serializers.SerializerMethodField()
+    cashback_balance = serializers.SerializerMethodField()
+
+    def get_advance_balance(self, obj):
+        if hasattr(obj, 'advance_balance_annotated'):
+            return obj.advance_balance_annotated
+        return obj.advance_balance
+
+    def get_cashback_balance(self, obj):
+        if hasattr(obj, 'cashback_balance_annotated'):
+            return obj.cashback_balance_annotated
+        return getattr(obj, 'cashback_balance', 0)
 
     class Meta:
         model = Client

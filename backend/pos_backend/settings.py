@@ -168,6 +168,12 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+API_TOKEN_MAX_AGE_DAYS = int(os.environ.get('API_TOKEN_MAX_AGE_DAYS', 7))
 
 # ─── URL / Templates / WSGI ───────────────────────────────────────────────────
 ROOT_URLCONF = 'pos_backend.urls'

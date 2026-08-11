@@ -41,7 +41,10 @@ class UserViewSet(viewsets.ModelViewSet):
         return queryset
 
 
+from pos_backend.throttles import LoginRateThrottle
+
 class CustomAuthToken(ObtainAuthToken):
+    throttle_classes = [LoginRateThrottle]
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -68,18 +71,6 @@ class ChatUserListView(APIView):
         from .serializers import ChatRoomSerializer
         from django.db.models import Subquery, OuterRef
         
-        # Ensure 1-on-1 rooms exist
-        if request.user.is_superuser:
-            users = CustomUser.objects.exclude(id=request.user.id)
-        else:
-            users = CustomUser.objects.filter(is_superuser=True)
-            
-        for u in users:
-            rooms = ChatRoom.objects.filter(is_group=False, participants=request.user).filter(participants=u)
-            if not rooms.exists():
-                room = ChatRoom.objects.create(is_group=False)
-                room.participants.add(request.user, u)
-
         # Now fetch all rooms for the user
         rooms = request.user.chat_rooms.all()
         
@@ -139,7 +130,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         room_id = self.request.query_params.get('user_id') # Note: frontend sends user_id, but it's actually room_id now
         
         if room_id:
-            return Message.objects.filter(room_id=room_id).order_by('timestamp')
+            return Message.objects.filter(room_id=room_id, room__participants=user).order_by('timestamp')
 
         return Message.objects.none()
 

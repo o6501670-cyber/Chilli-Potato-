@@ -6,9 +6,15 @@ import { LoadingService } from './loading.service';
 export const loadingInterceptor: HttpInterceptorFn = (req, next) => {
   const loadingService = inject(LoadingService);
   
-  loadingService.show();
+  if (!req.headers.has('X-Background-Request')) {
+    loadingService.show();
+  }
   
   return next(req).pipe(
-    finalize(() => loadingService.hide())
+    finalize(() => {
+      if (!req.headers.has('X-Background-Request')) {
+        loadingService.hide();
+      }
+    })
   );
 };

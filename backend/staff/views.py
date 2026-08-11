@@ -1001,7 +1001,6 @@ class StaffTransferViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        sync_staff_transfers_and_tools()
         user = self.request.user
         queryset = StaffTransfer.objects.all().select_related('staff', 'from_center', 'to_center').order_by('-created_at')
         role = getattr(user, 'role', None)
@@ -1137,7 +1136,6 @@ class StaffToolTrackerViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        sync_staff_transfers_and_tools()
         user = self.request.user
         queryset = super().get_queryset()
 

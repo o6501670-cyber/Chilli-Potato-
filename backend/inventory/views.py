@@ -166,8 +166,7 @@ class VendorViewSet(InventoryBaseViewSet):
                 all_centers = list(Center.objects.all())
                 
             if not all_centers:
-                new_center = Center.objects.create(center_name="Main Center")
-                all_centers = [new_center]
+                return Response({"error": "No centers available."}, status=400)
 
             created_count = 0
             updated_count = 0
@@ -247,14 +246,13 @@ class VendorViewSet(InventoryBaseViewSet):
             return Response({'error': str(e), 'detail': traceback.format_exc()}, status=400)
 
 from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 
 class ProductViewSet(InventoryBaseViewSet):
     queryset = Product.objects.all().select_related('center').prefetch_related('lots')
     serializer_class = ProductSerializer
 
-    @method_decorator(cache_page(60 * 15))
     @method_decorator(vary_on_headers('Authorization'))
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
@@ -337,8 +335,7 @@ class ProductViewSet(InventoryBaseViewSet):
                 all_centers = list(Center.objects.all())
                 
             if not all_centers:
-                new_center = Center.objects.create(center_name="Main Center")
-                all_centers = [new_center]
+                return Response({"error": "No centers available."}, status=400)
 
             # Helper to safely parse numeric values
             def safe_float(val, default=0.0):
@@ -573,7 +570,7 @@ class ProductViewSet(InventoryBaseViewSet):
                 if product.center != center:
                     return Response({"error": f"Product {product.name} does not belong to the selected center."}, status=400)
                     
-                qty = int(item['quantity'])
+                qty = Decimal(str(item['quantity']))
                 
                 if qty > product.current_stock:
                     return Response({"error": f"Cannot checkout {qty} of {product.name}. Only {product.current_stock} in stock!"}, status=400)
@@ -613,7 +610,7 @@ class ProductViewSet(InventoryBaseViewSet):
                 if product.center != center:
                     return Response({"error": f"Product {product.name} does not belong to the selected center."}, status=400)
                     
-                physical_qty = int(item['quantity'])
+                physical_qty = Decimal(str(item['quantity']))
                 diff = physical_qty - product.current_stock
                 
                 if diff != 0:

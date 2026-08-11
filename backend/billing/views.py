@@ -204,6 +204,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             return Response({'detail': f'Already {invoice.status}'}, status=400)
 
         with transaction.atomic():
+            old_status = invoice.status
             invoice.status = new_status
             invoice.save()
 
@@ -214,6 +215,15 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 user=user,
                 action='Cancel Bill' if new_status == 'cancelled' else 'Refund Bill'
             )
+
+            # Create InvoiceRefund if invoice was already paid
+            if old_status in ('paid', 'partial') and new_status in ('cancelled', 'refunded'):
+                from billing.models import InvoiceRefund
+                InvoiceRefund.objects.create(
+                    invoice=invoice,
+                    amount=invoice.total_amount,
+                    reason='Invoice cancelled/refunded'
+                )
 
             # Revert inventory stock — batch by content_type to avoid N+1 on content_object
             inventory_items = [

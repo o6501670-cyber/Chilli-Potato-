@@ -143,6 +143,9 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
 
     @action(detail=False, methods=['post'])
     def send_campaign(self, request):
+        if hasattr(request.user, 'role') and request.user.role not in ['owner', 'marketing']:
+            return Response({'error': 'Permission denied. Only owners and marketing staff can send campaigns.'}, status=status.HTTP_403_FORBIDDEN)
+
         center_id = request.data.get('center_id')
         message = request.data.get('message')
 
@@ -153,16 +156,18 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
         import datetime
         from django.utils import timezone
 
-        # Use .only() to avoid loading ALL client fields into RAM — we only need phone, name, center_id
+        # Use .only() to avoid loading ALL client fields into RAM
+        # Exclude DND clients
+        base_qs = Client.objects.exclude(dnd_status__iexact='ON DND')
         if center_id and str(center_id).lower() != 'all':
-            clients = Client.objects.filter(
+            clients = base_qs.filter(
                 center_id=center_id
             ).only('id', 'phone', 'full_name', 'center_id').select_related('center')
         else:
-            clients = Client.objects.all().only('id', 'phone', 'full_name', 'center_id').select_related('center')
+            clients = base_qs.only('id', 'phone', 'full_name', 'center_id').select_related('center')
 
         if not clients.exists():
-            return Response({'error': 'No clients found in the selected center'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'No eligible clients found in the selected center (or all are on DND)'}, status=status.HTTP_404_NOT_FOUND)
             
         total_clients = clients.count()
 
@@ -276,7 +281,7 @@ class PromotionViewSet(MarketingBaseViewSet):
         packages = Package.objects.all().select_related('center')
         cards = ValueCard.objects.all().select_related('center')
         
-        if user.role != 'owner' and not user.is_superuser:
+        if (not user.role or user.role.name.lower() != 'owner') and not user.is_superuser:
             memberships = memberships.filter(Q(level='Organisation') | Q(center=user.center))
             packages = packages.filter(Q(level='Organisation') | Q(center=user.center))
             cards = cards.filter(Q(level='Organisation') | Q(center=user.center))

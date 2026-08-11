@@ -1,3 +1,5 @@
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from decimal import Decimal
 from rest_framework import viewsets, status, views
 from rest_framework.response import Response
@@ -493,6 +495,7 @@ class IncentiveConfigViewSet(viewsets.ModelViewSet):
 class RegisterSummaryView(views.APIView):
     permission_classes = [IsAuthenticated]
 
+    @method_decorator(cache_page(60 * 5))
     def get(self, request):
         center_id = request.query_params.get('center_id')
         start_date = request.query_params.get('start_date')
@@ -669,9 +672,8 @@ class RegisterSummaryView(views.APIView):
         if request.query_params.get('export') == 'true':
             import openpyxl
             from django.http import HttpResponse
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Register Summary"
+            wb = openpyxl.Workbook(write_only=True)
+            ws = wb.create_sheet(title="Register Summary")
             
             ws.append(["Metric", "Amount", "Tax"])
             for k, v in response_data['revenues'].items():
@@ -700,6 +702,7 @@ class RegisterSummaryView(views.APIView):
 class MonthlySalesView(views.APIView):
     permission_classes = [IsAuthenticated]
 
+    @method_decorator(cache_page(60 * 5))
     def get(self, request):
         from django.db.models.functions import ExtractYear, ExtractMonth
         from django.db.models import Sum, Count, Q
@@ -919,9 +922,8 @@ class MonthlySalesView(views.APIView):
         if request.query_params.get('export') == 'true':
             import openpyxl
             from django.http import HttpResponse
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Monthly Sales"
+            wb = openpyxl.Workbook(write_only=True)
+            ws = wb.create_sheet(title="Monthly Sales")
             ws.append(["Month", "Total Sales", "Target", "Achieved %"])
             for row in result:
                 ws.append([
@@ -942,6 +944,7 @@ class MonthlySalesView(views.APIView):
 class DetailedRevenuesView(views.APIView):
     permission_classes = [IsAuthenticated]
 
+    @method_decorator(cache_page(60 * 5))
     def get(self, request):
         center_id = request.query_params.get('center_id')
         start_date = request.query_params.get('start_date')
@@ -1065,9 +1068,8 @@ class DetailedRevenuesView(views.APIView):
         if request.query_params.get('export') == 'true':
             import openpyxl
             from django.http import HttpResponse
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Detailed Revenues"
+            wb = openpyxl.Workbook(write_only=True)
+            ws = wb.create_sheet(title="Detailed Revenues")
             ws.append(["Bill No", "Date", "Client", "Billed By", "Net", "Tax", "Grand Total", "Status", "Payment Methods", "Applied Promos"])
             for row in result:
                 ws.append([
@@ -1108,14 +1110,13 @@ class ExportFinanceView(views.APIView):
 
         invoices = _get_filtered_invoices(request, center_id, start_date, end_date).select_related('client', 'center')
         
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Invoices"
+        wb = openpyxl.Workbook(write_only=True)
+        ws = wb.create_sheet(title="Invoices")
         
         headers = ["Invoice ID", "Date", "Client", "Center", "Subtotal", "Discount", "Tax", "Total", "Status"]
         ws.append(headers)
         
-        for inv in invoices:
+        for inv in invoices.iterator(chunk_size=1000):
             client_name = f"{inv.client.first_name} {inv.client.last_name}" if inv.client else "Walk-in"
             center_name = (inv.center.display_name or inv.center.center_name) if inv.center else "N/A"
             ws.append([
@@ -1186,9 +1187,8 @@ class RefundsView(views.APIView):
         if request.query_params.get('export') == 'true':
             import openpyxl
             from django.http import HttpResponse
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Refunds"
+            wb = openpyxl.Workbook(write_only=True)
+            ws = wb.create_sheet(title="Refunds")
             ws.append(["Bill No", "Date", "Client", "Refund Amount", "Reason", "Billed By"])
             for row in result:
                 ws.append([
@@ -1278,9 +1278,8 @@ class ProcurementReportView(views.APIView):
         if request.query_params.get('export') == 'true':
             import openpyxl
             from django.http import HttpResponse
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Procurement Item Analysis"
+            wb = openpyxl.Workbook(write_only=True)
+            ws = wb.create_sheet(title="Procurement Item Analysis")
             ws.append(["Item Name", "Quantity Bought", "Avg Cost per Unit", "Total Spent"])
             for row in item_analysis:
                 ws.append([
@@ -2020,9 +2019,8 @@ class StaffIncentiveCalculationView(views.APIView):
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment
 
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Staff Incentives"
+        wb = openpyxl.Workbook(write_only=True)
+        ws = wb.create_sheet(title="Staff Incentives")
 
         header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
         header_font = Font(color="FFFFFF", bold=True)
@@ -2099,9 +2097,8 @@ class MultiSalonExportView(views.APIView):
             else:
                 centers = Center.objects.none()
                 
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Multi Salon Report"
+        wb = openpyxl.Workbook(write_only=True)
+        ws = wb.create_sheet(title="Multi Salon Report")
         ws.append(["Center Name", "Total Sales", "Target", "Target Achieved %"])
         
         view_instance = RegisterSummaryView()

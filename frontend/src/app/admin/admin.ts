@@ -198,7 +198,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   fetchUnreadChatCount() {
-    this.apiService.getUnreadChatCount().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.apiService.get("accounts/api/chat/unread/", undefined, { headers: { "X-Background-Request": "true" } }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res: any) => {
         this.consecutiveGlobalErrors = 0;
         this.unreadChatCount = res.count || 0;
@@ -211,7 +211,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   fetchLowStockCount() {
-    this.apiService.getLowStockAlerts().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.apiService.get("inventory/api/low_stock/", undefined, { headers: { "X-Background-Request": "true" } }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res: any[]) => {
         this.consecutiveGlobalErrors = 0;
         this.lowStockCount = res ? res.length : 0;
@@ -282,7 +282,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   fetchChatMessages() {
     if (!this.selectedChatUser) return;
-    this.apiService.get(`accounts/api/chat/messages/?user_id=${this.selectedChatUser.id}&t=${new Date().getTime()}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.apiService.get(`accounts/api/chat/messages/?user_id=${this.selectedChatUser.id}`, undefined, { headers: { "X-Background-Request": "true" } }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (msgs: any) => {
         this.consecutiveChatErrors = 0;
         // Handle potential DRF pagination wrapped object

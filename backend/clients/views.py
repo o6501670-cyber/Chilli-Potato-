@@ -3,6 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import models
+from django.db.models import Sum, DecimalField
+from django.db.models.functions import Coalesce
 from .models import Client, ClientMembership, ClientPackage, ClientValueCard
 from .serializers import ClientSerializer
 from staff.models import ServiceLog
@@ -43,6 +45,11 @@ class ClientViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(center_id=cid)
             except ValueError:
                 pass
+
+        qs = qs.annotate(
+            advance_balance_annotated=Coalesce(Sum('advances__amount'), 0.0, output_field=DecimalField(max_digits=10, decimal_places=2)),
+            cashback_balance_annotated=Coalesce(Sum('cashback_transactions__amount'), 0.0, output_field=DecimalField(max_digits=10, decimal_places=2))
+        )
         return qs.order_by('-id')
 
     def perform_create(self, serializer):
