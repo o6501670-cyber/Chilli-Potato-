@@ -19,7 +19,7 @@ _INSECURE_KEY = 'django-insecure-9k^bakokugv8=6u^h4&e0br9#aj2yf^oo3#anie*o6v(v_!
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', _INSECURE_KEY)
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 
 # Guard: refuse to start in production with the insecure fallback key
 if not DEBUG and SECRET_KEY == _INSECURE_KEY:
@@ -64,7 +64,7 @@ INSTALLED_APPS = [
 # ─── REST Framework ────────────────────────────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'accounts.authentication.ExpiringTokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -218,7 +218,7 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Kolkata'    # IST — important for Indian salon timestamps
 USE_I18N = True
-USE_TZ = False
+USE_TZ = True
 
 # ─── Static & Media Files ─────────────────────────────────────────────────────
 STATIC_URL = '/static/'

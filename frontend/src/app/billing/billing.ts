@@ -2005,6 +2005,7 @@ export class BillingComponent implements OnInit {
           discount: c.discount,
           quantity: c.quantity,
           tax_percentage: c.tax_percentage,
+          staff: c.staff,
           staff_members: c.staff_members,
           custom_package_services: c.custom_package_services
         };
@@ -2166,6 +2167,7 @@ export class BillingComponent implements OnInit {
           discount: Number(it.discount),
           quantity: it.quantity,
           tax_percentage: tax_percentage,
+          staff: it.staff ? (it.staff.id || it.staff) : null,
           staff_members: (it.staff_members || []).map((s: any) => s.id)
         });
       });

@@ -151,6 +151,7 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
 
         from clients.models import Client
         import datetime
+        from django.utils import timezone
 
         # Use .only() to avoid loading ALL client fields into RAM — we only need phone, name, center_id
         if center_id and str(center_id).lower() != 'all':
@@ -162,9 +163,11 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
 
         if not clients.exists():
             return Response({'error': 'No clients found in the selected center'}, status=status.HTTP_404_NOT_FOUND)
+            
+        total_clients = clients.count()
 
         messages_created = []
-        now = datetime.datetime.now()
+        now = timezone.localtime(timezone.now())
         date_today = now.date()
         time_now = now.time()
         default_center = None  # cache to avoid repeated DB hit
@@ -195,8 +198,8 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
             WhatsAppMessage.objects.bulk_create(messages_created)
 
         return Response({
-            'message': f'Campaign sent to {len(messages_created)} clients',
-            'count': len(messages_created)
+            'message': f'Campaign sent to {total_clients} clients',
+            'count': total_clients
         })
 
 class PromotionViewSet(MarketingBaseViewSet):
@@ -206,6 +209,7 @@ class PromotionViewSet(MarketingBaseViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         import datetime
+        from django.utils import timezone
         today = datetime.date.today()
         show_expired = self.request.query_params.get('show_expired', 'false').lower() == 'true'
         

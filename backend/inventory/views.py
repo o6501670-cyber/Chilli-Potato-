@@ -56,8 +56,10 @@ class InventoryBaseViewSet(viewsets.ModelViewSet):
                         raise PermissionDenied("You are not assigned to this center.")
                     serializer.save(center=matched)
                 else:
-                    # No center specified — use first assigned center (single-center common case)
-                    serializer.save(center=allowed_centers.first())
+                    if allowed_centers.count() == 1:
+                        serializer.save(center=allowed_centers.first())
+                    else:
+                        raise PermissionDenied("Center is required.")
             elif getattr(user, 'center', None):
                 serializer.save(center=user.center)
             else:

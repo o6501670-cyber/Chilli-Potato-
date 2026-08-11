@@ -3,7 +3,7 @@ from django.db import models
 
 class Client(models.Model):
     center = models.ForeignKey('salon_admin.Center', null=True, blank=True, on_delete=models.SET_NULL)
-    phone = models.CharField(max_length=20, unique=True)
+    phone = models.CharField(max_length=20)
     app_pin = models.CharField(max_length=10, blank=True, null=True)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100, blank=True, null=True)

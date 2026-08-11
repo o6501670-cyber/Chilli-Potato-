@@ -2,6 +2,7 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework import viewsets, permissions
+from rest_framework.decorators import action
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import Q
@@ -138,14 +139,20 @@ class MessageViewSet(viewsets.ModelViewSet):
         room_id = self.request.query_params.get('user_id') # Note: frontend sends user_id, but it's actually room_id now
         
         if room_id:
-            # Mark incoming messages as read
-            Message.objects.filter(
-                room_id=room_id, is_read=False
-            ).exclude(sender=user).update(is_read=True)
-
             return Message.objects.filter(room_id=room_id).order_by('timestamp')
 
         return Message.objects.none()
+
+    @action(detail=False, methods=['post'])
+    def mark_read(self, request):
+        user = self.request.user
+        room_id = self.request.data.get('room_id')
+        if room_id:
+            Message.objects.filter(
+                room_id=room_id, is_read=False
+            ).exclude(sender=user).update(is_read=True)
+            return Response({'status': 'ok'})
+        return Response({'error': 'room_id required'}, status=400)
 
     def perform_create(self, serializer):
         room_id = self.request.data.get('room_id') or self.request.query_params.get('user_id') or self.request.data.get('receiver') # Fallback if frontend sends it wrong

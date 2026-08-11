@@ -37,8 +37,8 @@ class ClientSerializer(serializers.ModelSerializer):
     active_value_cards = serializers.SerializerMethodField()
     # advance_balance uses the model property — it is computed per-client on read.
     # For list views with many clients, prefer annotating at queryset level.
-    advance_balance = serializers.FloatField(read_only=True)
-    cashback_balance = serializers.FloatField(read_only=True)
+    advance_balance = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    cashback_balance = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Client

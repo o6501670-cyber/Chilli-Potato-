@@ -11,7 +11,25 @@ from .models import SystemLog
 
 logger = logging.getLogger(__name__)
 
-_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='audit_log')
+class BoundedExecutor:
+    def __init__(self, max_workers, max_queue_size):
+        self.executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix='audit_log')
+        self.semaphore = threading.BoundedSemaphore(max_queue_size)
+        
+    def submit(self, fn, *args, **kwargs):
+        if not self.semaphore.acquire(blocking=False):
+            logger.warning("Audit log queue full, dropping log.")
+            return None
+        
+        def _wrapper(*a, **kw):
+            try:
+                fn(*a, **kw)
+            finally:
+                self.semaphore.release()
+                
+        return self.executor.submit(_wrapper, *args, **kwargs)
+
+_executor = BoundedExecutor(max_workers=2, max_queue_size=1000)
 
 SENSITIVE_KEYS = {
     'password', 'pin', 'token', 'auth_token',

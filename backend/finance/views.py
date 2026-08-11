@@ -224,19 +224,37 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
         center_id = request.data.get('center')
         date_str = request.data.get('date')
         
-        # Check if it already exists to prevent 400 Bad Request on unique_together
-        existing = DailyClosing.objects.filter(center_id=center_id, date=date_str).first()
-        if existing:
-            serializer = self.get_serializer(existing, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            self.perform_update(serializer)
-            return Response(serializer.data)
-            
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        # Check permissions similar to perform_create
+        user = self.request.user
+        perms = getattr(user.role, 'permissions', {}) or {}
+        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        center = serializer.validated_data.get('center')
+        
+        if not is_owner and not perms.get('all_centers', False):
+            if center:
+                if user.centers.exists() and center not in user.centers.all():
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied("You cannot create daily closing for this center.")
+        
+        defaults = serializer.validated_data.copy()
+        if 'center' in defaults:
+            del defaults['center']
+        if 'date' in defaults:
+            del defaults['date']
+        
+        instance, created = DailyClosing.objects.update_or_create(
+            center_id=center_id, 
+            date=date_str,
+            defaults=defaults
+        )
+        if created:
+            instance.user = user
+            instance.save(update_fields=['user'])
+            
+        return Response(self.get_serializer(instance).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -348,7 +366,7 @@ class ShiftViewSet(viewsets.ModelViewSet):
         shift.variance = Decimal(str(actual_cash)) - Decimal(str(expected_cash))
         shift.status = 'Closed'
         shift.closed_by = request.user
-        shift.closed_at = dt_module.datetime.now()
+        shift.closed_at = timezone.now()
         shift.save()
         return Response(ShiftSerializer(shift).data)
 

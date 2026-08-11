@@ -329,6 +329,8 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             payment.payment_method = new_method
             payment.save(update_fields=['payment_method'])
         else:
+            if invoice.payments.count() > 1:
+                return Response({'detail': 'Multiple payments exist. Provide a payment_id.'}, status=400)
             invoice.payments.all().update(payment_method=new_method)
 
         user = request.user if request.user and request.user.is_authenticated else None

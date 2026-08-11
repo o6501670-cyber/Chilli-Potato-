@@ -59,6 +59,18 @@ class ClientViewSet(viewsets.ModelViewSet):
                 elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create clients for this center.")
+        
+        phone = serializer.validated_data.get('phone')
+        center = serializer.validated_data.get('center')
+        if phone and center:
+            if Client.objects.filter(phone=phone, center=center).exists():
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"phone": ["A client with this phone number already exists in this center."]})
+        elif phone and not center:
+            if Client.objects.filter(phone=phone, center__isnull=True).exists():
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"phone": ["A global client with this phone number already exists."]})
+
         serializer.save()
 
     def perform_update(self, serializer):
@@ -75,6 +87,18 @@ class ClientViewSet(viewsets.ModelViewSet):
                 elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot move clients to this center.")
+        
+        phone = serializer.validated_data.get('phone', serializer.instance.phone)
+        center = serializer.validated_data.get('center', serializer.instance.center)
+        if phone and center:
+            if Client.objects.filter(phone=phone, center=center).exclude(pk=serializer.instance.pk).exists():
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"phone": ["A client with this phone number already exists in this center."]})
+        elif phone and not center:
+            if Client.objects.filter(phone=phone, center__isnull=True).exclude(pk=serializer.instance.pk).exists():
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"phone": ["A global client with this phone number already exists."]})
+
         serializer.save()
 
     def destroy(self, request, *args, **kwargs):

@@ -293,6 +293,9 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.chatMessages = Array.isArray(parsed) ? parsed : (parsed.data || parsed.results || []);
         this.cdr.detectChanges();
         this.scrollToBottom();
+        
+        // Mark as read in the background
+        this.apiService.post('accounts/api/chat/messages/mark_read/', { room_id: this.selectedChatUser.id }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
       },
       error: (err: any) => {
         this.consecutiveChatErrors++;

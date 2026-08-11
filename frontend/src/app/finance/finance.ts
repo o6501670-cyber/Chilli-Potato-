@@ -826,7 +826,7 @@ export class FinanceComponent implements OnInit {
     
     if (!url) return;
     
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('token');
     fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
       .then(res => {
         if (!res.ok) throw new Error('Network response was not ok');
@@ -1085,7 +1085,7 @@ export class FinanceComponent implements OnInit {
     let url = `${this.apiService.baseUrl}/finance/api/reports/incentive-calculation/?export=true&start_date=${this.incentiveStartDate}&end_date=${this.incentiveEndDate}&frequency=${this.incentiveFrequency}`;
     const cid = this.getCenterId();
     if (cid) url += `&center_id=${cid}`;
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('token');
     if (token) {
       fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
         .then(res => res.blob())

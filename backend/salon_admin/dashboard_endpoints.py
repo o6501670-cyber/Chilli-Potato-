@@ -4,7 +4,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Sum, Count, Q, DateField, Max, F
 from django.db.models.functions import TruncDate, ExtractHour, ExtractYear, ExtractMonth, Cast, ExtractWeekDay
-from datetime import datetime, timedelta, date as date_type
+from datetime import datetime, timedelta
+from django.utils import timezone
+from datetime import date as date_type
 import calendar
 
 from billing.models import Invoice, InvoiceItem, Payment, AdvancePayment
@@ -303,17 +305,17 @@ def dashboard_revenues(request):
         try:
             trend_start = datetime.strptime(start_date_str, '%Y-%m-%d')
         except:
-            trend_start = datetime.now() - timedelta(days=180)
+            trend_start = timezone.now() - timedelta(days=180)
     else:
-        trend_start = datetime.now() - timedelta(days=180)
+        trend_start = timezone.now() - timedelta(days=180)
 
     if end_date_str:
         try:
             trend_end = datetime.strptime(end_date_str, '%Y-%m-%d')
         except:
-            trend_end = datetime.now()
+            trend_end = timezone.now()
     else:
-        trend_end = datetime.now()
+        trend_end = timezone.now()
 
     six_months_ago = trend_start
 
@@ -391,7 +393,7 @@ def dashboard_clients(request):
     
     # 6 Months Trend — use ExtractYear+ExtractMonth (safe with USE_TZ=False)
     # 6 Months Trend - ignore start_date to always show full trend (like revenues)
-    now = datetime.now()
+    now = timezone.now()
     trend_start = now - timedelta(days=180)
     trend_end = now
 
@@ -558,17 +560,17 @@ def dashboard_finance(request):
         try:
             trend_start = datetime.strptime(start_date_str, '%Y-%m-%d')
         except:
-            trend_start = datetime.now() - timedelta(days=180)
+            trend_start = timezone.now() - timedelta(days=180)
     else:
-        trend_start = datetime.now() - timedelta(days=180)
+        trend_start = timezone.now() - timedelta(days=180)
 
     if end_date_str:
         try:
             trend_end = datetime.strptime(end_date_str, '%Y-%m-%d')
         except:
-            trend_end = datetime.now()
+            trend_end = timezone.now()
     else:
-        trend_end = datetime.now()
+        trend_end = timezone.now()
 
     six_months_ago = trend_start
 
@@ -678,17 +680,17 @@ def dashboard_staff(request):
         try:
             trend_start = datetime.strptime(start_date_str, '%Y-%m-%d')
         except:
-            trend_start = datetime.now() - timedelta(days=180)
+            trend_start = timezone.now() - timedelta(days=180)
     else:
-        trend_start = datetime.now() - timedelta(days=180)
+        trend_start = timezone.now() - timedelta(days=180)
 
     if end_date_str:
         try:
             trend_end = datetime.strptime(end_date_str, '%Y-%m-%d')
         except:
-            trend_end = datetime.now()
+            trend_end = timezone.now()
     else:
-        trend_end = datetime.now()
+        trend_end = timezone.now()
 
     six_months_ago = trend_start
 

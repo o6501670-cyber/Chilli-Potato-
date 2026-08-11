@@ -152,7 +152,7 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
         )
         active_packages_map[invoice.client.id] = list(active_packages)
 
-    for item in invoice.items.select_related('content_type', 'staff').prefetch_related('staff_members').all():
+    for item in invoice.items.select_related('content_type', 'staff').prefetch_related('staff_members', 'content_object').all():
 
         # 1. Deduct Inventory Stock (floor at 0) + create audit StockTransaction
         try:
@@ -251,7 +251,7 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                     # Use the invoice's actual date/time — not today() —
                     # so backdated or corrected bills land in the right payroll period.
                     date=invoice.created_at.date() if invoice.created_at else datetime.date.today(),
-                    time=invoice.created_at.time() if invoice.created_at else datetime.datetime.now().time()
+                    time=invoice.created_at.time() if invoice.created_at else timezone.now().time()
                 )
         except Exception as e:
             logger.error(f"[Billing] Error creating ServiceLog: {e}", exc_info=True)
