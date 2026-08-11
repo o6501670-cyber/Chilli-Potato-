@@ -51,7 +51,7 @@ export class ApiService {
 
   // Centers
   getCenters(withRevenue = false): Observable<any[]> {
-    return this.http.get<any[]>(`${this.baseUrl}/salon_admin/api/centers/?${withRevenue ? '${url.includes('?') ? '&' : '?'}with_revenue=true' : ''}`);
+    return this.http.get<any[]>(`${this.baseUrl}/salon_admin/api/centers/?${withRevenue ? '&with_revenue=true' : ''}`);
   }
 
   createCenter(data: any): Observable<any> {
