@@ -285,6 +285,9 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                     # 2. De-provision Purchased Perks
                     if item.content_type and item.content_type.app_label == 'marketing':
                         try:
+                            from datetime import timedelta
+                            window_start = invoice.created_at - timedelta(minutes=5)
+                            window_end = invoice.created_at + timedelta(minutes=5)
                             m_model = item.content_type.model
                             if m_model == 'membership' and item.content_object:
                                 ClientMembership.objects.filter(
