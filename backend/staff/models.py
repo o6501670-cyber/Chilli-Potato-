@@ -62,7 +62,15 @@ class Designation(models.Model):
             models.Index(fields=['created_at'], name='desig_created_idx'),
         ]
 
+class SafeServiceLogManager(models.Manager):
+    def get_queryset(self):
+        # Exclude logs tied to cancelled or refunded invoices
+        return super().get_queryset().exclude(invoice__status__in=['cancelled', 'refunded'])
+
 class ServiceLog(models.Model):
+    # Default manager safe against refunded commissions
+    objects = SafeServiceLogManager()
+    all_objects = models.Manager()
     TYPE_CHOICES = (
         ('Service', 'Service'),
         ('Package', 'Package'),

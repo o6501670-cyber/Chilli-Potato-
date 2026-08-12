@@ -370,7 +370,9 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
         if request_data.get('promo_id'):
             try:
                 from marketing.promotions import apply_promotion
-                apply_promotion(invoice, request_data.get('promo_id'))
+                discount, error = apply_promotion(invoice, request_data.get('promo_id'))
+                if error:
+                    raise ValueError(f"Promotion Error: {error}")
             except Exception as e:
                 logger.error(f"[Billing] Error processing promotion logic: {e}", exc_info=True)
 

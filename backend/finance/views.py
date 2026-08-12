@@ -166,10 +166,9 @@ class PettyCashEntryViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(center_id=center_id)
         # Use __date__ lookup so DateTimeField is compared correctly (avoids missing end-day entries)
         if start_date:
-            # PettyCashEntry.date is a DateField — use direct comparison (no __date__ transform)
-            queryset = queryset.filter(date__gte=start_date)
+            queryset = queryset.filter(date__date__gte=start_date)
         if end_date:
-            queryset = queryset.filter(date__lte=end_date)
+            queryset = queryset.filter(date__date__lte=end_date)
             
         return queryset.order_by('-date')
 

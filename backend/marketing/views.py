@@ -143,7 +143,8 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
 
     @action(detail=False, methods=['post'])
     def send_campaign(self, request):
-        if hasattr(request.user, 'role') and request.user.role not in ['owner', 'marketing']:
+        role_name = getattr(request.user.role, 'name', '').lower() if getattr(request.user, 'role', None) else ''
+        if not request.user.is_superuser and role_name not in ['owner', 'marketing']:
             return Response({'error': 'Permission denied. Only owners and marketing staff can send campaigns.'}, status=status.HTTP_403_FORBIDDEN)
 
         center_id = request.data.get('center_id')
@@ -162,9 +163,9 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
         if center_id and str(center_id).lower() != 'all':
             clients = base_qs.filter(
                 center_id=center_id
-            ).only('id', 'phone', 'full_name', 'center_id').select_related('center')
+            ).only('id', 'phone', 'first_name', 'last_name', 'center_id').select_related('center')
         else:
-            clients = base_qs.only('id', 'phone', 'full_name', 'center_id').select_related('center')
+            clients = base_qs.only('id', 'phone', 'first_name', 'last_name', 'center_id').select_related('center')
 
         if not clients.exists():
             return Response({'error': 'No eligible clients found in the selected center (or all are on DND)'}, status=status.HTTP_404_NOT_FOUND)
