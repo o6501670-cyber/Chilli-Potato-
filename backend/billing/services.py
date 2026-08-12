@@ -207,8 +207,8 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                     vc_paid = Decimal(str(
                         invoice.payments.filter(
                             payment_method__icontains='value card'
-                        )).aggregate(s=Sum('amount'))['s'] or 0
-                    )
+                        ).aggregate(s=Sum('amount'))['s'] or 0
+                    ))
                     real_paid = max(0, total_amt - vc_paid)
                     invoice._vc_incentive_ratio = real_paid / total_amt
                 else:

@@ -1924,8 +1924,8 @@ class StaffIncentiveCalculationView(views.APIView):
                             dt['incentive_amount'] = inc
                             if pct > 0:
                                 dt['calculation_rule'] = f"{pct}% (Item Master)"
-                            prod_inc += inc
-                    st['product_incentive'] = round(prod_inc, 2)
+                            prod_inc += Decimal(str(inc))
+                    st['product_incentive'] = round(float(prod_inc), 2)
                     st['products_incentive'] = st['product_incentive']
                     st['product_percent_applied'] = 0
                 else:
