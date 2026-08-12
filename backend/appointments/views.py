@@ -48,7 +48,16 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         if not services_data:
             return False, None
 
-        for svc in services_data:
+        def _get_staff_id(svc):
+            s = svc.get('staff')
+            try:
+                return s.id if hasattr(s, 'id') else int(s)
+            except (ValueError, TypeError):
+                return 0
+                
+        sorted_services = sorted(services_data, key=_get_staff_id)
+
+        for svc in sorted_services:
             staff = svc.get('staff')
             if not staff:
                 continue
@@ -125,7 +134,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 raise ValidationError("Client is blacklisted and cannot book appointments.")
 
         # Double-booking prevention
-        services_data = serializer.validated_data.get('services', [])
+        # Read from initial_data because the serializer pops 'services' from validated_data
+        services_data = serializer.initial_data.get('services', [])
         appt_date = serializer.validated_data.get('date')
         if services_data and appt_date:
             is_conflict, error_msg = self._check_double_booking(services_data, appt_date)
@@ -139,7 +149,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def perform_update(self, serializer):
         instance = serializer.instance
-        services_data = serializer.validated_data.get('services', [])
+        services_data = serializer.initial_data.get('services', [])
         appt_date = serializer.validated_data.get('date', instance.date)
 
         if services_data and appt_date:

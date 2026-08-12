@@ -140,16 +140,20 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
                     )
         elif old_status == 'Delivered' and new_status != 'Delivered':
             # Reverse stock if status changed back from Delivered
-            for item in instance.items.all():
-                if hasattr(item.product, 'current_stock'):
-                    item.product.current_stock -= item.quantity
-                    item.product.save()
-                    StockTransaction.objects.create(
-                        product=item.product,
-                        center=instance.center,
-                        transaction_type='PO_RECEIPT',
-                        quantity_change=-item.quantity,
-                        notes=f"Reversed Receipt from PO-{instance.id}"
-                    )
+            from django.db import transaction
+            from inventory.models import Product
+            with transaction.atomic():
+                for item in instance.items.all():
+                    if hasattr(item.product, 'current_stock'):
+                        prod = Product.objects.select_for_update().get(id=item.product.id)
+                        prod.current_stock = max(0, prod.current_stock - item.quantity)
+                        prod.save(update_fields=['current_stock'])
+                        StockTransaction.objects.create(
+                            product=prod,
+                            center=instance.center,
+                            transaction_type='PO_RECEIPT',
+                            quantity_change=-item.quantity,
+                            notes=f"Reversed Receipt from PO-{instance.id}"
+                        )
                 
         return instance

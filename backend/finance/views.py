@@ -247,11 +247,21 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
         if 'date' in defaults:
             del defaults['date']
         
-        instance, created = DailyClosing.objects.update_or_create(
-            center_id=center_id, 
-            date=date_str,
-            defaults=defaults
-        )
+        from django.db import transaction, IntegrityError
+        try:
+            with transaction.atomic():
+                instance, created = DailyClosing.objects.update_or_create(
+                    center_id=center_id, 
+                    date=date_str,
+                    defaults=defaults
+                )
+        except IntegrityError:
+            # If a concurrent request beat us to it, just update the existing one
+            instance, created = DailyClosing.objects.update_or_create(
+                center_id=center_id, 
+                date=date_str,
+                defaults=defaults
+            )
         if created:
             instance.user = user
             instance.save(update_fields=['user'])
@@ -777,16 +787,20 @@ class MonthlySalesView(views.APIView):
         if center_id:
             adv_qs = adv_qs.filter(client__center_id=center_id)
             adv_used_qs = adv_used_qs.filter(client__center_id=center_id)
+        from django.db.models.functions import Coalesce
+        adv_qs = adv_qs.annotate(eff_date=Coalesce('invoice__created_at', 'created_at'))
+        adv_used_qs = adv_used_qs.annotate(eff_date=Coalesce('invoice__created_at', 'created_at'))
+
         if start_date:
-            adv_qs = adv_qs.filter(created_at__date__gte=start_date)
-            adv_used_qs = adv_used_qs.filter(created_at__date__gte=start_date)
+            adv_qs = adv_qs.filter(eff_date__date__gte=start_date)
+            adv_used_qs = adv_used_qs.filter(eff_date__date__gte=start_date)
         if end_date:
-            adv_qs = adv_qs.filter(created_at__date__lte=end_date)
-            adv_used_qs = adv_used_qs.filter(created_at__date__lte=end_date)
+            adv_qs = adv_qs.filter(eff_date__date__lte=end_date)
+            adv_used_qs = adv_used_qs.filter(eff_date__date__lte=end_date)
 
         adv_monthly = (
             adv_qs
-            .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
+            .annotate(year=ExtractYear('eff_date'), month_num=ExtractMonth('eff_date'))
             .values('year', 'month_num')
             .annotate(advances=Sum('amount'))
             .order_by('-year', '-month_num')
@@ -795,7 +809,7 @@ class MonthlySalesView(views.APIView):
 
         adv_used_monthly = (
             adv_used_qs
-            .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
+            .annotate(year=ExtractYear('eff_date'), month_num=ExtractMonth('eff_date'))
             .values('year', 'month_num')
             .annotate(advances_used=Sum('amount'))
             .order_by('-year', '-month_num')
@@ -925,8 +939,8 @@ class MonthlySalesView(views.APIView):
             ws.append(["Month", "Total Sales", "Target", "Achieved %"])
             for row in result:
                 ws.append([
-                    row.get('month_name', ''),
-                    row.get('total_sales', 0),
+                    row.get('month', ''),
+                    row.get('including_tax', 0),
                     row.get('target', 0),
                     row.get('target_achieved_percentage', 0)
                 ])
@@ -1075,10 +1089,10 @@ class DetailedRevenuesView(views.APIView):
                     row.get('client', ''),
                     row.get('billed_by', ''),
                     row.get('net', 0),
-                    row.get('tax', 0),
+                    row.get('total_gst', 0),
                     row.get('grand_total', 0),
                     row.get('status', ''),
-                    row.get('payment_methods', ''),
+                    '—',  # Payment methods omitted from this query for performance
                     row.get('applied_promo', '')
                 ])
             response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

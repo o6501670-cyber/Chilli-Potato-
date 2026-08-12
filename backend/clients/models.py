@@ -100,7 +100,9 @@ class Client(models.Model):
                 )
                 
                 def _send_email_async():
+                    from django.db import close_old_connections
                     try:
+                        close_old_connections()
                         send_mail(
                             subject,
                             message,
@@ -112,8 +114,14 @@ class Client(models.Model):
                         import logging
                         logger = logging.getLogger('django')
                         logger.error(f"[Welcome Email] Failed to send welcome email to {self.email}: {email_err}", exc_info=True)
+                    finally:
+                        close_old_connections()
                 
-                threading.Thread(target=_send_email_async, daemon=True).start()
+                # Use a global thread pool instead of unbounded threads to prevent M2 explosion
+                from concurrent.futures import ThreadPoolExecutor
+                if not hasattr(settings, '_email_executor'):
+                    settings._email_executor = ThreadPoolExecutor(max_workers=5, thread_name_prefix='email_sender')
+                settings._email_executor.submit(_send_email_async)
             except Exception as thread_err:
                 import logging
                 logger = logging.getLogger('django')

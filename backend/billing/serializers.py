@@ -299,7 +299,11 @@ class InvoiceSerializer(serializers.ModelSerializer):
         items_data = validated_data.pop('items', [])
         payments_data = validated_data.pop('payments', [])
 
-        invoice = Invoice.objects.create(**validated_data)
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            invoice = Invoice.objects.create(**validated_data)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))
 
         # Pass 1: Build InvoiceItem instances and extract M2M data separately.
         # bulk_create cannot handle M2M, so we save staff_members for a second pass.
@@ -428,7 +432,11 @@ class InvoiceSerializer(serializers.ModelSerializer):
             elif paid > 0:
                 instance.status = 'partial'
 
-        instance.save()
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            instance.save()
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))
         return instance
 
     def to_representation(self, instance):
