@@ -17,7 +17,7 @@ class Center(models.Model):
     closing_sms_recipients = models.JSONField(default=list, blank=True)
     credit_limit = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     gst_enabled = models.BooleanField(default=True)
-    
+    is_active = models.BooleanField(default=True)    
     # Contact
     phone = models.CharField(max_length=20, blank=True, null=True)
     landline_1 = models.CharField(max_length=20, blank=True, null=True)

@@ -15,7 +15,7 @@ class CenterViewSet(viewsets.ModelViewSet):
             
         role = getattr(user, 'role', None)
         perms = getattr(role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if is_owner or perms.get('all_centers', False):
             qs = Center.objects.all()
@@ -37,12 +37,68 @@ class CenterViewSet(viewsets.ModelViewSet):
                     filter=Q(invoices__status__in=['paid', 'partial'], invoices__created_at__gte=first_day)
                 )
             )
-        return qs
+        return qs.filter(is_active=True)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = IsOwner.check_is_owner(user)
+        if not is_owner:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only owners can create centers.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = IsOwner.check_is_owner(user)
+        if not is_owner:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only owners can edit centers.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = IsOwner.check_is_owner(user)
+        if not is_owner:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only owners can delete centers.")
+        # Soft delete is recommended for Center due to cascading, but for now we enforce Owner rights
+        instance.is_active = False
+        instance.save()
 
 class RoleViewSet(viewsets.ModelViewSet):
     queryset = Role.objects.annotate(users_count=Count('customuser', distinct=True)).all()
     serializer_class = RoleSerializer
     permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = IsOwner.check_is_owner(user)
+        if not is_owner:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only owners can create roles.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = IsOwner.check_is_owner(user)
+        if not is_owner:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only owners can edit roles.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = IsOwner.check_is_owner(user)
+        if not is_owner:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only owners can delete roles.")
+        instance.delete()
 
 from rest_framework.decorators import api_view, permission_classes
 from decimal import Decimal as _Decimal
@@ -52,6 +108,7 @@ from billing.models import Invoice
 from appointments.models import Appointment
 from clients.models import Client
 from datetime import datetime, timedelta
+from pos_backend.permissions import IsOwner
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -66,7 +123,7 @@ def dashboard_view(request):
 
     user = request.user
     perms = getattr(user.role, 'permissions', {}) if getattr(user, 'role', None) else {}
-    is_owner = getattr(user, 'is_superuser', False) or (getattr(user, 'role', None) and user.role.name.lower() == 'owner')
+    is_owner = IsOwner.check_is_owner(user)
     if not is_owner and not perms.get('all_centers', False):
         if user.centers.exists():
             invoices = invoices.filter(center__in=user.centers.all())
@@ -198,7 +255,7 @@ def bulk_import_centers(request):
     user = request.user
     role = getattr(user, 'role', None)
     perms = getattr(role, 'permissions', {}) or {}
-    is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+    is_owner = IsOwner.check_is_owner(user)
     if not is_owner and not perms.get('all_centers', False):
         return Response({'error': 'Permission denied. Only owners can bulk import centres.'}, status=403)
 

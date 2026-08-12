@@ -16,11 +16,12 @@ from staff.models import StaffMember, ServiceLog
 from services.models import ServiceMaster
 from marketing.models import Membership, Package
 from inventory.models import Product
+from pos_backend.permissions import IsOwner
 
 def _apply_security(request, queryset, model_type='invoice'):
     user = request.user
     perms = getattr(user.role, 'permissions', {}) or {}
-    is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+    is_owner = IsOwner.check_is_owner(user)
     
     if not is_owner and not perms.get('all_centers', False):
         if user.centers.exists():
@@ -73,7 +74,7 @@ def dashboard_summary(request):
     from salon_admin.models import Center
     centers_qs = Center.objects.all()
     user = request.user
-    is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+    is_owner = IsOwner.check_is_owner(user)
     perms = getattr(user.role, 'permissions', {}) or {}
     
     if not is_owner and not perms.get('all_centers', False):
@@ -93,7 +94,7 @@ def dashboard_summary(request):
             target_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             target_month_key = target_date.strftime('%b-%Y') # e.g. "Jul-2026"
         except Exception:
-            pass
+            import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
             
     monthly_target = 0
     for center in centers_qs:
@@ -126,7 +127,7 @@ def dashboard_summary(request):
                     days_in_month = (ed - sd).days + 1
                 projected = (Decimal(str(total_revenue)) / Decimal(str(days_elapsed))) * Decimal(str(days_in_month)) if days_elapsed > 0 else Decimal("0")
         except Exception:
-            pass
+            import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
     
     # Client metrics based strictly on invoiced clients
     invoiced_clients = clients.filter(id__in=invoices.values('client').distinct())
@@ -644,7 +645,7 @@ def dashboard_finance(request):
     # We try to scope by center if center_id is present
     user = request.user
     perms = getattr(user.role, 'permissions', {}) or {}
-    is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+    is_owner = IsOwner.check_is_owner(user)
     center_id = request.GET.get('center_id')
     if center_id and center_id != 'null':
         # advances might not have center directly, but their invoice does, or staff does
@@ -700,7 +701,7 @@ def dashboard_staff(request):
     user = request.user
     role = getattr(user, 'role', None)
     perms = getattr(role, 'permissions', {}) if role else {}
-    is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+    is_owner = IsOwner.check_is_owner(user)
     if not is_owner and not perms.get('all_centers', False):
         if user.centers.exists():
             logs = logs.filter(staff__center__in=user.centers.all())

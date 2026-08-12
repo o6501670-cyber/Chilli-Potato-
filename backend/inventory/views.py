@@ -4,6 +4,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum
+from decimal import Decimal
 import datetime
 from .models import Vendor, Product, PurchaseOrder, ProductLot, StockTransaction
 from .serializers import VendorSerializer, ProductSerializer, PurchaseOrderSerializer, ProductLotSerializer, StockTransactionSerializer
@@ -16,7 +17,7 @@ class InventoryBaseViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         
         # If user is a superuser, or has the "Owner" role, allow passing center_id parameter
-        is_owner = user.is_superuser or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         center_id = self.request.query_params.get('center_id')
 
         if is_owner:
@@ -33,7 +34,7 @@ class InventoryBaseViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        is_owner = user.is_superuser or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
 
         if not is_owner:
             # For non-owners, resolve center from request — honor which center they're working in
@@ -321,7 +322,7 @@ class ProductViewSet(InventoryBaseViewSet):
             records = df.to_dict('records')
 
             user = request.user
-            is_owner = user.is_superuser or (user.role and user.role.name.lower() == 'owner')
+            is_owner = IsOwner.check_is_owner(user)
 
             from salon_admin.models import Center
             center_id_param = request.data.get('center_id') or request.query_params.get('center_id')
@@ -691,7 +692,7 @@ class ProductLotViewSet(InventoryBaseViewSet):
         product = Product.objects.get(id=product_id)
         
         user = self.request.user
-        is_owner = user.is_superuser or (user.role and user.role.name == 'Owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner:
             if user.centers.exists() and product.center not in user.centers.all():
                 raise PermissionDenied("You do not have access to the product's center.")
@@ -722,6 +723,7 @@ class StockTransactionViewSet(InventoryBaseViewSet):
 
 from rest_framework.views import APIView
 from django.db.models import F
+from pos_backend.permissions import IsOwner
 
 class LowStockAlertView(APIView):
     permission_classes = [IsAuthenticated]
@@ -731,7 +733,7 @@ class LowStockAlertView(APIView):
         qs = Product.objects.filter(current_stock__lte=F('reorder_level')).select_related('center')
         
         user = request.user
-        is_owner = user.is_superuser or (user.role and user.role.name == 'Owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner:
             if user.centers.exists():
                 qs = qs.filter(center__in=user.centers.all())

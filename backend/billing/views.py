@@ -14,6 +14,7 @@ import datetime
 from datetime import timedelta
 import logging
 from .services import finalize_invoice
+from pos_backend.permissions import IsOwner
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner and not perms.get('all_centers', False):
             if user.centers.exists():
                 qs = qs.filter(center__in=user.centers.all())
@@ -286,20 +287,17 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                         try:
                             m_model = item.content_type.model
                             if m_model == 'membership' and item.content_object:
-                                cm = ClientMembership.objects.filter(
-                                    client=invoice.client, membership_id=item.content_object.id
-                                ).order_by('-created_at').first()
-                                if cm: cm.delete() # Or set is_active = False
+                                ClientMembership.objects.filter(
+                                    source_invoice=invoice, membership_id=item.content_object.id
+                                ).delete()
                             elif m_model == 'package':
-                                cp = ClientPackage.objects.filter(
-                                    client=invoice.client, package_id=item.content_object.id if item.content_object else None
-                                ).order_by('-created_at').first()
-                                if cp: cp.delete()
+                                ClientPackage.objects.filter(
+                                    source_invoice=invoice, package_id=item.content_object.id if item.content_object else None
+                                ).delete()
                             elif m_model == 'valuecard' and item.content_object:
-                                cvc = ClientValueCard.objects.filter(
-                                    client=invoice.client, value_card_id=item.content_object.id
-                                ).order_by('-created_at').first()
-                                if cvc: cvc.delete()
+                                ClientValueCard.objects.filter(
+                                    source_invoice=invoice, value_card_id=item.content_object.id
+                                ).delete()
                         except Exception as ex:
                             logger.error(f"[Billing Cancel] Error de-provisioning perk: {ex}", exc_info=True)
 
@@ -384,7 +382,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             try:
                 sanitized['items'] = json.loads(sanitized['items'])
             except Exception:
-                pass
+                import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
 
         try:
             if isinstance(sanitized, dict) and 'staff' in sanitized:
@@ -422,7 +420,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 if client.is_blacklisted:
                     return Response({'error': 'Client is blacklisted and cannot be billed.'}, status=status.HTTP_400_BAD_REQUEST)
             except Exception:
-                pass
+                import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
 
         serializer = self.get_serializer(data=sanitized)
         try:
@@ -435,7 +433,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
         user = request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
@@ -527,7 +525,7 @@ class AdvancePaymentViewSet(viewsets.ModelViewSet):
         
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner and not perms.get('all_centers', False):
             if user.centers.exists():
                 qs = qs.filter(client__center__in=user.centers.all())
@@ -548,7 +546,7 @@ class AdvancePaymentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             client = serializer.validated_data.get('client')
@@ -572,7 +570,7 @@ class BillChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
         
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner and not perms.get('all_centers', False):
             if user.centers.exists():
                 qs = qs.filter(center__in=user.centers.all())

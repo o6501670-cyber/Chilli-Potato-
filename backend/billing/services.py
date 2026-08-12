@@ -37,7 +37,8 @@ def _provision_marketing_perks(invoice, item, request_data=None):
                     ClientMembership.objects.create(
                         client=invoice.client,
                         membership=membership,
-                        expiry_date=datetime.date.today() + timedelta(days=membership.expiry_days)
+                        expiry_date=datetime.date.today() + timedelta(days=membership.expiry_days),
+                        source_invoice=invoice
                     )
 
         elif m_model == 'package':
@@ -70,7 +71,8 @@ def _provision_marketing_perks(invoice, item, request_data=None):
                     client=invoice.client,
                     package=package,
                     services_remaining=services_rem,
-                    expiry_date=expiry
+                    expiry_date=expiry,
+                    source_invoice=invoice
                 )
 
         elif m_model == 'valuecard':
@@ -82,7 +84,8 @@ def _provision_marketing_perks(invoice, item, request_data=None):
                     client=invoice.client,
                     value_card=vcard,
                     balance=vcard.value,
-                    expiry_date=datetime.date.today() + timedelta(days=vcard.expiry_days)
+                    expiry_date=datetime.date.today() + timedelta(days=vcard.expiry_days),
+                    source_invoice=invoice
                 )
 
     except Exception as ex:
@@ -177,6 +180,7 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                         logger.warning(f"[Billing] Could not create StockTransaction: {ste}")
         except Exception as e:
             logger.error(f"[Billing] Error deducting stock: {e}", exc_info=True)
+            raise
 
         # 2. Deduct Package Redeemed Services
         _deduct_package_service(invoice, item, active_packages_map)
@@ -255,7 +259,7 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                 )
         except Exception as e:
             logger.error(f"[Billing] Error creating ServiceLog: {e}", exc_info=True)
-            continue
+            raise
 
 
     # 5. Auto-complete Appointment
@@ -343,9 +347,11 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                             client_vc.save()
                     except Exception as ex:
                         logger.error(f"[Billing] Error deducting Value Card id={payment.value_card_id}: {ex}", exc_info=True)
+                        raise
 
         except Exception as e:
             logger.error(f"[Billing] Error handling payment deduction: {e}", exc_info=True)
+            raise
 
     # 7. Apply Promotion logic (Usage tracking & Cashback)
     if request_data:
@@ -366,13 +372,20 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                         invoice.save(update_fields=['discount', 'total_amount'])
             except Exception as e:
                 logger.error(f"[Billing] Error validating membership discount: {e}", exc_info=True)
+                raise
 
         if request_data.get('promo_id'):
             try:
                 from marketing.promotions import apply_promotion
-                apply_promotion(invoice, request_data.get('promo_id'))
+                from rest_framework.exceptions import ValidationError as DRFValidationError
+                discount, error = apply_promotion(invoice, request_data.get('promo_id'))
+                if error:
+                    raise DRFValidationError({'promo_id': error})
+            except DRFValidationError:
+                raise
             except Exception as e:
                 logger.error(f"[Billing] Error processing promotion logic: {e}", exc_info=True)
+                raise
 
     logger.info(f"[Billing] finalize_invoice completed for invoice #{invoice.id}")
 

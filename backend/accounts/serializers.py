@@ -18,14 +18,11 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(str(e))
 
     def update(self, instance, validated_data):
-        password = validated_data.pop('password', None)
+        # Passwords should be changed via a dedicated endpoint, not general update
+        validated_data.pop('password', None)
         centers = validated_data.pop('centers', None)
         
         user = super().update(instance, validated_data)
-        
-        if password:
-            user.set_password(password)
-            user.save()
             
         if centers is not None:
             user.centers.set(centers)

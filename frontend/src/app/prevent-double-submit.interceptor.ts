@@ -1,14 +1,14 @@
 import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpEvent } from '@angular/common/http';
-import { Observable, EMPTY } from 'rxjs';
-import { finalize } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+import { finalize, shareReplay } from 'rxjs/operators';
 
-const inFlightRequests = new Set<string>();
+const inFlightRequests = new Map<string, Observable<HttpEvent<unknown>>>();
 
 export const preventDoubleSubmitInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,
   next: HttpHandlerFn
 ): Observable<HttpEvent<unknown>> => {
-  // Only apply to POST requests (creations). We can include PUT/PATCH if needed, but POST is the main issue for duplicate entries.
+  // Only apply to POST requests (creations).
   if (req.method !== 'POST') {
     return next(req);
   }
@@ -17,18 +17,20 @@ export const preventDoubleSubmitInterceptor: HttpInterceptorFn = (
   const requestKey = `${req.method}_${req.url}_${JSON.stringify(req.body || {})}`;
 
   if (inFlightRequests.has(requestKey)) {
-    console.warn(`Double-click duplicate request prevented: ${req.url}`);
-    return EMPTY;
+    console.warn(`Double-click duplicate request shared: ${req.url}`);
+    return inFlightRequests.get(requestKey)!;
   }
 
-  inFlightRequests.add(requestKey);
-
-  return next(req).pipe(
+  const shared$ = next(req).pipe(
     finalize(() => {
       // Remove it from the in-flight list after a delay to prevent spam clicks right after completion
       setTimeout(() => {
         inFlightRequests.delete(requestKey);
       }, 1000);
-    })
+    }),
+    shareReplay(1)
   );
+
+  inFlightRequests.set(requestKey, shared$);
+  return shared$;
 };

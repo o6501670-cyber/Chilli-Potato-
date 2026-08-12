@@ -9,6 +9,7 @@ from .serializers import ServiceMasterSerializer, CenterServiceSerializer
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
+from pos_backend.permissions import IsOwner
 
 class ServiceMasterViewSet(viewsets.ModelViewSet):
     queryset = ServiceMaster.objects.all().prefetch_related('center_overrides', 'centers')
@@ -24,7 +25,7 @@ class ServiceMasterViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = super().get_queryset()
         
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) or {}
         is_all_centers = is_owner or perms.get('all_centers', False)
         
@@ -44,7 +45,7 @@ class ServiceMasterViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         is_all_centers = is_owner or perms.get('all_centers', False)
         
         if self.request.data.get('level') == 'Organisation':
@@ -267,7 +268,7 @@ class CenterServiceViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = CenterService.objects.all()
         
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) or {}
         is_all_centers = is_owner or perms.get('all_centers', False)
         
@@ -296,7 +297,7 @@ class CenterServiceViewSet(viewsets.ModelViewSet):
         if not center_id or not service_id:
             return Response({"error": "Missing center_id or service_id"}, status=status.HTTP_400_BAD_REQUEST)
             
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) or {}
         is_all_centers = is_owner or perms.get('all_centers', False)
         

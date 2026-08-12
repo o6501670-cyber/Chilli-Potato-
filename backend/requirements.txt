@@ -1,5 +1,5 @@
 # Core Django
-# FIXED: Django 6.x does not exist â€” latest LTS is 5.2
+# FIXED: Django 6.x does not exist — latest LTS is 5.2
 Django==5.2.3
 asgiref==3.8.1
 sqlparse==0.5.3
@@ -26,7 +26,7 @@ python-dotenv==1.0.1
 # Utilities
 requests==2.32.3
 
-# Cache (Redis â€” required for 20K+ daily traffic, shared across Gunicorn workers)
+# Cache (Redis — required for 20K+ daily traffic, shared across Gunicorn workers)
 # Set REDIS_URL=redis://localhost:6379/0 in production .env to activate
 redis>=5.0.0
 django-redis>=5.4.0
@@ -35,8 +35,9 @@ django-redis>=5.4.0
 openpyxl==3.1.5
 
 # NOTE: Removed unused packages:
-#   djangorestframework_simplejwt â€” project uses Token auth, not JWT
-#   PyJWT â€” was only needed for simplejwt
-#   drf-spectacular â€” optional API docs (add back if needed)
-#   django-environ â€” replaced with python-dotenv
+#   djangorestframework_simplejwt — project uses Token auth, not JWT
+#   PyJWT — was only needed for simplejwt
+#   drf-spectacular — optional API docs (add back if needed)
+#   django-environ — replaced with python-dotenv
 pandas
+user-agents

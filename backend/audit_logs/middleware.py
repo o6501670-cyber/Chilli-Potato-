@@ -22,14 +22,17 @@ class BoundedExecutor:
             return None
         
         def _wrapper(*a, **kw):
+            from django.db import close_old_connections
             try:
+                close_old_connections()
                 fn(*a, **kw)
             finally:
+                close_old_connections()
                 self.semaphore.release()
                 
         return self.executor.submit(_wrapper, *args, **kwargs)
 
-_executor = BoundedExecutor(max_workers=2, max_queue_size=1000)
+_executor = BoundedExecutor(max_workers=4, max_queue_size=10000)
 
 SENSITIVE_KEYS = {
     'password', 'pin', 'token', 'auth_token',
@@ -138,7 +141,7 @@ def _cached_geo(ip: str) -> dict:
         import requests as req
         resp = req.get(
             f'https://freeipapi.com/api/json/{ip}',
-            timeout=3
+            timeout=1
         )
         data = resp.json()
         if data.get('cityName') or data.get('countryName'):
@@ -149,7 +152,7 @@ def _cached_geo(ip: str) -> dict:
                 'country_code': data.get('countryCode', ''),
             }
     except Exception:
-        pass
+        import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
     return {'city': '', 'region': '', 'country': '', 'country_code': ''}
 
 
@@ -297,7 +300,7 @@ def _write_log(token_key, session_user_pk, path, method, body_bytes, ip, ua_stri
                     center_id = staff.center_id
                     center_name = staff.center.center_name if staff.center else ''
             except Exception:
-                pass
+                import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
         elif client_token:
             try:
                 from clients.app_views import _verify_client_token
@@ -308,7 +311,7 @@ def _write_log(token_key, session_user_pk, path, method, body_bytes, ip, ua_stri
                     user_email = client.phone or ''
                     user_role = 'Client'
             except Exception:
-                pass
+                import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
         elif session_user_pk:
             try:
                 from django.contrib.auth import get_user_model
@@ -322,7 +325,7 @@ def _write_log(token_key, session_user_pk, path, method, body_bytes, ip, ua_stri
                 center_id   = u.center_id if hasattr(u, 'center_id') else None
                 center_name = getattr(u.center, 'center_name', '') if (hasattr(u, 'center') and u.center) else ''
             except Exception:
-                pass
+                import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
 
         # ── Body & action ─────────────────────────────────────────────────────
         body       = _sanitise(body_bytes)
@@ -391,7 +394,7 @@ class AuditLogMiddleware(MiddlewareMixin):
             try:
                 _ = request.body
             except Exception:
-                pass
+                import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
 
     def process_response(self, request, response):
         method = request.method

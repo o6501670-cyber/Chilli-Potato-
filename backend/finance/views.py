@@ -1,5 +1,5 @@
 from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
+# Removed cache_page due to cross-tenant leak
 from decimal import Decimal
 from rest_framework import viewsets, status, views
 from rest_framework.response import Response
@@ -11,6 +11,7 @@ from billing.models import Invoice, Payment, InvoiceItem, AdvancePayment
 from inventory.models import PurchaseOrder, PurchaseOrderItem
 from django.db.models import Sum, Count, Q
 from django.contrib.contenttypes.models import ContentType
+from salon_admin.models import Center
 from datetime import datetime
 import datetime as dt_module
 from collections import defaultdict
@@ -25,7 +26,7 @@ def _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('
 
     user = request.user
     perms = getattr(user.role, 'permissions', {}) or {}
-    is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+    is_owner = IsOwner.check_is_owner(user)
     if not is_owner and not perms.get('all_centers', False):
         if user.centers.exists():
             qs = qs.filter(center__in=user.centers.all())
@@ -147,7 +148,7 @@ class PettyCashEntryViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = self.queryset
         
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) or {}
         if not is_owner and not perms.get('all_centers', False):
             if user.centers.exists():
@@ -165,17 +166,16 @@ class PettyCashEntryViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(center_id=center_id)
         # Use __date__ lookup so DateTimeField is compared correctly (avoids missing end-day entries)
         if start_date:
-            # PettyCashEntry.date is a DateField — use direct comparison (no __date__ transform)
-            queryset = queryset.filter(date__gte=start_date)
+            queryset = queryset.filter(date__date__gte=start_date)
         if end_date:
-            queryset = queryset.filter(date__lte=end_date)
+            queryset = queryset.filter(date__date__lte=end_date)
             
         return queryset.order_by('-date')
 
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
@@ -198,7 +198,7 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = self.queryset
         
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) or {}
         if not is_owner and not perms.get('all_centers', False):
             if user.centers.exists():
@@ -232,7 +232,7 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
         # Check permissions similar to perform_create
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         center = serializer.validated_data.get('center')
         
         if not is_owner and not perms.get('all_centers', False):
@@ -247,11 +247,21 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
         if 'date' in defaults:
             del defaults['date']
         
-        instance, created = DailyClosing.objects.update_or_create(
-            center_id=center_id, 
-            date=date_str,
-            defaults=defaults
-        )
+        from django.db import transaction, IntegrityError
+        try:
+            with transaction.atomic():
+                instance, created = DailyClosing.objects.update_or_create(
+                    center_id=center_id, 
+                    date=date_str,
+                    defaults=defaults
+                )
+        except IntegrityError:
+            # If a concurrent request beat us to it, just update the existing one
+            instance, created = DailyClosing.objects.update_or_create(
+                center_id=center_id, 
+                date=date_str,
+                defaults=defaults
+            )
         if created:
             instance.user = user
             instance.save(update_fields=['user'])
@@ -261,7 +271,7 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
@@ -277,7 +287,7 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center', serializer.instance.center)
@@ -319,7 +329,7 @@ class ShiftViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = self.queryset
         
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) or {}
         if not is_owner and not perms.get('all_centers', False):
             if user.centers.exists():
@@ -340,7 +350,7 @@ class ShiftViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
@@ -382,7 +392,7 @@ class IncentiveRuleViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = self.queryset
         
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) or {}
         if not is_owner and not perms.get('all_centers', False):
             if user.centers.exists():
@@ -416,7 +426,7 @@ class IncentiveRuleViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
@@ -460,7 +470,7 @@ class IncentiveConfigViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = IncentiveConfig.objects.all()
         
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) or {}
         if not is_owner and not perms.get('all_centers', False):
             if user.centers.exists():
@@ -478,7 +488,7 @@ class IncentiveConfigViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
@@ -492,182 +502,193 @@ class IncentiveConfigViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 
+def compute_register_summary(user, center_id, start_date, end_date) -> dict:
+    class MockReq: pass
+    req = MockReq()
+    req.user = user
+    request = req
+    start_date = request.query_params.get('start_date')
+    end_date = request.query_params.get('end_date')
+
+    user = request.user
+
+    invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
+    
+    revenue = _compute_revenue_breakdown(invoices)
+    payments = _compute_payment_breakdown(invoices)
+
+    # Advances received (positive advance payments in date range)
+    adv_qs = AdvancePayment.objects.filter(amount__gt=0)
+    adv_used_qs = AdvancePayment.objects.filter(amount__lt=0)
+    
+    user = request.user
+    perms = getattr(user.role, 'permissions', {}) or {}
+    is_owner = IsOwner.check_is_owner(user)
+    if not is_owner and not perms.get('all_centers', False):
+        if user.centers.exists():
+            adv_qs = adv_qs.filter(client__center__in=user.centers.all())
+            adv_used_qs = adv_used_qs.filter(client__center__in=user.centers.all())
+        elif hasattr(user, 'center') and user.center:
+            adv_qs = adv_qs.filter(client__center=user.center)
+            adv_used_qs = adv_used_qs.filter(client__center=user.center)
+            
+    if center_id:
+        adv_qs = adv_qs.filter(client__center_id=center_id)
+        adv_used_qs = adv_used_qs.filter(client__center_id=center_id)
+    if start_date:
+        adv_qs = adv_qs.filter(created_at__date__gte=start_date)
+        adv_used_qs = adv_used_qs.filter(created_at__date__gte=start_date)
+    if end_date:
+        adv_qs = adv_qs.filter(created_at__date__lte=end_date)
+        adv_used_qs = adv_used_qs.filter(created_at__date__lte=end_date)
+        
+    advances_total = Decimal(str(adv_qs.aggregate(t=Sum('amount'))['t'] or 0))
+    advance_redemptions = abs(Decimal(str(adv_used_qs.aggregate(t=Sum('amount'))['t'] or 0)))
+
+    # Refunds (cancelled invoices)
+    cancelled_qs = _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('cancelled', 'refunded'))
+    refunds_total = Decimal(str(cancelled_qs.aggregate(t=Sum('total_amount'))['t'] or 0))
+
+    # Tax totals — combine into a single aggregate call instead of 3 separate ones
+    totals = invoices.aggregate(
+        t_cgst=Sum('cgst'), t_sgst=Sum('sgst'), t_discount=Sum('discount')
+    )
+    total_tax = Decimal(str(totals['t_cgst'] or 0)) + Decimal(str(totals['t_sgst'] or 0))
+    total_discount = Decimal(str(totals['t_discount'] or 0))
+
+    # Proportional tax split based on actual service vs product revenue
+    total_taxable = revenue['services'] + revenue['products']
+    if total_taxable > 0:
+        services_share = revenue['services'] / total_taxable
+        products_share = revenue['products'] / total_taxable
+    else:
+        services_share = Decimal('0.7')
+        products_share = Decimal('0.3')
+    services_tax = total_tax * Decimal(str(services_share))
+    products_tax = total_tax * Decimal(str(products_share))
+
+    # Collection before tax = only actual sales revenue (advances are liabilities, shown separately)
+    sales_collection = (
+        revenue['services'] + revenue['products'] +
+        revenue['memberships'] + revenue['packages'] +
+        revenue['value_cards'] + revenue['other']
+    ) - total_discount
+    
+    # Net collection: add advances (actual cash received), deduct redemptions (liabilities drawn down)
+    value_card_redemptions = Decimal(str(payments['value_card']['amount']))
+    cashback_redemptions = Decimal(str(payments['cashback_wallet']['amount']))
+    
+    collection_before_tax = sales_collection + advances_total - advance_redemptions - value_card_redemptions - cashback_redemptions
+    including_tax = collection_before_tax + total_tax
+
+    target = 0
+    target_achieved_percentage = 0
+    if center_id:
+        from salon_admin.models import Center
+        try:
+            center_obj = Center.objects.get(id=center_id)
+            target = 0
+            history = center_obj.monthly_targets_history or {}
+            
+            if start_date and end_date:
+                from datetime import datetime
+                import calendar
+                try:
+                    sd = datetime.strptime(start_date, '%Y-%m-%d')
+                    ed = datetime.strptime(end_date, '%Y-%m-%d')
+                    curr_y, curr_m = sd.year, sd.month
+                    end_y, end_m = ed.year, ed.month
+                    
+                    while (curr_y < end_y) or (curr_y == end_y and curr_m <= end_m):
+                        month_abbr = calendar.month_abbr[curr_m]
+                        month_key = f"{month_abbr}-{curr_y}"
+                        val = history.get(month_key, 0)
+                        target += Decimal(str(val or 0))
+                        
+                        curr_m += 1
+                        if curr_m > 12:
+                            curr_m = 1
+                            curr_y += 1
+                except Exception:
+                    import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
+            
+            # Fallback to default monthly_target if no target found from history or dates missing
+            if target == 0:
+                target = Decimal(str(center_obj.monthly_target or 0))
+
+            if target > 0:
+                target_achieved_percentage = round((collection_before_tax / target) * 100, 2)
+        except Center.DoesNotExist:
+            pass
+
+    total_payments = sum(p['amount'] for p in payments.values())
+
+    response_data = {
+        'revenues': {
+            'services': {'amount': revenue['services'], 'tax': round(services_tax, 2)},
+            'service_redemptions': {'amount': 0, 'tax': 0},
+            'products': {'amount': revenue['products'], 'tax': round(products_tax, 2)},
+            'value_cards': {'amount': revenue['value_cards'], 'tax': 0},
+            'gift_cards': {'amount': 0, 'tax': 0},
+            'memberships': {'amount': revenue['memberships'], 'tax': 0},
+            'packages': {'amount': revenue['packages'], 'tax': 0},
+            'advances': {'amount': advances_total, 'tax': 0},
+            'change_to_advance': {'amount': 0, 'tax': 0},
+            'payment_redemptions': {'amount': -(advance_redemptions + value_card_redemptions + cashback_redemptions), 'tax': 0},
+            'refunds': {'amount': 0, 'tax': 0},
+            'other': {'amount': revenue.get('other', 0), 'tax': 0},
+            'discounts': {'amount': -total_discount, 'tax': 0},
+            'taxable_value': round(total_taxable, 2),
+            'target': round(target, 2),
+            'target_achieved_percentage': target_achieved_percentage,
+            'collection_before_tax': round(collection_before_tax, 2),
+            'total_tax': round(total_tax, 2),
+            'including_tax': round(including_tax, 2),
+        },
+        'payment_methods': {
+            'cash': payments['cash'],
+            'credit_card': payments['credit_card'],
+            'paytm': payments['paytm'],
+            'bharat_pe': payments['bharat_pe'],
+            'cheque_net_banking': payments['cheque_net_banking'],
+            'google_pay': payments['google_pay'],
+            'phone_pe': payments['phone_pe'],
+            'upi': payments['upi'],
+            'nearbuy': payments['nearbuy'],
+            'other': payments['other'],
+            'value_card': payments.get('value_card', {'amount': 0, 'count': 0}),
+            'cashback_wallet': payments.get('cashback_wallet', {'amount': 0, 'count': 0}),
+            'advance': payments.get('advance', {'amount': 0, 'count': 0}),
+            'total_received': round(total_payments, 2),
+        },
+        'service_redemptions': {
+            'value_cards': revenue['value_cards'],
+            'service_balance': 0,
+            'total': revenue['value_cards'],
+        },
+        'payment_redemptions': {
+            'gift_cards': 0,
+            'advance': advance_redemptions,
+            'value_card': value_card_redemptions,
+            'cashback': cashback_redemptions,
+            'total': advance_redemptions + value_card_redemptions + cashback_redemptions,
+        },
+        'refunds': {
+            'refunds_issued': refunds_total,
+        }
+    }
+
+    return response_data
+
 class RegisterSummaryView(views.APIView):
     permission_classes = [IsAuthenticated]
 
-    @method_decorator(cache_page(60 * 5))
     def get(self, request):
         center_id = request.query_params.get('center_id')
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        user = request.user
-
-        invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
-        
-        revenue = _compute_revenue_breakdown(invoices)
-        payments = _compute_payment_breakdown(invoices)
-
-        # Advances received (positive advance payments in date range)
-        adv_qs = AdvancePayment.objects.filter(amount__gt=0)
-        adv_used_qs = AdvancePayment.objects.filter(amount__lt=0)
-        
-        user = request.user
-        perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
-        if not is_owner and not perms.get('all_centers', False):
-            if user.centers.exists():
-                adv_qs = adv_qs.filter(client__center__in=user.centers.all())
-                adv_used_qs = adv_used_qs.filter(client__center__in=user.centers.all())
-            elif hasattr(user, 'center') and user.center:
-                adv_qs = adv_qs.filter(client__center=user.center)
-                adv_used_qs = adv_used_qs.filter(client__center=user.center)
-                
-        if center_id:
-            adv_qs = adv_qs.filter(client__center_id=center_id)
-            adv_used_qs = adv_used_qs.filter(client__center_id=center_id)
-        if start_date:
-            adv_qs = adv_qs.filter(created_at__date__gte=start_date)
-            adv_used_qs = adv_used_qs.filter(created_at__date__gte=start_date)
-        if end_date:
-            adv_qs = adv_qs.filter(created_at__date__lte=end_date)
-            adv_used_qs = adv_used_qs.filter(created_at__date__lte=end_date)
-            
-        advances_total = Decimal(str(adv_qs.aggregate(t=Sum('amount'))['t'] or 0))
-        advance_redemptions = abs(Decimal(str(adv_used_qs.aggregate(t=Sum('amount'))['t'] or 0)))
-
-        # Refunds (cancelled invoices)
-        cancelled_qs = _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('cancelled', 'refunded'))
-        refunds_total = Decimal(str(cancelled_qs.aggregate(t=Sum('total_amount'))['t'] or 0))
-
-        # Tax totals — combine into a single aggregate call instead of 3 separate ones
-        totals = invoices.aggregate(
-            t_cgst=Sum('cgst'), t_sgst=Sum('sgst'), t_discount=Sum('discount')
-        )
-        total_tax = Decimal(str(totals['t_cgst'] or 0)) + Decimal(str(totals['t_sgst'] or 0))
-        total_discount = Decimal(str(totals['t_discount'] or 0))
-
-        # Proportional tax split based on actual service vs product revenue
-        total_taxable = revenue['services'] + revenue['products']
-        if total_taxable > 0:
-            services_share = revenue['services'] / total_taxable
-            products_share = revenue['products'] / total_taxable
-        else:
-            services_share = Decimal('0.7')
-            products_share = Decimal('0.3')
-        services_tax = total_tax * Decimal(str(services_share))
-        products_tax = total_tax * Decimal(str(products_share))
-
-        # Collection before tax = only actual sales revenue (advances are liabilities, shown separately)
-        sales_collection = (
-            revenue['services'] + revenue['products'] +
-            revenue['memberships'] + revenue['packages'] +
-            revenue['value_cards'] + revenue['other']
-        ) - total_discount
-        
-        # Net collection: add advances (actual cash received), deduct redemptions (liabilities drawn down)
-        value_card_redemptions = Decimal(str(payments['value_card']['amount']))
-        cashback_redemptions = Decimal(str(payments['cashback_wallet']['amount']))
-        
-        collection_before_tax = sales_collection + advances_total - advance_redemptions - value_card_redemptions - cashback_redemptions
-        including_tax = collection_before_tax + total_tax
-
-        target = 0
-        target_achieved_percentage = 0
-        if center_id:
-            from salon_admin.models import Center
-            try:
-                center_obj = Center.objects.get(id=center_id)
-                target = 0
-                history = center_obj.monthly_targets_history or {}
-                
-                if start_date and end_date:
-                    from datetime import datetime
-                    import calendar
-                    try:
-                        sd = datetime.strptime(start_date, '%Y-%m-%d')
-                        ed = datetime.strptime(end_date, '%Y-%m-%d')
-                        curr_y, curr_m = sd.year, sd.month
-                        end_y, end_m = ed.year, ed.month
-                        
-                        while (curr_y < end_y) or (curr_y == end_y and curr_m <= end_m):
-                            month_abbr = calendar.month_abbr[curr_m]
-                            month_key = f"{month_abbr}-{curr_y}"
-                            val = history.get(month_key, 0)
-                            target += Decimal(str(val or 0))
-                            
-                            curr_m += 1
-                            if curr_m > 12:
-                                curr_m = 1
-                                curr_y += 1
-                    except Exception:
-                        pass
-                
-                # Fallback to default monthly_target if no target found from history or dates missing
-                if target == 0:
-                    target = Decimal(str(center_obj.monthly_target or 0))
-
-                if target > 0:
-                    target_achieved_percentage = round((collection_before_tax / target) * 100, 2)
-            except Center.DoesNotExist:
-                pass
-
-        total_payments = sum(p['amount'] for p in payments.values())
-
-        response_data = {
-            'revenues': {
-                'services': {'amount': revenue['services'], 'tax': round(services_tax, 2)},
-                'service_redemptions': {'amount': 0, 'tax': 0},
-                'products': {'amount': revenue['products'], 'tax': round(products_tax, 2)},
-                'value_cards': {'amount': revenue['value_cards'], 'tax': 0},
-                'gift_cards': {'amount': 0, 'tax': 0},
-                'memberships': {'amount': revenue['memberships'], 'tax': 0},
-                'packages': {'amount': revenue['packages'], 'tax': 0},
-                'advances': {'amount': advances_total, 'tax': 0},
-                'change_to_advance': {'amount': 0, 'tax': 0},
-                'payment_redemptions': {'amount': -(advance_redemptions + value_card_redemptions + cashback_redemptions), 'tax': 0},
-                'refunds': {'amount': 0, 'tax': 0},
-                'other': {'amount': revenue.get('other', 0), 'tax': 0},
-                'discounts': {'amount': -total_discount, 'tax': 0},
-                'taxable_value': round(total_taxable, 2),
-                'target': round(target, 2),
-                'target_achieved_percentage': target_achieved_percentage,
-                'collection_before_tax': round(collection_before_tax, 2),
-                'total_tax': round(total_tax, 2),
-                'including_tax': round(including_tax, 2),
-            },
-            'payment_methods': {
-                'cash': payments['cash'],
-                'credit_card': payments['credit_card'],
-                'paytm': payments['paytm'],
-                'bharat_pe': payments['bharat_pe'],
-                'cheque_net_banking': payments['cheque_net_banking'],
-                'google_pay': payments['google_pay'],
-                'phone_pe': payments['phone_pe'],
-                'upi': payments['upi'],
-                'nearbuy': payments['nearbuy'],
-                'other': payments['other'],
-                'value_card': payments.get('value_card', {'amount': 0, 'count': 0}),
-                'cashback_wallet': payments.get('cashback_wallet', {'amount': 0, 'count': 0}),
-                'advance': payments.get('advance', {'amount': 0, 'count': 0}),
-                'total_received': round(total_payments, 2),
-            },
-            'service_redemptions': {
-                'value_cards': revenue['value_cards'],
-                'service_balance': 0,
-                'total': revenue['value_cards'],
-            },
-            'payment_redemptions': {
-                'gift_cards': 0,
-                'advance': advance_redemptions,
-                'value_card': value_card_redemptions,
-                'cashback': cashback_redemptions,
-                'total': advance_redemptions + value_card_redemptions + cashback_redemptions,
-            },
-            'refunds': {
-                'refunds_issued': refunds_total,
-            }
-        }
+        response_data = compute_register_summary(request.user, center_id, start_date, end_date)
 
         if request.query_params.get('export') == 'true':
             import openpyxl
@@ -702,7 +723,6 @@ class RegisterSummaryView(views.APIView):
 class MonthlySalesView(views.APIView):
     permission_classes = [IsAuthenticated]
 
-    @method_decorator(cache_page(60 * 5))
     def get(self, request):
         from django.db.models.functions import ExtractYear, ExtractMonth
         from django.db.models import Sum, Count, Q
@@ -767,7 +787,7 @@ class MonthlySalesView(views.APIView):
 
         user = request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner and not perms.get('all_centers', False):
             if user.centers.exists():
                 adv_qs = adv_qs.filter(client__center__in=user.centers.all())
@@ -779,16 +799,20 @@ class MonthlySalesView(views.APIView):
         if center_id:
             adv_qs = adv_qs.filter(client__center_id=center_id)
             adv_used_qs = adv_used_qs.filter(client__center_id=center_id)
+        from django.db.models.functions import Coalesce
+        adv_qs = adv_qs.annotate(eff_date=Coalesce('invoice__created_at', 'created_at'))
+        adv_used_qs = adv_used_qs.annotate(eff_date=Coalesce('invoice__created_at', 'created_at'))
+
         if start_date:
-            adv_qs = adv_qs.filter(created_at__date__gte=start_date)
-            adv_used_qs = adv_used_qs.filter(created_at__date__gte=start_date)
+            adv_qs = adv_qs.filter(eff_date__date__gte=start_date)
+            adv_used_qs = adv_used_qs.filter(eff_date__date__gte=start_date)
         if end_date:
-            adv_qs = adv_qs.filter(created_at__date__lte=end_date)
-            adv_used_qs = adv_used_qs.filter(created_at__date__lte=end_date)
+            adv_qs = adv_qs.filter(eff_date__date__lte=end_date)
+            adv_used_qs = adv_used_qs.filter(eff_date__date__lte=end_date)
 
         adv_monthly = (
             adv_qs
-            .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
+            .annotate(year=ExtractYear('eff_date'), month_num=ExtractMonth('eff_date'))
             .values('year', 'month_num')
             .annotate(advances=Sum('amount'))
             .order_by('-year', '-month_num')
@@ -797,7 +821,7 @@ class MonthlySalesView(views.APIView):
 
         adv_used_monthly = (
             adv_used_qs
-            .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
+            .annotate(year=ExtractYear('eff_date'), month_num=ExtractMonth('eff_date'))
             .values('year', 'month_num')
             .annotate(advances_used=Sum('amount'))
             .order_by('-year', '-month_num')
@@ -836,7 +860,7 @@ class MonthlySalesView(views.APIView):
         centers_qs = Center.objects.all()
         user = request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner and not perms.get('all_centers', False):
             if user.centers.exists():
                 centers_qs = centers_qs.filter(id__in=user.centers.all())
@@ -927,8 +951,8 @@ class MonthlySalesView(views.APIView):
             ws.append(["Month", "Total Sales", "Target", "Achieved %"])
             for row in result:
                 ws.append([
-                    row.get('month_name', ''),
-                    row.get('total_sales', 0),
+                    row.get('month', ''),
+                    row.get('including_tax', 0),
                     row.get('target', 0),
                     row.get('target_achieved_percentage', 0)
                 ])
@@ -944,7 +968,6 @@ class MonthlySalesView(views.APIView):
 class DetailedRevenuesView(views.APIView):
     permission_classes = [IsAuthenticated]
 
-    @method_decorator(cache_page(60 * 5))
     def get(self, request):
         center_id = request.query_params.get('center_id')
         start_date = request.query_params.get('start_date')
@@ -1078,10 +1101,10 @@ class DetailedRevenuesView(views.APIView):
                     row.get('client', ''),
                     row.get('billed_by', ''),
                     row.get('net', 0),
-                    row.get('tax', 0),
+                    row.get('total_gst', 0),
                     row.get('grand_total', 0),
                     row.get('status', ''),
-                    row.get('payment_methods', ''),
+                    '—',  # Payment methods omitted from this query for performance
                     row.get('applied_promo', '')
                 ])
             response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -1099,6 +1122,7 @@ class DetailedRevenuesView(views.APIView):
 
 import openpyxl
 from django.http import HttpResponse
+from pos_backend.permissions import IsOwner
 
 class ExportFinanceView(views.APIView):
     permission_classes = [IsAuthenticated]
@@ -1224,7 +1248,7 @@ class ProcurementReportView(views.APIView):
 
         # Apply center-level RBAC scoping for non-owners
         user = request.user
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) or {}
 
         pos = PurchaseOrder.objects.select_related('vendor', 'center').prefetch_related('items__product')
@@ -1279,27 +1303,21 @@ class ProcurementReportView(views.APIView):
             import openpyxl
             from django.http import HttpResponse
             wb = openpyxl.Workbook(write_only=True)
-            ws = wb.create_sheet(title="Procurement Item Analysis")
-            ws.append(["Item Name", "Quantity Bought", "Avg Cost per Unit", "Total Spent"])
-            for row in item_analysis:
+            ws = wb.create_sheet(title="Procurement Analysis")
+            ws.append(["Vendor Name", "GST Number", "Number of POs", "Taxes (₹)", "Total Spent (₹)"])
+            for row in result:
                 ws.append([
-                    row.get('item_name', ''),
-                    row.get('quantity_bought', 0),
-                    row.get('avg_cost_per_unit', 0),
-                    row.get('total_spent', 0)
-                ])
-                
-            ws2 = wb.create_sheet(title="Suppliers")
-            ws2.append(["Supplier Name", "Total Spent"])
-            for row in supplier_totals:
-                ws2.append([
-                    row.get('supplier__name', 'Unknown'),
+                    row.get('vendor_name', ''),
+                    row.get('gst_number', ''),
+                    row.get('num_pos', 0),
+                    row.get('taxes', 0),
                     row.get('total', 0)
                 ])
                 
             response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             response['Content-Disposition'] = 'attachment; filename=procurement.xlsx'
             wb.save(response)
+            return response
             return response
 
         return Response({
@@ -1470,7 +1488,7 @@ class StaffIncentiveCalculationView(views.APIView):
         export = request.query_params.get('export', '').lower() == 'true'
 
         user = request.user
-        is_owner = getattr(user, 'is_superuser', False) or (hasattr(user, 'role') and user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) if hasattr(user, 'role') and user.role else {}
 
         # 1. Base staff queryset
@@ -2085,7 +2103,7 @@ class MultiSalonExportView(views.APIView):
         end_date = request.query_params.get('end_date')
         user = request.user
         
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) or {}
         
         centers = Center.objects.all()
@@ -2101,26 +2119,9 @@ class MultiSalonExportView(views.APIView):
         ws = wb.create_sheet(title="Multi Salon Report")
         ws.append(["Center Name", "Total Sales", "Target", "Target Achieved %"])
         
-        view_instance = RegisterSummaryView()
-        
         rows = []
-        from rest_framework.request import Request
-        from django.http import HttpRequest
         for c in centers:
-            # Create a completely fresh Django HttpRequest
-            django_req = HttpRequest()
-            django_req.method = 'GET'
-            django_req.user = request.user
-            mutable_get = request.query_params.copy()
-            mutable_get['center_id'] = str(c.id)
-            django_req.GET = mutable_get
-            
-            # Wrap it in DRF Request so query_params is cleanly parsed
-            drf_req = Request(django_req)
-            view_instance.request = drf_req
-            
-            res = view_instance.get(drf_req)
-            data = res.data
+            data = compute_register_summary(request.user, str(c.id), start_date, end_date)
             
             sales = data['revenues']['collection_before_tax']
             target = data['revenues']['target']

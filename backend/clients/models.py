@@ -4,7 +4,7 @@ from django.db import models
 class Client(models.Model):
     center = models.ForeignKey('salon_admin.Center', null=True, blank=True, on_delete=models.SET_NULL)
     phone = models.CharField(max_length=20)
-    app_pin = models.CharField(max_length=10, blank=True, null=True)
+    app_pin = models.CharField(max_length=128, blank=True, null=True)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
@@ -74,14 +74,17 @@ class Client(models.Model):
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
+        raw_pin = None
         if is_new and not self.app_pin:
             # Use secrets module (CSPRNG) instead of random — PINs are used for app login
             import secrets
-            self.app_pin = f"{secrets.randbelow(9000) + 1000}"
+            from django.contrib.auth.hashers import make_password
+            raw_pin = f"{secrets.randbelow(9000) + 1000}"
+            self.app_pin = make_password(raw_pin)
         
         super().save(*args, **kwargs)
         
-        if is_new and self.email:
+        if is_new and self.email and raw_pin:
             try:
                 from django.core.mail import send_mail
                 from django.conf import settings
@@ -91,13 +94,15 @@ class Client(models.Model):
                 message = (
                     f"Hello {self.first_name},\n\n"
                     f"Your client profile has been created successfully.\n"
-                    f"Your 4-digit mobile app access PIN is: {self.app_pin}\n\n"
+                    f"Your 4-digit mobile app access PIN is: {raw_pin}\n\n"
                     f"Thank you,\n"
                     f"Chilli Potato Team"
                 )
                 
                 def _send_email_async():
+                    from django.db import close_old_connections
                     try:
+                        close_old_connections()
                         send_mail(
                             subject,
                             message,
@@ -109,8 +114,14 @@ class Client(models.Model):
                         import logging
                         logger = logging.getLogger('django')
                         logger.error(f"[Welcome Email] Failed to send welcome email to {self.email}: {email_err}", exc_info=True)
+                    finally:
+                        close_old_connections()
                 
-                threading.Thread(target=_send_email_async, daemon=True).start()
+                # Use a global thread pool instead of unbounded threads to prevent M2 explosion
+                from concurrent.futures import ThreadPoolExecutor
+                if not hasattr(settings, '_email_executor'):
+                    settings._email_executor = ThreadPoolExecutor(max_workers=5, thread_name_prefix='email_sender')
+                settings._email_executor.submit(_send_email_async)
             except Exception as thread_err:
                 import logging
                 logger = logging.getLogger('django')
@@ -129,6 +140,7 @@ class Client(models.Model):
 class ClientMembership(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='memberships')
     membership = models.ForeignKey('marketing.Membership', on_delete=models.CASCADE)
+    source_invoice = models.ForeignKey('billing.Invoice', on_delete=models.SET_NULL, null=True, blank=True)
     start_date = models.DateField(auto_now_add=True)
     expiry_date = models.DateField()
     is_active = models.BooleanField(default=True)
@@ -149,6 +161,7 @@ class ClientPackage(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='packages')
     # FIXED: null=True allows custom packages that have no pre-defined Package object
     package = models.ForeignKey('marketing.Package', on_delete=models.CASCADE, null=True, blank=True)
+    source_invoice = models.ForeignKey('billing.Invoice', on_delete=models.SET_NULL, null=True, blank=True)
     services_remaining = models.JSONField(default=dict, help_text="Maps service_id to remaining quantity")
     start_date = models.DateField(auto_now_add=True)
     expiry_date = models.DateField()
@@ -170,6 +183,7 @@ class ClientPackage(models.Model):
 class ClientValueCard(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='value_cards')
     value_card = models.ForeignKey('marketing.ValueCard', on_delete=models.CASCADE)
+    source_invoice = models.ForeignKey('billing.Invoice', on_delete=models.SET_NULL, null=True, blank=True)
     balance = models.DecimalField(max_digits=10, decimal_places=2)
     start_date = models.DateField(auto_now_add=True)
     expiry_date = models.DateField()
