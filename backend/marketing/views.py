@@ -14,6 +14,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.contenttypes.models import ContentType
 from billing.models import InvoiceItem
+from pos_backend.permissions import IsOwner
 
 class MarketingBaseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -22,7 +23,7 @@ class MarketingBaseViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = super().get_queryset()
         
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) or {}
         is_all_centers = is_owner or perms.get('all_centers', False)
 
@@ -61,7 +62,7 @@ class MarketingBaseViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         is_all_centers = is_owner or perms.get('all_centers', False)
         
         # Check if creating an org level item
@@ -106,7 +107,7 @@ class MarketingBaseViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         is_all_centers = is_owner or perms.get('all_centers', False)
 
         instance = serializer.instance
@@ -119,7 +120,7 @@ class MarketingBaseViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         is_all_centers = is_owner or perms.get('all_centers', False)
 
         if hasattr(instance, 'level') and instance.level == 'Organisation':

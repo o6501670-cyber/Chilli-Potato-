@@ -140,6 +140,7 @@ class Client(models.Model):
 class ClientMembership(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='memberships')
     membership = models.ForeignKey('marketing.Membership', on_delete=models.CASCADE)
+    source_invoice = models.ForeignKey('billing.Invoice', on_delete=models.SET_NULL, null=True, blank=True)
     start_date = models.DateField(auto_now_add=True)
     expiry_date = models.DateField()
     is_active = models.BooleanField(default=True)
@@ -160,6 +161,7 @@ class ClientPackage(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='packages')
     # FIXED: null=True allows custom packages that have no pre-defined Package object
     package = models.ForeignKey('marketing.Package', on_delete=models.CASCADE, null=True, blank=True)
+    source_invoice = models.ForeignKey('billing.Invoice', on_delete=models.SET_NULL, null=True, blank=True)
     services_remaining = models.JSONField(default=dict, help_text="Maps service_id to remaining quantity")
     start_date = models.DateField(auto_now_add=True)
     expiry_date = models.DateField()
@@ -181,6 +183,7 @@ class ClientPackage(models.Model):
 class ClientValueCard(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='value_cards')
     value_card = models.ForeignKey('marketing.ValueCard', on_delete=models.CASCADE)
+    source_invoice = models.ForeignKey('billing.Invoice', on_delete=models.SET_NULL, null=True, blank=True)
     balance = models.DecimalField(max_digits=10, decimal_places=2)
     start_date = models.DateField(auto_now_add=True)
     expiry_date = models.DateField()

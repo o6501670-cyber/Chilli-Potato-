@@ -8,6 +8,7 @@ from django.db.models.functions import Coalesce
 from .models import Client, ClientMembership, ClientPackage, ClientValueCard
 from .serializers import ClientSerializer
 from staff.models import ServiceLog
+from pos_backend.permissions import IsOwner
 
 class ClientViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -23,7 +24,7 @@ class ClientViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset().filter(is_active=True)
         
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner and not perms.get('all_centers', False):
             if user.centers.exists():
                 qs = qs.filter(center__in=user.centers.all())
@@ -52,7 +53,7 @@ class ClientViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
@@ -80,7 +81,7 @@ class ClientViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')

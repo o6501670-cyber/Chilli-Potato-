@@ -26,7 +26,7 @@ class UserViewSet(viewsets.ModelViewSet):
         queryset = CustomUser.objects.all().select_related('role', 'center').prefetch_related('centers').order_by('full_name')
         
         role = getattr(user, 'role', None)
-        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(role, 'permissions', {}) or {}
 
         if not is_owner and not perms.get('all_centers', False):
@@ -44,7 +44,7 @@ class UserViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         role = getattr(user, 'role', None)
-        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner:
             raise PermissionDenied("Only owners can create users.")
         serializer.save()
@@ -52,7 +52,7 @@ class UserViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         user = self.request.user
         role = getattr(user, 'role', None)
-        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner:
             for f in ('role', 'center', 'centers'):
                 serializer.validated_data.pop(f, None)
@@ -63,13 +63,14 @@ class UserViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         user = self.request.user
         role = getattr(user, 'role', None)
-        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner:
             raise PermissionDenied("Only owners can delete users.")
         instance.delete()
 
 
 from pos_backend.throttles import LoginRateThrottle
+from pos_backend.permissions import IsOwner
 
 class CustomAuthToken(ObtainAuthToken):
     throttle_classes = [LoginRateThrottle]

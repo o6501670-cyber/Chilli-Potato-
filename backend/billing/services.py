@@ -37,7 +37,8 @@ def _provision_marketing_perks(invoice, item, request_data=None):
                     ClientMembership.objects.create(
                         client=invoice.client,
                         membership=membership,
-                        expiry_date=datetime.date.today() + timedelta(days=membership.expiry_days)
+                        expiry_date=datetime.date.today() + timedelta(days=membership.expiry_days),
+                        source_invoice=invoice
                     )
 
         elif m_model == 'package':
@@ -70,7 +71,8 @@ def _provision_marketing_perks(invoice, item, request_data=None):
                     client=invoice.client,
                     package=package,
                     services_remaining=services_rem,
-                    expiry_date=expiry
+                    expiry_date=expiry,
+                    source_invoice=invoice
                 )
 
         elif m_model == 'valuecard':
@@ -82,7 +84,8 @@ def _provision_marketing_perks(invoice, item, request_data=None):
                     client=invoice.client,
                     value_card=vcard,
                     balance=vcard.value,
-                    expiry_date=datetime.date.today() + timedelta(days=vcard.expiry_days)
+                    expiry_date=datetime.date.today() + timedelta(days=vcard.expiry_days),
+                    source_invoice=invoice
                 )
 
     except Exception as ex:
@@ -374,9 +377,12 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
         if request_data.get('promo_id'):
             try:
                 from marketing.promotions import apply_promotion
+                from rest_framework.exceptions import ValidationError as DRFValidationError
                 discount, error = apply_promotion(invoice, request_data.get('promo_id'))
                 if error:
-                    raise ValueError(f"Promotion Error: {error}")
+                    raise DRFValidationError({'promo_id': error})
+            except DRFValidationError:
+                raise
             except Exception as e:
                 logger.error(f"[Billing] Error processing promotion logic: {e}", exc_info=True)
                 raise

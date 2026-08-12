@@ -3,6 +3,7 @@ from django.db import transaction
 from .models import Appointment, AppointmentService
 from .serializers import AppointmentSerializer
 import datetime
+from pos_backend.permissions import IsOwner
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
@@ -16,7 +17,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             'services', 'services__staff'
         ).order_by('-date', '-start_time')
         role = getattr(user, 'role', None)
-        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(role, 'permissions', {}) or {}
 
         if not is_owner and not perms.get('all_centers', False):
@@ -113,7 +114,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
 
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')

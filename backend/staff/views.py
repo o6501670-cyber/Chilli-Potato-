@@ -42,7 +42,7 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
             has_overdue_tools_annotated=Exists(overdue_tools)
         ).order_by('first_name')
         role = getattr(user, 'role', None)
-        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(role, 'permissions', {}) or {}
 
         if not is_owner and not perms.get('all_centers', False):
@@ -334,7 +334,7 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
@@ -604,7 +604,7 @@ class ServiceLogViewSet(viewsets.ModelViewSet):
             .order_by('-date', '-time')
         )
         role = getattr(user, 'role', None)
-        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(role, 'permissions', {}) or {}
 
         if not is_owner and not perms.get('all_centers', False):
@@ -644,7 +644,7 @@ class ServiceLogViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
@@ -663,7 +663,7 @@ def revenue_report(request):
     user = request.user
     queryset = ServiceLog.objects.all().select_related('staff', 'center', 'invoice')
     role = getattr(user, 'role', None)
-    is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+    is_owner = IsOwner.check_is_owner(user)
     perms = getattr(role, 'permissions', {}) or {}
     if not is_owner and not perms.get('all_centers', False):
         if user.centers.exists():
@@ -731,7 +731,7 @@ def usage_report(request):
     user = request.user
     queryset = ServiceLog.objects.all().select_related('staff', 'center', 'invoice')
     role = getattr(user, 'role', None)
-    is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+    is_owner = IsOwner.check_is_owner(user)
     perms = getattr(role, 'permissions', {}) or {}
     if not is_owner and not perms.get('all_centers', False):
         if user.centers.exists():
@@ -772,7 +772,7 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = StaffConsumptionLog.objects.all().select_related('staff', 'center', 'product').order_by('-date', '-time')
         role = getattr(user, 'role', None)
-        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(role, 'permissions', {}) or {}
 
         if not is_owner and not perms.get('all_centers', False):
@@ -804,7 +804,7 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
@@ -870,7 +870,7 @@ def consumption_report(request):
     user = request.user
     queryset = StaffConsumptionLog.objects.all().select_related('staff', 'center', 'product')
     role = getattr(user, 'role', None)
-    is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+    is_owner = IsOwner.check_is_owner(user)
     perms = getattr(role, 'permissions', {}) or {}
     
     if not is_owner and not perms.get('all_centers', False):
@@ -918,7 +918,7 @@ class StaffTransferViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = StaffTransfer.objects.all().select_related('staff', 'from_center', 'to_center').order_by('-created_at')
         role = getattr(user, 'role', None)
-        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(role, 'permissions', {}) or {}
 
         if not is_owner and not perms.get('all_centers', False):
@@ -941,7 +941,7 @@ class StaffTransferViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         
         if not is_owner and not perms.get('all_centers', False):
             from_center = serializer.validated_data.get('from_center')
@@ -998,7 +998,7 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = super().get_queryset()
         role = getattr(user, 'role', None)
-        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         perms = getattr(role, 'permissions', {}) or {}
         
         if not is_owner and not perms.get('all_centers', False):
@@ -1028,7 +1028,7 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
@@ -1059,6 +1059,7 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
 # ─────────────────────────────────────────────────────────────────────────────
 
 from django.core import signing as _signing
+from pos_backend.permissions import IsOwner
 
 def _generate_staff_token(staff):
     """Generate a signed token for the staff mobile app. Valid 30 days."""

@@ -4,6 +4,7 @@ from .models import SystemLog
 from .serializers import SystemLogSerializer
 
 from rest_framework.pagination import PageNumberPagination
+from pos_backend.permissions import IsOwner
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 50
@@ -19,7 +20,7 @@ class SystemLogViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        is_owner = getattr(user, 'is_superuser', False) or (user.role and user.role.name.lower() == 'owner')
+        is_owner = IsOwner.check_is_owner(user)
         if not is_owner:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You do not have permission to view system logs.")

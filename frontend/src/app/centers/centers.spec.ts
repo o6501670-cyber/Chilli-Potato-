@@ -1,17 +1,21 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { Centers } from './centers';
+import { CentersComponent } from './centers';
 
-describe('Centers', () => {
-  let component: Centers;
-  let fixture: ComponentFixture<Centers>;
+describe('CentersComponent', () => {
+  let component: CentersComponent;
+  let fixture: ComponentFixture<CentersComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Centers],
+      imports: [CentersComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
     }).compileComponents();
 
-    fixture = TestBed.createComponent(Centers);
+    fixture = TestBed.createComponent(CentersComponent);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

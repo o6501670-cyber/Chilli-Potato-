@@ -36,7 +36,7 @@ class Product(models.Model):
     category = models.CharField(max_length=100, blank=True, null=True)
     sub_category = models.CharField(max_length=100, blank=True, null=True)
     vendor_name = models.CharField(max_length=255, blank=True, null=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Price (incl. tax)", null=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Price (exclusive of tax)", null=True, blank=True)
     gst_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name="GST %")
     barcode = models.CharField(max_length=100, blank=True, null=True)
     sac_code = models.CharField(max_length=100, blank=True, null=True, verbose_name="SAC Code")
