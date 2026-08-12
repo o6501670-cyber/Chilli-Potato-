@@ -36,11 +36,11 @@ def apply_promotion(invoice, promotion_id):
         pass
     elif promo.promo_type == 'Cashback':
         # Check minimum bill requirement
-        min_bill = Decimal(str(promo.config.get('cashback_min_bill')) or 0)
+        min_bill = Decimal(str(promo.config.get('cashback_min_bill') or 0))
         if before >= min_bill:
             # Cashback gives money to the client's wallet for future use
             if invoice.client:
-                cashback_percent = Decimal(str(promo.config.get('cashback_discount')) or 0)
+                cashback_percent = Decimal(str(promo.config.get('cashback_discount') or 0))
                 cashback_val = before * cashback_percent / 100
                 
                 if cashback_val > 0:

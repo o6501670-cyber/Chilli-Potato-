@@ -56,10 +56,8 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
         # Compute tax_amount from stored tax_percentage if not stored
         tax_pct = float(ret.get('tax_percentage') or 0)
         if not instance.tax_amount and tax_pct:
-            # tax is computed on the pre-tax base: base = total_price / (1 + tax_pct/100)
             total = float(instance.total_price or 0)
-            base = total / (1 + tax_pct / 100) if (1 + tax_pct / 100) > 0 else total
-            ret['tax_amount'] = round(total - base, 2)
+            ret['tax_amount'] = round(total * (tax_pct / 100), 2)
         return ret
 
     def create(self, validated_data):
@@ -257,15 +255,12 @@ class InvoiceSerializer(serializers.ModelSerializer):
         if cgst < 0 or sgst < 0:
             raise serializers.ValidationError("Taxes cannot be negative.")
 
-        rounding = Decimal(str(data.get('rounding', 0)))
+        expected_total_raw = max(Decimal('0'), expected_subtotal - discount + cgst + sgst)
+        expected_total_rounded = Decimal(str(round(float(expected_total_raw))))
         
-        expected_total = max(Decimal('0'), expected_subtotal - discount + cgst + sgst) + rounding
-        client_total = Decimal(str(data.get('total_amount', 0)))
-        
-        if abs(client_total - expected_total) > Decimal('0.1'):
-            raise serializers.ValidationError(
-                f"Invoice total amount {client_total} does not match mathematical calculation {expected_total}."
-            )
+        # Override frontend values with server authoritative math
+        data['rounding'] = expected_total_rounded - expected_total_raw
+        data['total_amount'] = expected_total_rounded
 
         promo_id = self.initial_data.get('promo_id') if hasattr(self, 'initial_data') else None
         if promo_id:
@@ -304,7 +299,11 @@ class InvoiceSerializer(serializers.ModelSerializer):
         items_data = validated_data.pop('items', [])
         payments_data = validated_data.pop('payments', [])
 
-        invoice = Invoice.objects.create(**validated_data)
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            invoice = Invoice.objects.create(**validated_data)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))
 
         # Pass 1: Build InvoiceItem instances and extract M2M data separately.
         # bulk_create cannot handle M2M, so we save staff_members for a second pass.
@@ -433,7 +432,11 @@ class InvoiceSerializer(serializers.ModelSerializer):
             elif paid > 0:
                 instance.status = 'partial'
 
-        instance.save()
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        try:
+            instance.save()
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict if hasattr(e, 'message_dict') else list(e.messages))
         return instance
 
     def to_representation(self, instance):

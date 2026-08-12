@@ -284,20 +284,26 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                     # 2. De-provision Purchased Perks
                     if item.content_type and item.content_type.app_label == 'marketing':
                         try:
+                            from datetime import timedelta
+                            window_start = invoice.created_at - timedelta(minutes=5)
+                            window_end = invoice.created_at + timedelta(minutes=5)
                             m_model = item.content_type.model
                             if m_model == 'membership' and item.content_object:
                                 cm = ClientMembership.objects.filter(
-                                    client=invoice.client, membership_id=item.content_object.id
+                                    client=invoice.client, membership_id=item.content_object.id,
+                                    created_at__gte=window_start, created_at__lte=window_end
                                 ).order_by('-created_at').first()
                                 if cm: cm.delete() # Or set is_active = False
                             elif m_model == 'package':
                                 cp = ClientPackage.objects.filter(
-                                    client=invoice.client, package_id=item.content_object.id if item.content_object else None
+                                    client=invoice.client, package_id=item.content_object.id if item.content_object else None,
+                                    created_at__gte=window_start, created_at__lte=window_end
                                 ).order_by('-created_at').first()
                                 if cp: cp.delete()
                             elif m_model == 'valuecard' and item.content_object:
                                 cvc = ClientValueCard.objects.filter(
-                                    client=invoice.client, value_card_id=item.content_object.id
+                                    client=invoice.client, value_card_id=item.content_object.id,
+                                    created_at__gte=window_start, created_at__lte=window_end
                                 ).order_by('-created_at').first()
                                 if cvc: cvc.delete()
                         except Exception as ex:

@@ -3,6 +3,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import Q
@@ -39,6 +40,33 @@ class UserViewSet(viewsets.ModelViewSet):
                 ).distinct()
                 
         return queryset
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        if not is_owner:
+            raise PermissionDenied("Only owners can create users.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        if not is_owner:
+            for f in ('role', 'center', 'centers'):
+                serializer.validated_data.pop(f, None)
+            if serializer.instance.pk != user.pk:
+                raise PermissionDenied("You may only edit your own profile.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        if not is_owner:
+            raise PermissionDenied("Only owners can delete users.")
+        instance.delete()
 
 
 from pos_backend.throttles import LoginRateThrottle

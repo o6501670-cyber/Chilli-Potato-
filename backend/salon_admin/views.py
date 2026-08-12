@@ -39,10 +39,66 @@ class CenterViewSet(viewsets.ModelViewSet):
             )
         return qs
 
+    def perform_create(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        if not is_owner:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only owners can create centers.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        if not is_owner:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only owners can edit centers.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        if not is_owner:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only owners can delete centers.")
+        # Soft delete is recommended for Center due to cascading, but for now we enforce Owner rights
+        instance.is_active = False
+        instance.save()
+
 class RoleViewSet(viewsets.ModelViewSet):
     queryset = Role.objects.annotate(users_count=Count('customuser', distinct=True)).all()
     serializer_class = RoleSerializer
     permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        if not is_owner:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only owners can create roles.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        if not is_owner:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only owners can edit roles.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        role = getattr(user, 'role', None)
+        is_owner = getattr(user, 'is_superuser', False) or (role and role.name.lower() == 'owner')
+        if not is_owner:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only owners can delete roles.")
+        instance.delete()
 
 from rest_framework.decorators import api_view, permission_classes
 from decimal import Decimal as _Decimal

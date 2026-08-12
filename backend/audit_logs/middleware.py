@@ -22,14 +22,17 @@ class BoundedExecutor:
             return None
         
         def _wrapper(*a, **kw):
+            from django.db import close_old_connections
             try:
+                close_old_connections()
                 fn(*a, **kw)
             finally:
+                close_old_connections()
                 self.semaphore.release()
                 
         return self.executor.submit(_wrapper, *args, **kwargs)
 
-_executor = BoundedExecutor(max_workers=2, max_queue_size=1000)
+_executor = BoundedExecutor(max_workers=4, max_queue_size=10000)
 
 SENSITIVE_KEYS = {
     'password', 'pin', 'token', 'auth_token',
@@ -138,7 +141,7 @@ def _cached_geo(ip: str) -> dict:
         import requests as req
         resp = req.get(
             f'https://freeipapi.com/api/json/{ip}',
-            timeout=3
+            timeout=1
         )
         data = resp.json()
         if data.get('cityName') or data.get('countryName'):

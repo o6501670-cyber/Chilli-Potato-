@@ -177,6 +177,7 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                         logger.warning(f"[Billing] Could not create StockTransaction: {ste}")
         except Exception as e:
             logger.error(f"[Billing] Error deducting stock: {e}", exc_info=True)
+            raise
 
         # 2. Deduct Package Redeemed Services
         _deduct_package_service(invoice, item, active_packages_map)
@@ -255,7 +256,7 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                 )
         except Exception as e:
             logger.error(f"[Billing] Error creating ServiceLog: {e}", exc_info=True)
-            continue
+            raise
 
 
     # 5. Auto-complete Appointment
@@ -343,9 +344,11 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                             client_vc.save()
                     except Exception as ex:
                         logger.error(f"[Billing] Error deducting Value Card id={payment.value_card_id}: {ex}", exc_info=True)
+                        raise
 
         except Exception as e:
             logger.error(f"[Billing] Error handling payment deduction: {e}", exc_info=True)
+            raise
 
     # 7. Apply Promotion logic (Usage tracking & Cashback)
     if request_data:
@@ -366,13 +369,17 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                         invoice.save(update_fields=['discount', 'total_amount'])
             except Exception as e:
                 logger.error(f"[Billing] Error validating membership discount: {e}", exc_info=True)
+                raise
 
         if request_data.get('promo_id'):
             try:
                 from marketing.promotions import apply_promotion
-                apply_promotion(invoice, request_data.get('promo_id'))
+                discount, error = apply_promotion(invoice, request_data.get('promo_id'))
+                if error:
+                    raise ValueError(f"Promotion Error: {error}")
             except Exception as e:
                 logger.error(f"[Billing] Error processing promotion logic: {e}", exc_info=True)
+                raise
 
     logger.info(f"[Billing] finalize_invoice completed for invoice #{invoice.id}")
 

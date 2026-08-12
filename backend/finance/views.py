@@ -1,5 +1,5 @@
 from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
+# Removed cache_page due to cross-tenant leak
 from decimal import Decimal
 from rest_framework import viewsets, status, views
 from rest_framework.response import Response
@@ -11,6 +11,7 @@ from billing.models import Invoice, Payment, InvoiceItem, AdvancePayment
 from inventory.models import PurchaseOrder, PurchaseOrderItem
 from django.db.models import Sum, Count, Q
 from django.contrib.contenttypes.models import ContentType
+from salon_admin.models import Center
 from datetime import datetime
 import datetime as dt_module
 from collections import defaultdict
@@ -165,10 +166,9 @@ class PettyCashEntryViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(center_id=center_id)
         # Use __date__ lookup so DateTimeField is compared correctly (avoids missing end-day entries)
         if start_date:
-            # PettyCashEntry.date is a DateField — use direct comparison (no __date__ transform)
-            queryset = queryset.filter(date__gte=start_date)
+            queryset = queryset.filter(date__date__gte=start_date)
         if end_date:
-            queryset = queryset.filter(date__lte=end_date)
+            queryset = queryset.filter(date__date__lte=end_date)
             
         return queryset.order_by('-date')
 
@@ -247,11 +247,21 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
         if 'date' in defaults:
             del defaults['date']
         
-        instance, created = DailyClosing.objects.update_or_create(
-            center_id=center_id, 
-            date=date_str,
-            defaults=defaults
-        )
+        from django.db import transaction, IntegrityError
+        try:
+            with transaction.atomic():
+                instance, created = DailyClosing.objects.update_or_create(
+                    center_id=center_id, 
+                    date=date_str,
+                    defaults=defaults
+                )
+        except IntegrityError:
+            # If a concurrent request beat us to it, just update the existing one
+            instance, created = DailyClosing.objects.update_or_create(
+                center_id=center_id, 
+                date=date_str,
+                defaults=defaults
+            )
         if created:
             instance.user = user
             instance.save(update_fields=['user'])
@@ -495,7 +505,6 @@ class IncentiveConfigViewSet(viewsets.ModelViewSet):
 class RegisterSummaryView(views.APIView):
     permission_classes = [IsAuthenticated]
 
-    @method_decorator(cache_page(60 * 5))
     def get(self, request):
         center_id = request.query_params.get('center_id')
         start_date = request.query_params.get('start_date')
@@ -702,7 +711,6 @@ class RegisterSummaryView(views.APIView):
 class MonthlySalesView(views.APIView):
     permission_classes = [IsAuthenticated]
 
-    @method_decorator(cache_page(60 * 5))
     def get(self, request):
         from django.db.models.functions import ExtractYear, ExtractMonth
         from django.db.models import Sum, Count, Q
@@ -779,16 +787,20 @@ class MonthlySalesView(views.APIView):
         if center_id:
             adv_qs = adv_qs.filter(client__center_id=center_id)
             adv_used_qs = adv_used_qs.filter(client__center_id=center_id)
+        from django.db.models.functions import Coalesce
+        adv_qs = adv_qs.annotate(eff_date=Coalesce('invoice__created_at', 'created_at'))
+        adv_used_qs = adv_used_qs.annotate(eff_date=Coalesce('invoice__created_at', 'created_at'))
+
         if start_date:
-            adv_qs = adv_qs.filter(created_at__date__gte=start_date)
-            adv_used_qs = adv_used_qs.filter(created_at__date__gte=start_date)
+            adv_qs = adv_qs.filter(eff_date__date__gte=start_date)
+            adv_used_qs = adv_used_qs.filter(eff_date__date__gte=start_date)
         if end_date:
-            adv_qs = adv_qs.filter(created_at__date__lte=end_date)
-            adv_used_qs = adv_used_qs.filter(created_at__date__lte=end_date)
+            adv_qs = adv_qs.filter(eff_date__date__lte=end_date)
+            adv_used_qs = adv_used_qs.filter(eff_date__date__lte=end_date)
 
         adv_monthly = (
             adv_qs
-            .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
+            .annotate(year=ExtractYear('eff_date'), month_num=ExtractMonth('eff_date'))
             .values('year', 'month_num')
             .annotate(advances=Sum('amount'))
             .order_by('-year', '-month_num')
@@ -797,7 +809,7 @@ class MonthlySalesView(views.APIView):
 
         adv_used_monthly = (
             adv_used_qs
-            .annotate(year=ExtractYear('created_at'), month_num=ExtractMonth('created_at'))
+            .annotate(year=ExtractYear('eff_date'), month_num=ExtractMonth('eff_date'))
             .values('year', 'month_num')
             .annotate(advances_used=Sum('amount'))
             .order_by('-year', '-month_num')
@@ -927,8 +939,8 @@ class MonthlySalesView(views.APIView):
             ws.append(["Month", "Total Sales", "Target", "Achieved %"])
             for row in result:
                 ws.append([
-                    row.get('month_name', ''),
-                    row.get('total_sales', 0),
+                    row.get('month', ''),
+                    row.get('including_tax', 0),
                     row.get('target', 0),
                     row.get('target_achieved_percentage', 0)
                 ])
@@ -944,7 +956,6 @@ class MonthlySalesView(views.APIView):
 class DetailedRevenuesView(views.APIView):
     permission_classes = [IsAuthenticated]
 
-    @method_decorator(cache_page(60 * 5))
     def get(self, request):
         center_id = request.query_params.get('center_id')
         start_date = request.query_params.get('start_date')
@@ -1078,10 +1089,10 @@ class DetailedRevenuesView(views.APIView):
                     row.get('client', ''),
                     row.get('billed_by', ''),
                     row.get('net', 0),
-                    row.get('tax', 0),
+                    row.get('total_gst', 0),
                     row.get('grand_total', 0),
                     row.get('status', ''),
-                    row.get('payment_methods', ''),
+                    '—',  # Payment methods omitted from this query for performance
                     row.get('applied_promo', '')
                 ])
             response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -1279,27 +1290,21 @@ class ProcurementReportView(views.APIView):
             import openpyxl
             from django.http import HttpResponse
             wb = openpyxl.Workbook(write_only=True)
-            ws = wb.create_sheet(title="Procurement Item Analysis")
-            ws.append(["Item Name", "Quantity Bought", "Avg Cost per Unit", "Total Spent"])
-            for row in item_analysis:
+            ws = wb.create_sheet(title="Procurement Analysis")
+            ws.append(["Vendor Name", "GST Number", "Number of POs", "Taxes (₹)", "Total Spent (₹)"])
+            for row in result:
                 ws.append([
-                    row.get('item_name', ''),
-                    row.get('quantity_bought', 0),
-                    row.get('avg_cost_per_unit', 0),
-                    row.get('total_spent', 0)
-                ])
-                
-            ws2 = wb.create_sheet(title="Suppliers")
-            ws2.append(["Supplier Name", "Total Spent"])
-            for row in supplier_totals:
-                ws2.append([
-                    row.get('supplier__name', 'Unknown'),
+                    row.get('vendor_name', ''),
+                    row.get('gst_number', ''),
+                    row.get('num_pos', 0),
+                    row.get('taxes', 0),
                     row.get('total', 0)
                 ])
                 
             response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             response['Content-Disposition'] = 'attachment; filename=procurement.xlsx'
             wb.save(response)
+            return response
             return response
 
         return Response({

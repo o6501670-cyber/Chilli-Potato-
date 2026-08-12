@@ -67,6 +67,10 @@ def client_app_login(request):
 
     if not client.app_pin:
         return Response({'error': 'PIN has not been set yet. Please ask the front desk to set your PIN.'}, status=status.HTTP_400_BAD_REQUEST)
+    elif client.app_pin == str(pin):
+        from django.contrib.auth.hashers import make_password
+        client.app_pin = make_password(str(pin))
+        client.save(update_fields=['app_pin'])
     elif not check_password(str(pin), client.app_pin):
         return Response({'error': 'Invalid phone number or PIN'}, status=status.HTTP_401_UNAUTHORIZED)
 

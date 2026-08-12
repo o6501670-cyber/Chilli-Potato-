@@ -4,6 +4,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Sum
+from decimal import Decimal
 import datetime
 from .models import Vendor, Product, PurchaseOrder, ProductLot, StockTransaction
 from .serializers import VendorSerializer, ProductSerializer, PurchaseOrderSerializer, ProductLotSerializer, StockTransactionSerializer
