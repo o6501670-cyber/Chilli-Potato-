@@ -1,5 +1,5 @@
 from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
+# Removed cache_page due to cross-tenant leak
 from decimal import Decimal
 from rest_framework import viewsets, status, views
 from rest_framework.response import Response
@@ -11,6 +11,7 @@ from billing.models import Invoice, Payment, InvoiceItem, AdvancePayment
 from inventory.models import PurchaseOrder, PurchaseOrderItem
 from django.db.models import Sum, Count, Q
 from django.contrib.contenttypes.models import ContentType
+from salon_admin.models import Center
 from datetime import datetime
 import datetime as dt_module
 from collections import defaultdict
@@ -495,7 +496,6 @@ class IncentiveConfigViewSet(viewsets.ModelViewSet):
 class RegisterSummaryView(views.APIView):
     permission_classes = [IsAuthenticated]
 
-    @method_decorator(cache_page(60 * 5))
     def get(self, request):
         center_id = request.query_params.get('center_id')
         start_date = request.query_params.get('start_date')
@@ -702,7 +702,6 @@ class RegisterSummaryView(views.APIView):
 class MonthlySalesView(views.APIView):
     permission_classes = [IsAuthenticated]
 
-    @method_decorator(cache_page(60 * 5))
     def get(self, request):
         from django.db.models.functions import ExtractYear, ExtractMonth
         from django.db.models import Sum, Count, Q
@@ -944,7 +943,6 @@ class MonthlySalesView(views.APIView):
 class DetailedRevenuesView(views.APIView):
     permission_classes = [IsAuthenticated]
 
-    @method_decorator(cache_page(60 * 5))
     def get(self, request):
         center_id = request.query_params.get('center_id')
         start_date = request.query_params.get('start_date')
@@ -1279,27 +1277,21 @@ class ProcurementReportView(views.APIView):
             import openpyxl
             from django.http import HttpResponse
             wb = openpyxl.Workbook(write_only=True)
-            ws = wb.create_sheet(title="Procurement Item Analysis")
-            ws.append(["Item Name", "Quantity Bought", "Avg Cost per Unit", "Total Spent"])
-            for row in item_analysis:
+            ws = wb.create_sheet(title="Procurement Analysis")
+            ws.append(["Vendor Name", "GST Number", "Number of POs", "Taxes (₹)", "Total Spent (₹)"])
+            for row in result:
                 ws.append([
-                    row.get('item_name', ''),
-                    row.get('quantity_bought', 0),
-                    row.get('avg_cost_per_unit', 0),
-                    row.get('total_spent', 0)
-                ])
-                
-            ws2 = wb.create_sheet(title="Suppliers")
-            ws2.append(["Supplier Name", "Total Spent"])
-            for row in supplier_totals:
-                ws2.append([
-                    row.get('supplier__name', 'Unknown'),
+                    row.get('vendor_name', ''),
+                    row.get('gst_number', ''),
+                    row.get('num_pos', 0),
+                    row.get('taxes', 0),
                     row.get('total', 0)
                 ])
                 
             response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             response['Content-Disposition'] = 'attachment; filename=procurement.xlsx'
             wb.save(response)
+            return response
             return response
 
         return Response({
