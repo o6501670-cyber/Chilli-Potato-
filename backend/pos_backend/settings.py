@@ -153,6 +153,7 @@ CORS_ALLOW_HEADERS = [
     'accept', 'accept-encoding', 'authorization', 'content-type',
     'dnt', 'origin', 'user-agent', 'x-csrftoken', 'x-requested-with',
     'cache-control', 'pragma', 'expires', 'x-staff-token', 'x-client-token',
+    'x-background-request',
 ]
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
