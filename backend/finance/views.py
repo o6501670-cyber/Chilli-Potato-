@@ -2287,7 +2287,8 @@ class MultiSalonSalesExportView(views.APIView):
                 'product': 'product',
                 'membership': 'membership',
                 'package': 'package',
-                'valuecard': 'valuecard'
+                'valuecard': 'valuecard',
+                'giftcard': 'valuecard'
             }
             target_model = model_map.get(item_type)
             
@@ -2472,10 +2473,11 @@ class MultiSalonServiceDrilldownView(views.APIView):
         items = InvoiceItem.objects.filter(invoice__in=invoices, content_type=service_ct)
         
         if search_term:
-            items = items.filter(
-                Q(description__icontains=search_term) |
-                Q(content_object__category__name__icontains=search_term)
-            )
+            matching_services = ServiceMaster.objects.filter(
+                Q(name__icontains=search_term) |
+                Q(category__name__icontains=search_term)
+            ).values_list('id', flat=True)
+            items = items.filter(object_id__in=matching_services)
 
         grouped = items.values('invoice__center__center_name').annotate(
             count=Sum('quantity'),
@@ -2555,9 +2557,9 @@ class MultiSalonClientsView(views.APIView):
 
         # Optimize by getting only active clients, and prefetching related data
         clients = Client.objects.filter(id__in=client_ids_with_invoices, is_active=True).prefetch_related(
-            Prefetch('clientmembership_set', queryset=ClientMembership.objects.filter(is_active=True, status='Active')),
-            Prefetch('clientvaluecard_set', queryset=ClientValueCard.objects.filter(is_active=True, status='Active')),
-            Prefetch('clientpackage_set', queryset=ClientPackage.objects.filter(is_active=True, status='Active'))
+            Prefetch('memberships', queryset=ClientMembership.objects.filter(is_active=True)),
+            Prefetch('value_cards', queryset=ClientValueCard.objects.filter(is_active=True)),
+            Prefetch('packages', queryset=ClientPackage.objects.filter(is_active=True))
         )
 
         results = []
@@ -2566,7 +2568,7 @@ class MultiSalonClientsView(views.APIView):
         # We can group by client on the filtered invoices first:
         invoice_stats = invoices.values('client_id').annotate(
             visits=Count('id'),
-            total_spend=Sum('grand_total'),
+            total_spend=Sum('total_amount'),
             last_visit=Max('created_at')
         )
         stats_map = {
@@ -2578,7 +2580,7 @@ class MultiSalonClientsView(views.APIView):
         }
 
         for client in clients:
-            mem = client.clientmembership_set.first()
+            mem = client.memberships.first()
             is_member = 'Yes' if mem else 'No'
 
             stats = stats_map.get(client.id, {'visits': 0, 'total_spend': 0, 'last_visit': None})
@@ -2586,36 +2588,36 @@ class MultiSalonClientsView(views.APIView):
             # Service Balance
             serv_balance_amount = sum(
                 (pkg.original_price / pkg.service.price) * pkg.remaining_quantity
-                for pkg in client.clientpackage_set.all()
+                for pkg in client.packages.all()
                 if pkg.service and pkg.service.price and pkg.remaining_quantity > 0
-            ) if client.clientpackage_set.exists() else 0
+            ) if client.packages.exists() else 0
 
             # Or maybe just the count of remaining services? 
             # In other views, serv. balance is sometimes the remaining price. Let's just use the exact logic from Balances view if we need to.
             # But wait, Balances view aggregates by center, this is by client.
             # Usually Card Balance is the sum of remaining amount:
-            card_balance = sum(vc.remaining_amount for vc in client.clientvaluecard_set.all())
+            card_balance = sum(vc.remaining_amount for vc in client.value_cards.all())
 
             # Advance
             advance = client.advance_balance
 
             # We also need to send the detailed arrays for the side panel
             memberships_data = []
-            for m in client.clientmembership_set.all():
+            for m in client.memberships.all():
                 memberships_data.append({
                     'name': m.membership.name if m.membership else 'Unknown',
                     'expiry': m.expiry_date
                 })
             
             cards_data = []
-            for c in client.clientvaluecard_set.all():
+            for c in client.value_cards.all():
                 cards_data.append({
                     'name': c.value_card.name if c.value_card else 'Unknown',
                     'balance': float(c.remaining_amount)
                 })
 
             packages_data = []
-            for p in client.clientpackage_set.all():
+            for p in client.packages.all():
                 if p.remaining_quantity > 0:
                     packages_data.append({
                         'service': p.service.name if p.service else 'Unknown',
