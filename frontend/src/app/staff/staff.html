@@ -240,7 +240,7 @@
                 <div class="feed-desc" *ngIf="item.description">{{ item.description }}</div>
                 <div class="feed-details" *ngIf="item.details"
                   style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 8px; font-size: 13px; color: var(--text-secondary); background: var(--bg-2); padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                  <div *ngFor="let kv of item.details | keyvalue" style="display: flex; flex-direction: column;">
+                  <div *ngFor="let kv of item.details | keyvalue; trackBy: trackByIndex" style="display: flex; flex-direction: column;">
                     <span style="font-size: 10px; text-transform: uppercase; color: #94a3b8; font-weight: 700;">{{
                       kv.key }}</span>
                     <span style="font-weight: 500; color: var(--text-primary);">{{ kv.value }}</span>
@@ -798,7 +798,7 @@
             <label>Center</label>
             <select class="form-control" [(ngModel)]="newStaff.center" name="center" required>
               <option [ngValue]="null">Select Center</option>
-              <option *ngFor="let c of centers" [ngValue]="c.id">{{ c.display_name || c.center_name }}</option>
+              <option *ngFor="let c of centers; trackBy: trackById" [ngValue]="c.id">{{ c.display_name || c.center_name }}</option>
             </select>
           </div>
           <div class="form-group">
@@ -924,7 +924,7 @@
         <select class="form-control" [(ngModel)]="newLog.staff"
           (ngModelChange)="newConsumptionLog.staff = newLog.staff">
           <option [ngValue]="null">Select Staff</option>
-          <option *ngFor="let s of activeStaffMembers" [ngValue]="s.id">{{ s.first_name }} {{ s.last_name }} — {{
+          <option *ngFor="let s of activeStaffMembers; trackBy: trackById" [ngValue]="s.id">{{ s.first_name }} {{ s.last_name }} — {{
             s.designation }}</option>
         </select>
       </div>
@@ -1012,10 +1012,10 @@
         </option>
       </datalist>
       <datalist id="serviceOptions">
-        <option *ngFor="let s of services | slice:0:500" [value]="s.name">{{ s.name }}</option>
+        <option *ngFor="let s of services | slice:0:500; trackBy: trackByIndex" [value]="s.name">{{ s.name }}</option>
       </datalist>
       <datalist id="perkServiceOptions">
-        <option *ngFor="let s of services | slice:0:500" [value]="s.name">{{ s.name }}</option>
+        <option *ngFor="let s of services | slice:0:500; trackBy: trackByIndex" [value]="s.name">{{ s.name }}</option>
       </datalist>
 
       <div class="modal-actions mt-4" style="text-align: right;">
@@ -1043,7 +1043,7 @@
       <div class="report-toolbar">
         <select class="form-control w-auto" [(ngModel)]="reportCenterId">
           <option [ngValue]="null" *ngIf="hasGlobalAccess">All Locations</option>
-          <option *ngFor="let c of centers" [ngValue]="c.id">{{ c.display_name || c.center_name }}</option>
+          <option *ngFor="let c of centers; trackBy: trackById" [ngValue]="c.id">{{ c.display_name || c.center_name }}</option>
         </select>
         <div class="date-range">
           <input type="date" class="form-control" [(ngModel)]="reportStartDate">
@@ -1232,7 +1232,7 @@
       <div class="report-toolbar">
         <select class="form-control w-auto" [(ngModel)]="reportCenterId">
           <option [ngValue]="null" *ngIf="hasGlobalAccess">All Locations</option>
-          <option *ngFor="let c of centers" [ngValue]="c.id">{{ c.display_name || c.center_name }}</option>
+          <option *ngFor="let c of centers; trackBy: trackById" [ngValue]="c.id">{{ c.display_name || c.center_name }}</option>
         </select>
         <div class="date-range">
           <input type="date" class="form-control" [(ngModel)]="reportStartDate">
@@ -1259,7 +1259,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let item of consumptionReport">
+            <tr *ngFor="let item of consumptionReport; trackBy: trackByIndex">
               <td class="font-weight-bold">{{ item.staff_name }}</td>
               <td>{{item.display_name || item.center_name}}</td>
               <td>{{ item.service_name }}</td>
@@ -1316,7 +1316,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let t of allToolsReport" [class.danger-row]="isToolOverdue(t)">
+            <tr *ngFor="let t of allToolsReport; trackBy: trackByIndex" [class.danger-row]="isToolOverdue(t)">
               <td class="font-weight-bold">
                 {{ t.staff_name }}
                 <span *ngIf="isToolOverdue(t)" class="alert-icon" title="Overdue"><svg width='16' height='16'
@@ -1384,7 +1384,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let tr of allTransfersReport">
+            <tr *ngFor="let tr of allTransfersReport; trackBy: trackByIndex">
               <td class="font-weight-bold">{{ tr.staff_name || 'Staff #'+tr.staff }}</td>
               <td>{{ tr.from_center_name }}</td>
               <td>{{ tr.to_center_name }}</td>
@@ -1419,7 +1419,7 @@
         <label>Staff to Transfer</label>
         <select class="form-control" [(ngModel)]="newTransfer.staff">
           <option [ngValue]="null">Select Staff</option>
-          <option *ngFor="let s of activeStaffMembers" [ngValue]="s.id">{{ s.first_name }} {{ s.last_name }} — {{
+          <option *ngFor="let s of activeStaffMembers; trackBy: trackById" [ngValue]="s.id">{{ s.first_name }} {{ s.last_name }} — {{
             s.designation }}</option>
         </select>
       </div>
@@ -1434,7 +1434,7 @@
         <label>To Center</label>
         <select class="form-control" [(ngModel)]="newTransfer.to_center">
           <option [ngValue]="null">Select Destination Center</option>
-          <option *ngFor="let c of centers" [ngValue]="c.id">{{ c.display_name || c.center_name }}</option>
+          <option *ngFor="let c of centers; trackBy: trackById" [ngValue]="c.id">{{ c.display_name || c.center_name }}</option>
         </select>
       </div>
       <div class="form-row">
@@ -1470,7 +1470,7 @@
         <label>Staff Member</label>
         <select class="form-control" [(ngModel)]="newTool.staff" (ngModelChange)="loadStaffTools(newTool.staff)">
           <option [ngValue]="null">Select Staff</option>
-          <option *ngFor="let s of activeStaffMembers" [ngValue]="s.id">{{ s.first_name }} {{ s.last_name }} — {{
+          <option *ngFor="let s of activeStaffMembers; trackBy: trackById" [ngValue]="s.id">{{ s.first_name }} {{ s.last_name }} — {{
             s.designation }}</option>
         </select>
       </div>
@@ -1586,7 +1586,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let item of incentiveReport">
+            <tr *ngFor="let item of incentiveReport; trackBy: trackByIndex">
               <td class="font-weight-bold">{{ item.staff_name }}</td>
               <td>{{item.display_name || item.center_name}}</td>
               <td class="text-right">

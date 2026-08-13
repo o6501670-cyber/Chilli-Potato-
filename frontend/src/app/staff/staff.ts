@@ -32,6 +32,7 @@ export class StaffComponent implements OnInit {
   showInactive = false;
 
   staffMembers: any[] = [];
+  activeStaffMembers: any[] = [];
   filteredStaff: any[] = [];
   selectedStaff: any = null;
 
@@ -245,6 +246,7 @@ export class StaffComponent implements OnInit {
   }
   this.apiService.getStaffMembers(filter, this.showInactive).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
     this.staffMembers = data;
+    this.activeStaffMembers = data.filter((s: any) => s.is_active);
     this.applyFilters();
     if (this.selectedStaff) {
       const updated = this.staffMembers.find(s => s.id === this.selectedStaff.id);
@@ -269,10 +271,6 @@ export class StaffComponent implements OnInit {
   this.filteredStaff = list;
   this.cdr.detectChanges();
 }
-
-  get activeStaffMembers() {
-    return this.staffMembers.filter(s => s.is_active);
-  }
 
   selectStaff(staff: any) {
     this.selectedStaff = { ...staff }; // clone for editing
