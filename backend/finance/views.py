@@ -2181,7 +2181,7 @@ class MultiSalonBalancesView(views.APIView):
                 centers_qs = centers_qs.filter(id=user.center.id)
 
         center_ids = list(centers_qs.values_list('id', flat=True))
-        center_dict = {c.id: c.name for c in centers_qs}
+        center_dict = {c.id: (c.display_name or c.center_name) for c in centers_qs}
 
         results = []
 
@@ -2270,7 +2270,7 @@ class MultiSalonSalesExportView(views.APIView):
             for adv in advs:
                 ws.append([
                     adv.created_at.strftime('%Y-%m-%d') if adv.created_at else '',
-                    adv.client.center.name if adv.client and adv.client.center else 'Unknown',
+                    (adv.client.center.display_name or adv.client.center.center_name) if adv.client and adv.client.center else 'Unknown',
                     f"{adv.client.first_name} {adv.client.last_name}".strip() if adv.client else '',
                     adv.client.phone_number if adv.client else '',
                     float(adv.amount)
@@ -2295,7 +2295,7 @@ class MultiSalonSalesExportView(views.APIView):
             ws.append(['Date', 'Center', 'Bill No', 'Client', 'Staff', 'Item Name', 'Quantity', 'Price', 'Discount', 'Tax', 'Total'])
             for item in items:
                 inv = item.invoice
-                center_name = inv.center.name if inv.center else 'Unknown'
+                center_name = (inv.center.display_name or inv.center.center_name) if inv.center else 'Unknown'
                 client_name = f"{inv.client.first_name} {inv.client.last_name}".strip() if inv.client else ''
                 staff_name = f"{item.staff.first_name} {item.staff.last_name}".strip() if item.staff else ''
                 
@@ -2470,7 +2470,7 @@ class MultiSalonServiceDrilldownView(views.APIView):
                 Q(content_object__category__name__icontains=search_term)
             )
 
-        grouped = items.values('invoice__center__name').annotate(
+        grouped = items.values('invoice__center__center_name').annotate(
             count=Sum('quantity'),
             amount=Sum('total_price')
         ).order_by('-amount')
@@ -2478,7 +2478,7 @@ class MultiSalonServiceDrilldownView(views.APIView):
         results = []
         for g in grouped:
             results.append({
-                'center_name': g['invoice__center__name'] or 'Unknown',
+                'center_name': g['invoice__center__center_name'] or 'Unknown',
                 'count': int(g['count'] or 0),
                 'amount': float(g['amount'] or 0)
             })
@@ -2513,7 +2513,7 @@ class MultiSalonProductDrilldownView(views.APIView):
                 Q(content_object__brand__name__icontains=search_term)
             )
 
-        grouped = items.values('invoice__center__name').annotate(
+        grouped = items.values('invoice__center__center_name').annotate(
             count=Sum('quantity'),
             amount=Sum('total_price')
         ).order_by('-amount')
@@ -2521,7 +2521,7 @@ class MultiSalonProductDrilldownView(views.APIView):
         results = []
         for g in grouped:
             results.append({
-                'center_name': g['invoice__center__name'] or 'Unknown',
+                'center_name': g['invoice__center__center_name'] or 'Unknown',
                 'count': int(g['count'] or 0),
                 'amount': float(g['amount'] or 0)
             })
@@ -2665,7 +2665,7 @@ class MultiSalonStaffView(views.APIView):
         
         # We need to group by Staff and Center
         grouped = items.values(
-            'staff__first_name', 'staff__last_name', 'invoice__center__name'
+            'staff__first_name', 'staff__last_name', 'invoice__center__center_name'
         ).annotate(
             revenue=Sum('total_price'),
             # For counts and redemptions, we might need conditional aggregation or just fetch all and aggregate in python.
@@ -2674,7 +2674,7 @@ class MultiSalonStaffView(views.APIView):
         
         # But wait, conditional aggregation is faster:
         grouped = items.values(
-            'staff__first_name', 'staff__last_name', 'invoice__center__name'
+            'staff__first_name', 'staff__last_name', 'invoice__center__center_name'
         ).annotate(
             revenue=Sum('total_price'),
             services=Sum('total_price', filter=Q(content_type=service_ct)),
@@ -2699,7 +2699,7 @@ class MultiSalonStaffView(views.APIView):
             
             results.append({
                 'staff_name': staff_name,
-                'salon': g['invoice__center__name'] or 'Unknown',
+                'salon': g['invoice__center__center_name'] or 'Unknown',
                 'revenue': float(g['revenue'] or 0),
                 'services': float(g['services'] or 0),
                 'service_red': 0,
