@@ -1229,8 +1229,8 @@ export class BillingComponent implements OnInit {
     }
 
     // Cap discount at subtotal to avoid negative totals
-    if (discount > this.subtotalAmount) {
-      discount = this.subtotalAmount;
+    if (discount > preTaxSubtotal) {
+      discount = preTaxSubtotal;
     }
 
     this.invoiceDiscount = discount;
