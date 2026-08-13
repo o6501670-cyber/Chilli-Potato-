@@ -1442,6 +1442,7 @@ export class BillingComponent implements OnInit {
         description: this.advanceDescription || 'Advance Payment',
         unit_price: this.advanceAmount || 0,
         discount: 0,
+        manager_discount: 0,
         quantity: 1,
         staff: this.configStaffIds.length > 0 ? this.configStaffIds[0] : null,
         staff_members: this.configStaffIds
@@ -1482,7 +1483,7 @@ export class BillingComponent implements OnInit {
         description: this.selectedItemForConfig.name || this.selectedItemForConfig.title || 'Item',
         unit_price: basePrice,
         discount: discount > 0 ? discount : 0,
-
+        manager_discount: discount > 0 ? discount : 0,
         quantity: 1,
         tax_percentage: ct === 'services.servicemaster' ? (this.selectedItemForConfig.tax_percentage || 0) : 
                         ct === 'inventory.product' ? (this.selectedItemForConfig.gst_percent || 0) : 0,
@@ -2031,6 +2032,7 @@ export class BillingComponent implements OnInit {
           description: c.description,
           unit_price: Number(c.unit_price).toFixed(2),
           discount: Number(c.discount).toFixed(2),
+          manager_discount: Number(c.manager_discount || 0).toFixed(2),
           quantity: c.quantity,
           tax_percentage: Number(c.tax_percentage).toFixed(2),
           staff: c.staff,
@@ -2195,6 +2197,7 @@ export class BillingComponent implements OnInit {
           description: it.description,
           unit_price: Number(it.unit_price),
           discount: Number(it.discount),
+          manager_discount: Number(it.manager_discount || 0),
           quantity: it.quantity,
           tax_percentage: tax_percentage,
           staff: it.staff ? (it.staff.id || it.staff) : null,
