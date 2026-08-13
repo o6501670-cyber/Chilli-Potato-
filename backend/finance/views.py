@@ -588,6 +588,7 @@ def compute_register_summary(user, center_id, start_date, end_date) -> dict:
             target = 0
             history = center_obj.monthly_targets_history or {}
             
+            is_past_range = False
             if start_date and end_date:
                 from datetime import datetime
                 import calendar
@@ -597,7 +598,13 @@ def compute_register_summary(user, center_id, start_date, end_date) -> dict:
                     curr_y, curr_m = sd.year, sd.month
                     end_y, end_m = ed.year, ed.month
                     
+                    today = datetime.now()
+                    is_past_range = True
+                    
                     while (curr_y < end_y) or (curr_y == end_y and curr_m <= end_m):
+                        if (curr_y > today.year) or (curr_y == today.year and curr_m >= today.month):
+                            is_past_range = False
+                            
                         month_abbr = calendar.month_abbr[curr_m]
                         month_key = f"{month_abbr}-{curr_y}"
                         val = history.get(month_key, 0)
@@ -611,7 +618,8 @@ def compute_register_summary(user, center_id, start_date, end_date) -> dict:
                     import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
             
             # Fallback to default monthly_target if no target found from history or dates missing
-            if target == 0:
+            # Only do this if the date range includes the current or future month.
+            if target == 0 and not is_past_range:
                 target = Decimal(str(center_obj.monthly_target or 0))
 
             if target > 0:
@@ -899,6 +907,10 @@ class MonthlySalesView(views.APIView):
             taxable_value = services + products + value_cards + memberships + packages
             
             target = Decimal('0.0')
+            import datetime
+            current_date = datetime.date.today()
+            is_past_month = (year < current_date.year) or (year == current_date.year and month_num < current_date.month)
+            
             for c in centers:
                 hist = c.monthly_targets_history or {}
                 raw_t = hist.get(month_str, 0)
@@ -906,7 +918,10 @@ class MonthlySalesView(views.APIView):
                     t = Decimal(str(raw_t)) if raw_t not in [None, ""] else Decimal('0.0')
                 except (ValueError, TypeError):
                     t = Decimal('0.0')
-                if t == Decimal('0.0'):
+                    
+                # Only fallback to the current active monthly_target if we are in the current or future month.
+                # Past months should remain 0 if they have no explicit history saved, preventing the active target from rewriting the past.
+                if t == Decimal('0.0') and not is_past_month:
                     try:
                         t = Decimal(str(c.monthly_target)) if c.monthly_target not in [None, ""] else Decimal('0.0')
                     except (ValueError, TypeError):
