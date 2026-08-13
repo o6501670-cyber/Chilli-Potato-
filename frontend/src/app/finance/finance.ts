@@ -1205,7 +1205,7 @@ export class FinanceComponent implements OnInit {
 
   loadMultiCategories() {
     this.isLoading = true;
-    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/categories/\?start_date=\$\{this\.multiStartDate\}&end_date=\$\{this\.multiEndDate\}`;
+    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/categories/?start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
       const cid = this.getCenterId();
       if (cid) url += (url.includes('?') ? '&' : '?') + 'center_id=' + cid;
     const token = localStorage.getItem('token');
@@ -1233,7 +1233,7 @@ export class FinanceComponent implements OnInit {
 
   loadMultiServiceDrilldown() {
     this.isLoading = true;
-    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/drilldown/services/\?search=\$\{this\.serviceSearchTerm\}&start_date=\$\{this\.multiStartDate\}&end_date=\$\{this\.multiEndDate\}`;
+    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/drilldown/services/?search=${this.serviceSearchTerm}&start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
       const cid = this.getCenterId();
       if (cid) url += (url.includes('?') ? '&' : '?') + 'center_id=' + cid;
     const token = localStorage.getItem('token');
@@ -1255,7 +1255,7 @@ export class FinanceComponent implements OnInit {
 
   loadMultiProductDrilldown() {
     this.isLoading = true;
-    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/drilldown/products/\?search=\$\{this\.productSearchTerm\}&start_date=\$\{this\.multiStartDate\}&end_date=\$\{this\.multiEndDate\}`;
+    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/drilldown/products/?search=${this.productSearchTerm}&start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
       const cid = this.getCenterId();
       if (cid) url += (url.includes('?') ? '&' : '?') + 'center_id=' + cid;
     const token = localStorage.getItem('token');
@@ -1355,7 +1355,7 @@ export class FinanceComponent implements OnInit {
 
   loadMultiClients() {
     this.isLoading = true;
-    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/clients/\?start_date=\$\{this\.multiStartDate\}&end_date=\$\{this\.multiEndDate\}`;
+    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/clients/?start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
       const cid = this.getCenterId();
       if (cid) url += (url.includes('?') ? '&' : '?') + 'center_id=' + cid;
     const token = localStorage.getItem('token');
@@ -1407,7 +1407,7 @@ export class FinanceComponent implements OnInit {
 
   loadMultiStaff() {
     this.isLoading = true;
-    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/staff/\?start_date=\$\{this\.multiStartDate\}&end_date=\$\{this\.multiEndDate\}`;
+    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/staff/?start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
       const cid = this.getCenterId();
       if (cid) url += (url.includes('?') ? '&' : '?') + 'center_id=' + cid;
     const token = localStorage.getItem('token');
