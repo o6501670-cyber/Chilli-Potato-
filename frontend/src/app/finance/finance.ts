@@ -1119,7 +1119,10 @@ export class FinanceComponent implements OnInit {
       return;
     }
 
-    const observables = this.centers.map(center =>
+    const cid = this.getCenterId();
+    const centersToLoad = cid ? this.centers.filter(c => c.id === cid) : this.centers;
+
+    const observables = centersToLoad.map(center =>
       this.apiService.getRegisterSummary(center.id, this.multiStartDate, this.multiEndDate)
     );
 
@@ -1175,7 +1178,9 @@ export class FinanceComponent implements OnInit {
 
   
   downloadMultiSales(itemType: string) {
+    const cid = this.getCenterId();
     let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/sales_export/?item_type=${itemType}&start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
+    if (cid) url += `&center_id=${cid}`;
     const token = localStorage.getItem('token');
     if (token) {
       fetch(url, { headers: { 'Authorization': `Token ${token}` } })
@@ -1269,12 +1274,10 @@ export class FinanceComponent implements OnInit {
   multiPettyCashCenterId: number = 0;
 
   loadMultiPettyCash() {
+    const cid = this.getCenterId();
+    this.multiPettyCashCenterId = cid || (this.centers && this.centers.length > 0 ? this.centers[0].id : 0);
     if (!this.multiPettyCashCenterId) {
-      if (this.centers && this.centers.length > 0) {
-        this.multiPettyCashCenterId = this.centers[0].id;
-      } else {
-        return;
-      }
+      return;
     }
     
     this.isLoading = true;
