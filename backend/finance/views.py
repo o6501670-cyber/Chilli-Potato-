@@ -555,15 +555,17 @@ def compute_register_summary(user, center_id, start_date, end_date) -> dict:
     total_discount = Decimal(str(totals['t_discount'] or 0))
 
     # Proportional tax split based on actual service vs product revenue
-    total_taxable = revenue['services'] + revenue['products']
-    if total_taxable > 0:
-        services_share = revenue['services'] / total_taxable
-        products_share = revenue['products'] / total_taxable
+    service_product_revenue = revenue['services'] + revenue['products']
+    if service_product_revenue > 0:
+        services_share = revenue['services'] / service_product_revenue
+        products_share = revenue['products'] / service_product_revenue
     else:
         services_share = Decimal('0.7')
         products_share = Decimal('0.3')
     services_tax = total_tax * Decimal(str(services_share))
     products_tax = total_tax * Decimal(str(products_share))
+    
+    total_taxable = revenue['services'] + revenue['products'] + revenue['value_cards'] + revenue['memberships'] + revenue['packages']
 
     # Collection before tax = only actual sales revenue (advances are liabilities, shown separately)
     sales_collection = (
@@ -623,7 +625,7 @@ def compute_register_summary(user, center_id, start_date, end_date) -> dict:
                 target = Decimal(str(center_obj.monthly_target or 0))
 
             if target > 0:
-                target_achieved_percentage = round((collection_before_tax / target) * 100, 2)
+                target_achieved_percentage = round((total_taxable / target) * 100, 2)
         except Center.DoesNotExist:
             pass
 
