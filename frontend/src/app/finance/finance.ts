@@ -30,6 +30,7 @@ export class FinanceComponent implements OnInit {
 
   // Tab State
   activeMainTab = 'single';
+  activeMultiTab = 'register';
   activeSingleTab = 'register';
   activeMultiTab = 'balances';
   activePettyCashTab = 'admin';
@@ -65,6 +66,10 @@ export class FinanceComponent implements OnInit {
 
   // ---- Multi Salon ----
   multiSalonData: any[] = [];
+  multiBalancesData: any[] = [];
+  showServiceBalances = true;
+  showCardBalances = true;
+  showAdvanceBalances = true;
   multiStartDate = '';
   multiEndDate = '';
 
@@ -566,6 +571,7 @@ export class FinanceComponent implements OnInit {
 
     if (this.isOwner || this.permissions.finance?.register_summary?.read || this.permissions.finance?.monthly_sales?.read || this.permissions.finance?.detailed_revenues?.read || this.permissions.finance?.refunds?.read || this.permissions.finance?.procurement?.read) {
       this.activeMainTab = 'single';
+  activeMultiTab = 'register';
       if (this.isOwner || this.permissions.finance?.register_summary?.read) {
         this.activeSingleTab = 'register';
       } else if (this.permissions.finance?.monthly_sales?.read) {
@@ -1137,6 +1143,125 @@ export class FinanceComponent implements OnInit {
     }, () => {
       this.isLoading = false;
     });
+  }
+
+  
+  loadMultiBalances() {
+    this.isLoading = true;
+    const url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/balances/`;
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch(url, { headers: { 'Authorization': `Token ${token}` } })
+        .then(res => res.json())
+        .then(data => {
+          this.multiBalancesData = data || [];
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        })
+        .catch(err => {
+          console.error(err);
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        });
+    }
+  }
+
+  get filteredBalances() {
+    return this.multiBalancesData.filter(b => {
+      if (b.type === 'Package' && !this.showServiceBalances) return false;
+      if (b.type === 'Value Card' && !this.showCardBalances) return false;
+      if (b.type === 'Advance' && !this.showAdvanceBalances) return false;
+      return true;
+    });
+  }
+
+  
+  downloadMultiSales(itemType: string) {
+    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/sales_export/?item_type=${itemType}&start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch(url, { headers: { 'Authorization': `Token ${token}` } })
+        .then(res => res.blob())
+        .then(blob => {
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = downloadUrl;
+          a.download = `${itemType}_sales_report.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        })
+        .catch(err => console.error(err));
+    }
+  }
+
+  
+  multiCategoriesData: any = null;
+
+  loadMultiCategories() {
+    this.isLoading = true;
+    const url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/categories/?start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch(url, { headers: { 'Authorization': `Token ${token}` } })
+        .then(res => res.json())
+        .then(data => {
+          this.multiCategoriesData = data;
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        })
+        .catch(err => {
+          console.error(err);
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        });
+    }
+  }
+
+  
+  serviceSearchTerm = '';
+  productSearchTerm = '';
+  multiServiceDrilldownData: any[] = [];
+  multiProductDrilldownData: any[] = [];
+
+  loadMultiServiceDrilldown() {
+    this.isLoading = true;
+    const url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/drilldown/services/?search=${this.serviceSearchTerm}&start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch(url, { headers: { 'Authorization': `Token ${token}` } })
+        .then(res => res.json())
+        .then(data => {
+          this.multiServiceDrilldownData = data || [];
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        })
+        .catch(err => {
+          console.error(err);
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        });
+    }
+  }
+
+  loadMultiProductDrilldown() {
+    this.isLoading = true;
+    const url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/drilldown/products/?search=${this.productSearchTerm}&start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch(url, { headers: { 'Authorization': `Token ${token}` } })
+        .then(res => res.json())
+        .then(data => {
+          this.multiProductDrilldownData = data || [];
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        })
+        .catch(err => {
+          console.error(err);
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        });
+    }
   }
 
   runMultiSalon() {

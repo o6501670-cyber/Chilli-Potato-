@@ -1,6 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
+    MultiSalonBalancesView,
+    MultiSalonSalesExportView,
+    MultiSalonCategoriesView,
+    MultiSalonServiceDrilldownView,
+    MultiSalonProductDrilldownView,
     PettyCashEntryViewSet, DailyClosingViewSet, IncentiveConfigViewSet, ShiftViewSet,
     IncentiveRuleViewSet, ExportFinanceView,
     RegisterSummaryView, MonthlySalesView, DetailedRevenuesView,
@@ -25,6 +30,11 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/export/', ExportFinanceView.as_view(), name='finance-export'),
     path('api/export_multi_salon/', MultiSalonExportView.as_view(), name='export_multi_salon'),
+    path('api/reports/multi_salon/balances/', MultiSalonBalancesView.as_view(), name='multi_salon_balances'),
+    path('api/reports/multi_salon/sales_export/', MultiSalonSalesExportView.as_view(), name='multi_salon_sales_export'),
+    path('api/reports/multi_salon/categories/', MultiSalonCategoriesView.as_view(), name='multi_salon_categories'),
+    path('api/reports/multi_salon/drilldown/services/', MultiSalonServiceDrilldownView.as_view(), name='multi_salon_drilldown_services'),
+    path('api/reports/multi_salon/drilldown/products/', MultiSalonProductDrilldownView.as_view(), name='multi_salon_drilldown_products'),
     path('api/register_summary/', RegisterSummaryView.as_view(), name='register_summary'),
     path('api/monthly_sales/', MonthlySalesView.as_view(), name='monthly_sales'),
     path('api/detailed_revenues/', DetailedRevenuesView.as_view(), name='detailed_revenues'),

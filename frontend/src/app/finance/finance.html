@@ -593,51 +593,293 @@
   <!-- MULTI SALON REPORTS                              -->
   <!-- ================================================ -->
   <div class="tab-body" *ngIf="activeMainTab === 'multi'">
-    <!-- Date filter moved to header -->
+    
+    <!-- MULTI SALON SUB-NAVIGATION -->
+    <div class="tabs-bar" style="margin-bottom: 20px; background-color: #f1f5f9; padding: 10px; border-radius: 8px;">
+      <button class="tab-btn" [class.active]="activeMultiTab === 'register'" (click)="setMultiTab('register')">Register Summary</button>
+      <button class="tab-btn" [class.active]="activeMultiTab === 'balances'" (click)="setMultiTab('balances')">Balances</button>
+      <button class="tab-btn" [class.active]="activeMultiTab === 'sales_report'" (click)="setMultiTab('sales_report')">Sales Report/Type</button>
+      <button class="tab-btn" [class.active]="activeMultiTab === 'categories'" (click)="setMultiTab('categories')">Categories</button>
+      <button class="tab-btn" [class.active]="activeMultiTab === 'service_drilldown'" (click)="setMultiTab('service_drilldown')">Service Drilldown</button>
+      <button class="tab-btn" [class.active]="activeMultiTab === 'product_drilldown'" (click)="setMultiTab('product_drilldown')">Product Drilldown</button>
+    </div>
 
-    <div *ngIf="multiSalonData.length === 0" class="empty-state">
-      Click <strong>Run</strong> to compare performance across all salons.
+    <!-- SUB TAB: REGISTER SUMMARY -->
+    <div *ngIf="activeMultiTab === 'register'">
+      <div *ngIf="multiSalonData.length === 0" class="empty-state">
+        Click <strong>Run</strong> to compare performance across all salons.
+      </div>
+      <div class="table-scroll-container" *ngIf="multiSalonData.length > 0">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Center</th>
+              <th class="num">Services</th>
+              <th class="num">Products</th>
+              <th class="num">Memberships</th>
+              <th class="num">Packages</th>
+              <th class="num">Value Cards</th>
+              <th class="num">Advances</th>
+              <th class="num">Other</th>
+              <th class="num neg-col">Redemptions</th>
+              <th class="num highlight-col">Collection (Before Tax)</th>
+              <th class="num">Taxable Value</th>
+              <th class="num highlight-col">Including Tax</th>
+              <th class="num">Target</th>
+              <th class="num">Target Achieved</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of multiSalonData">
+              <td><strong>{{row.display_name || row.center_name}}</strong></td>
+              <td class="num">{{ formatCurrency(row.revenues?.services?.amount || 0) }}</td>
+              <td class="num">{{ formatCurrency(row.revenues?.products?.amount || 0) }}</td>
+              <td class="num">{{ formatCurrency(row.revenues?.memberships?.amount || 0) }}</td>
+              <td class="num">{{ formatCurrency(row.revenues?.packages?.amount || 0) }}</td>
+              <td class="num">{{ formatCurrency(row.revenues?.value_cards?.amount || 0) }}</td>
+              <td class="num">{{ formatCurrency(row.revenues?.advances?.amount || 0) }}</td>
+              <td class="num">{{ formatCurrency(row.revenues?.other?.amount || 0) }}</td>
+              <td class="num neg-col">{{ formatCurrency(row.revenues?.payment_redemptions?.amount || 0) }}</td>
+              <td class="num highlight-col">{{ formatCurrency(row.revenues?.collection_before_tax || 0) }}</td>
+              <td class="num">{{ formatCurrency(row.revenues?.taxable_value || 0) }}</td>
+              <td class="num highlight-col">{{ formatCurrency(row.revenues?.including_tax || 0) }}</td>
+              <td class="num">{{ formatCurrency(row.revenues?.target || 0) }}</td>
+              <td class="num" [style.color]="getTargetColor(row.revenues?.target_achieved_percentage)" style="font-weight:bold">{{ (row.revenues?.target_achieved_percentage || 0) }}%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-    <div class="table-scroll-container" *ngIf="multiSalonData.length > 0">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Center</th>
-            <th class="num">Services</th>
-            <th class="num">Products</th>
-            <th class="num">Memberships</th>
-            <th class="num">Packages</th>
-            <th class="num">Value Cards</th>
-            <th class="num">Advances</th>
-            <th class="num">Other</th>
-            <th class="num neg-col">Redemptions</th>
-            <th class="num highlight-col">Collection (Before Tax)</th>
-            <th class="num">Taxable Value</th>
-            <th class="num highlight-col">Including Tax</th>
-            <th class="num">Target</th>
-            <th class="num">Target Achieved</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let row of multiSalonData">
-            <td><strong>{{row.display_name || row.center_name}}</strong></td>
-            <td class="num">{{ formatCurrency(row.revenues?.services?.amount || 0) }}</td>
-            <td class="num">{{ formatCurrency(row.revenues?.products?.amount || 0) }}</td>
-            <td class="num">{{ formatCurrency(row.revenues?.memberships?.amount || 0) }}</td>
-            <td class="num">{{ formatCurrency(row.revenues?.packages?.amount || 0) }}</td>
-            <td class="num">{{ formatCurrency(row.revenues?.value_cards?.amount || 0) }}</td>
-            <td class="num">{{ formatCurrency(row.revenues?.advances?.amount || 0) }}</td>
-            <td class="num">{{ formatCurrency(row.revenues?.other?.amount || 0) }}</td>
-            <td class="num neg-col">{{ formatCurrency(row.revenues?.payment_redemptions?.amount || 0) }}</td>
-            <td class="num highlight-col">{{ formatCurrency(row.revenues?.collection_before_tax || 0) }}</td>
-            <td class="num">{{ formatCurrency(row.revenues?.taxable_value || 0) }}</td>
-            <td class="num highlight-col">{{ formatCurrency(row.revenues?.including_tax || 0) }}</td>
-            <td class="num">{{ formatCurrency(row.revenues?.target || 0) }}</td>
-            <td class="num" [style.color]="getTargetColor(row.revenues?.target_achieved_percentage)" style="font-weight:bold">{{ (row.revenues?.target_achieved_percentage || 0) }}%</td>
-          </tr>
-        </tbody>
-      </table>
+
+    
+    <!-- SUB TAB: SALES REPORT / TYPE -->
+    <div *ngIf="activeMultiTab === 'sales_report'">
+      <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <span style="font-weight: 500;">From:</span>
+        <input type="date" [(ngModel)]="multiStartDate" class="date-inp">
+        <span style="font-weight: 500;">To:</span>
+        <input type="date" [(ngModel)]="multiEndDate" class="date-inp">
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 10px; width: 250px;">
+        <button class="btn-go" (click)="downloadMultiSales('service')" style="background-color: #0c4a6e; color: white; padding: 10px; text-align: left; border-radius: 5px; border: none; cursor: pointer;">Service Sales Report</button>
+        <button class="btn-go" (click)="downloadMultiSales('product')" style="background-color: #0c4a6e; color: white; padding: 10px; text-align: left; border-radius: 5px; border: none; cursor: pointer;">Product Sales Report</button>
+        <button class="btn-go" (click)="downloadMultiSales('valuecard')" style="background-color: #0c4a6e; color: white; padding: 10px; text-align: left; border-radius: 5px; border: none; cursor: pointer;">Value Card Sales Report</button>
+        <button class="btn-go" (click)="downloadMultiSales('giftcard')" style="background-color: #0c4a6e; color: white; padding: 10px; text-align: left; border-radius: 5px; border: none; cursor: pointer;">Gift Card Sales Report</button>
+        <button class="btn-go" (click)="downloadMultiSales('package')" style="background-color: #0c4a6e; color: white; padding: 10px; text-align: left; border-radius: 5px; border: none; cursor: pointer;">Package Sales Report</button>
+        <button class="btn-go" (click)="downloadMultiSales('membership')" style="background-color: #0c4a6e; color: white; padding: 10px; text-align: left; border-radius: 5px; border: none; cursor: pointer;">Membership Sales Report</button>
+        <button class="btn-go" (click)="downloadMultiSales('advances')" style="background-color: #0c4a6e; color: white; padding: 10px; text-align: left; border-radius: 5px; border: none; cursor: pointer;">Advance Sales Report</button>
+      </div>
     </div>
+
+
+    <!-- SUB TAB: CATEGORIES -->
+    <div *ngIf="activeMultiTab === 'categories'">
+      <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <span style="font-weight: 500;">From:</span>
+        <input type="date" [(ngModel)]="multiStartDate" class="date-inp">
+        <span style="font-weight: 500;">To:</span>
+        <input type="date" [(ngModel)]="multiEndDate" class="date-inp">
+        <button class="btn-go" (click)="loadMultiCategories()" style="background-color: #0f766e; color: white; padding: 5px 20px; border-radius: 5px; border: none; cursor: pointer;">Run</button>
+      </div>
+
+      <div *ngIf="isLoading" class="empty-state">Loading...</div>
+      
+      <div *ngIf="multiCategoriesData && !isLoading">
+        <div style="margin-bottom: 30px;">
+          <table class="data-table" style="width: 50%;">
+            <thead>
+              <tr style="background-color: #f1f5f9;">
+                <th>Type</th>
+                <th class="num">Count</th>
+                <th class="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let cat of multiCategoriesData.categories">
+                <td>{{ cat.type }}</td>
+                <td class="num">{{ cat.count }}</td>
+                <td class="num">{{ cat.amount !== 0 ? formatCurrency(cat.amount) : '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 45%;">
+            <div style="margin-bottom: 10px; color: #0891b2; font-weight: 500; text-align: center;">{{ multiCategoriesData.services.length }} Services sold</div>
+            <div class="table-scroll-container">
+              <table class="data-table">
+                <thead>
+                  <tr style="background-color: #f1f5f9;">
+                    <th>Service</th>
+                    <th>HSN Code</th>
+                    <th>Centers</th>
+                    <th class="num">Count</th>
+                    <th class="num">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let s of multiCategoriesData.services">
+                    <td>{{ s.name }}</td>
+                    <td>{{ s.hsn }}</td>
+                    <td>{{ s.centers }}</td>
+                    <td class="num">{{ s.count }}</td>
+                    <td class="num">{{ formatCurrency(s.amount) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style="flex: 1; min-width: 45%;">
+            <div style="margin-bottom: 10px; color: #0891b2; font-weight: 500; text-align: center;">{{ multiCategoriesData.products.length }} Products sold</div>
+            <div class="table-scroll-container">
+              <table class="data-table">
+                <thead>
+                  <tr style="background-color: #f1f5f9;">
+                    <th>Product</th>
+                    <th>HSN Code</th>
+                    <th>Centers</th>
+                    <th class="num">Count</th>
+                    <th class="num">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let p of multiCategoriesData.products">
+                    <td>{{ p.name }}</td>
+                    <td>{{ p.hsn }}</td>
+                    <td>{{ p.centers }}</td>
+                    <td class="num">{{ p.count }}</td>
+                    <td class="num">{{ formatCurrency(p.amount) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- SUB TAB: SERVICE DRILLDOWN -->
+    <div *ngIf="activeMultiTab === 'service_drilldown'">
+      <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <input type="text" placeholder="Search Services..." [(ngModel)]="serviceSearchTerm" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 5px; flex: 1;">
+        <span style="font-weight: 500;">From:</span>
+        <input type="date" [(ngModel)]="multiStartDate" class="date-inp">
+        <span style="font-weight: 500;">To:</span>
+        <input type="date" [(ngModel)]="multiEndDate" class="date-inp">
+        <button class="btn-go" (click)="loadMultiServiceDrilldown()" style="background-color: #0f766e; color: white; padding: 5px 20px; border-radius: 5px; border: none; cursor: pointer;">Search</button>
+      </div>
+      
+      <div *ngIf="isLoading" class="empty-state">Loading...</div>
+
+      <div class="table-scroll-container" *ngIf="multiServiceDrilldownData.length > 0 && !isLoading">
+        <table class="data-table">
+          <thead>
+            <tr style="background-color: #f1f5f9;">
+              <th>Salon Name</th>
+              <th class="num"># times done</th>
+              <th class="num">Amount charged</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of multiServiceDrilldownData">
+              <td>{{ row.center_name }}</td>
+              <td class="num">{{ row.count }}</td>
+              <td class="num">{{ formatCurrency(row.amount) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div *ngIf="multiServiceDrilldownData.length === 0 && !isLoading" class="empty-state">No records found.</div>
+    </div>
+
+    <!-- SUB TAB: PRODUCT DRILLDOWN -->
+    <div *ngIf="activeMultiTab === 'product_drilldown'">
+      <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <input type="text" placeholder="Search Products..." [(ngModel)]="productSearchTerm" style="padding: 8px; border: 1px solid #cbd5e1; border-radius: 5px; flex: 1;">
+        <span style="font-weight: 500;">From:</span>
+        <input type="date" [(ngModel)]="multiStartDate" class="date-inp">
+        <span style="font-weight: 500;">To:</span>
+        <input type="date" [(ngModel)]="multiEndDate" class="date-inp">
+        <button class="btn-go" (click)="loadMultiProductDrilldown()" style="background-color: #0f766e; color: white; padding: 5px 20px; border-radius: 5px; border: none; cursor: pointer;">Search</button>
+      </div>
+
+      <div *ngIf="isLoading" class="empty-state">Loading...</div>
+
+      <div class="table-scroll-container" *ngIf="multiProductDrilldownData.length > 0 && !isLoading">
+        <table class="data-table">
+          <thead>
+            <tr style="background-color: #f1f5f9;">
+              <th>Salon Name</th>
+              <th class="num"># times sold</th>
+              <th class="num">Sale Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of multiProductDrilldownData">
+              <td>{{ row.center_name }}</td>
+              <td class="num">{{ row.count }}</td>
+              <td class="num">{{ formatCurrency(row.amount) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div *ngIf="multiProductDrilldownData.length === 0 && !isLoading" class="empty-state">No records found.</div>
+    </div>
+
+<!-- SUB TAB: BALANCES -->
+    <div *ngIf="activeMultiTab === 'balances'">
+      <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 15px; padding: 10px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <label style="display:flex; align-items:center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" [(ngModel)]="showServiceBalances"> Service Balances
+        </label>
+        <label style="display:flex; align-items:center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" [(ngModel)]="showCardBalances"> Card Balances
+        </label>
+        <label style="display:flex; align-items:center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" [(ngModel)]="showAdvanceBalances"> Advance Balances
+        </label>
+        <button class="btn-go" (click)="loadMultiBalances()" style="background-color: #0f766e; color: white; padding: 5px 20px; border-radius: 5px; border: none; cursor: pointer;">Run</button>
+      </div>
+      
+      <div *ngIf="multiBalancesData.length === 0 && !isLoading" class="empty-state">
+        Click <strong>Run</strong> to view balances.
+      </div>
+      <div *ngIf="isLoading" class="empty-state">Loading...</div>
+
+      <div class="table-scroll-container" *ngIf="filteredBalances.length > 0">
+        <table class="data-table">
+          <thead>
+            <tr style="background-color: #0c4a6e; color: white;">
+              <th>Salon</th>
+              <th>Type</th>
+              <th>Name</th>
+              <th class="num">Count</th>
+              <th class="num">Value</th>
+              <th>Client</th>
+              <th>Phone</th>
+              <th>Expiry</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of filteredBalances">
+              <td>{{ row.center_name }}</td>
+              <td>{{ row.type }}</td>
+              <td>{{ row.name }}</td>
+              <td class="num">{{ row.count }}</td>
+              <td class="num">{{ row.value !== '-' ? formatCurrency(row.value) : '-' }}</td>
+              <td>{{ row.client }}</td>
+              <td>{{ row.phone }}</td>
+              <td>{{ row.expiry }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 
   <!-- ================================================ -->

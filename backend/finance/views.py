@@ -2158,3 +2158,372 @@ class MultiSalonExportView(views.APIView):
         response['Content-Disposition'] = 'attachment; filename=multi_salon_report.xlsx'
         wb.save(response)
         return response
+
+class MultiSalonBalancesView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Sum
+        from clients.models import ClientPackage, ClientValueCard
+        from billing.models import AdvancePayment
+        from salon_admin.models import Center
+        from datetime import date
+
+        user = request.user
+        perms = getattr(user.role, 'permissions', {}) or {}
+        is_owner = IsOwner.check_is_owner(user)
+        
+        centers_qs = Center.objects.all()
+        if not is_owner and not perms.get('all_centers', False):
+            if user.centers.exists():
+                centers_qs = centers_qs.filter(id__in=user.centers.all())
+            elif hasattr(user, 'center') and user.center:
+                centers_qs = centers_qs.filter(id=user.center.id)
+
+        center_ids = list(centers_qs.values_list('id', flat=True))
+        center_dict = {c.id: c.name for c in centers_qs}
+
+        results = []
+
+        # 1. Cards (ClientValueCard)
+        vc_qs = ClientValueCard.objects.filter(
+            client__center_id__in=center_ids,
+            balance__gt=0,
+            expiry_date__gte=date.today(),
+            is_active=True
+        )
+        for vc in vc_qs:
+            results.append({
+                'center_name': center_dict.get(vc.client.center_id, 'Unknown'),
+                'type': 'Value Card',
+                'name': vc.value_card.title if vc.value_card else 'Unknown',
+                'count': 1,
+                'value': float(vc.balance),
+                'client': f"{vc.client.first_name} {vc.client.last_name}".strip(),
+                'phone': vc.client.phone_number,
+                'expiry': vc.expiry_date.strftime('%Y-%m-%d') if vc.expiry_date else None
+            })
+
+        # 2. Advances (AdvancePayment)
+        advances = AdvancePayment.objects.filter(client__center_id__in=center_ids).values(
+            'client_id', 'client__first_name', 'client__last_name', 'client__phone_number', 'client__center_id'
+        ).annotate(
+            total_amount=Sum('amount')
+        ).filter(total_amount__gt=0)
+        
+        for adv in advances:
+            results.append({
+                'center_name': center_dict.get(adv['client__center_id'], 'Unknown'),
+                'type': 'Advance',
+                'name': 'Advance Balance',
+                'count': 1,
+                'value': float(adv['total_amount']),
+                'client': f"{adv['client__first_name']} {adv['client__last_name']}".strip(),
+                'phone': adv['client__phone_number'],
+                'expiry': '-'
+            })
+
+        # 3. Packages (ClientPackage)
+        pkg_qs = ClientPackage.objects.filter(
+            client__center_id__in=center_ids,
+            expiry_date__gte=date.today(),
+            is_active=True
+        )
+        for pkg in pkg_qs:
+            total_count = sum(pkg.services_remaining.values()) if isinstance(pkg.services_remaining, dict) else 0
+            if total_count > 0:
+                results.append({
+                    'center_name': center_dict.get(pkg.client.center_id, 'Unknown'),
+                    'type': 'Package',
+                    'name': pkg.package.name if pkg.package else 'Custom Package',
+                    'count': total_count,
+                    'value': '-',
+                    'client': f"{pkg.client.first_name} {pkg.client.last_name}".strip(),
+                    'phone': pkg.client.phone_number,
+                    'expiry': pkg.expiry_date.strftime('%Y-%m-%d') if pkg.expiry_date else None
+                })
+
+        return Response(results)
+
+class MultiSalonSalesExportView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        import openpyxl
+        from django.http import HttpResponse
+        from billing.models import InvoiceItem, AdvancePayment
+        from django.db.models import F
+
+        item_type = request.query_params.get('item_type')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        invoices = _get_filtered_invoices(request, None, start_date, end_date)
+
+        wb = openpyxl.Workbook(write_only=True)
+        ws = wb.create_sheet(title=f"{item_type.capitalize()} Sales")
+
+        if item_type == 'advances':
+            # Advances are not in InvoiceItem, they are AdvancePayment
+            advs = AdvancePayment.objects.filter(invoice__in=invoices).select_related('client', 'client__center')
+            ws.append(['Date', 'Center', 'Client', 'Phone', 'Amount'])
+            for adv in advs:
+                ws.append([
+                    adv.created_at.strftime('%Y-%m-%d') if adv.created_at else '',
+                    adv.client.center.name if adv.client and adv.client.center else 'Unknown',
+                    f"{adv.client.first_name} {adv.client.last_name}".strip() if adv.client else '',
+                    adv.client.phone_number if adv.client else '',
+                    float(adv.amount)
+                ])
+        else:
+            # Service, Product, Membership, Package, ValueCard
+            model_map = {
+                'service': 'servicemaster',
+                'product': 'product',
+                'membership': 'membership',
+                'package': 'package',
+                'valuecard': 'valuecard'
+            }
+            target_model = model_map.get(item_type)
+            
+            items = InvoiceItem.objects.filter(invoice__in=invoices)
+            if target_model:
+                items = items.filter(content_type__model=target_model)
+
+            items = items.select_related('invoice', 'invoice__client', 'invoice__center', 'staff')
+
+            ws.append(['Date', 'Center', 'Bill No', 'Client', 'Staff', 'Item Name', 'Quantity', 'Price', 'Discount', 'Tax', 'Total'])
+            for item in items:
+                inv = item.invoice
+                center_name = inv.center.name if inv.center else 'Unknown'
+                client_name = f"{inv.client.first_name} {inv.client.last_name}".strip() if inv.client else ''
+                staff_name = f"{item.staff.first_name} {item.staff.last_name}".strip() if item.staff else ''
+                
+                ws.append([
+                    inv.created_at.strftime('%Y-%m-%d') if inv.created_at else '',
+                    center_name,
+                    inv.id,
+                    client_name,
+                    staff_name,
+                    item.description,
+                    item.quantity,
+                    float(item.unit_price),
+                    float(item.discount),
+                    float(item.tax_amount),
+                    float(item.total_price)
+                ])
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename={item_type}_sales_report.xlsx'
+        wb.save(response)
+        return response
+
+class MultiSalonCategoriesView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Sum, Count, F, Q
+        from billing.models import InvoiceItem, AdvancePayment
+        from django.contrib.contenttypes.models import ContentType
+
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        invoices = _get_filtered_invoices(request, None, start_date, end_date)
+
+        from services.models import ServiceMaster
+        from inventory.models import Product
+        from marketing.models import Membership, Package, ValueCard
+
+        try:
+            ct_map = ContentType.objects.get_for_models(ServiceMaster, Product, Membership, Package, ValueCard)
+            service_ct = ct_map[ServiceMaster]
+            product_ct = ct_map[Product]
+            membership_ct = ct_map[Membership]
+            package_ct = ct_map[Package]
+            valuecard_ct = ct_map[ValueCard]
+        except Exception:
+            service_ct = product_ct = membership_ct = package_ct = valuecard_ct = None
+
+        # 1. Categories Aggregation (Top Table)
+        items = InvoiceItem.objects.filter(invoice__in=invoices)
+        cat_agg = items.values('content_type').annotate(
+            count=Sum('quantity'),
+            total=Sum('total_price')
+        )
+
+        memberships_count = 0
+        memberships_total = 0
+        valuecards_count = 0
+        valuecards_total = 0
+        packages_count = 0
+        packages_total = 0
+
+        for row in cat_agg:
+            ct = row['content_type']
+            cnt = row['count'] or 0
+            tot = row['total'] or 0
+            if membership_ct and ct == membership_ct.id:
+                memberships_count += cnt
+                memberships_total += tot
+            elif valuecard_ct and ct == valuecard_ct.id:
+                valuecards_count += cnt
+                valuecards_total += tot
+            elif package_ct and ct == package_ct.id:
+                packages_count += cnt
+                packages_total += tot
+
+        # Advances
+        advs = AdvancePayment.objects.filter(invoice__in=invoices).aggregate(
+            count=Count('id'), total=Sum('amount')
+        )
+        advances_count = advs['count'] or 0
+        advances_total = advs['total'] or 0
+
+        categories_summary = [
+            {'type': 'Memberships', 'count': int(memberships_count), 'amount': float(memberships_total)},
+            {'type': 'Value Cards', 'count': int(valuecards_count), 'amount': float(valuecards_total)},
+            {'type': 'Packages', 'count': int(packages_count), 'amount': float(packages_total)},
+            {'type': 'Advances', 'count': int(advances_count), 'amount': float(advances_total)},
+        ]
+
+        # 2. Services Sold
+        services_sold = items.filter(content_type=service_ct).values(
+            'object_id', 'description'
+        ).annotate(
+            centers_count=Count('invoice__center', distinct=True),
+            count=Sum('quantity'),
+            amount=Sum('total_price')
+        ).order_by('-amount')
+
+        # 3. Products Sold
+        products_sold = items.filter(content_type=product_ct).values(
+            'object_id', 'description'
+        ).annotate(
+            centers_count=Count('invoice__center', distinct=True),
+            count=Sum('quantity'),
+            amount=Sum('total_price')
+        ).order_by('-amount')
+
+        # We will retrieve HSN codes for services by querying the master tables
+        service_ids = [s['object_id'] for s in services_sold]
+        product_ids = [p['object_id'] for p in products_sold]
+
+        service_hsn_map = {
+            s.id: getattr(s, 'hsn_code', '') for s in ServiceMaster.objects.filter(id__in=service_ids)
+        }
+        product_hsn_map = {
+            p.id: getattr(p, 'hsn_code', '') for p in Product.objects.filter(id__in=product_ids)
+        }
+
+        services_result = []
+        for s in services_sold:
+            services_result.append({
+                'name': s['description'],
+                'hsn': service_hsn_map.get(s['object_id'], ''),
+                'centers': s['centers_count'],
+                'count': int(s['count'] or 0),
+                'amount': float(s['amount'] or 0)
+            })
+
+        products_result = []
+        for p in products_sold:
+            products_result.append({
+                'name': p['description'],
+                'hsn': product_hsn_map.get(p['object_id'], ''),
+                'centers': p['centers_count'],
+                'count': int(p['count'] or 0),
+                'amount': float(p['amount'] or 0)
+            })
+
+        return Response({
+            'categories': categories_summary,
+            'services': services_result,
+            'products': products_result
+        })
+
+class MultiSalonServiceDrilldownView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Sum, Count, F, Q
+        from billing.models import InvoiceItem
+        from django.contrib.contenttypes.models import ContentType
+        from services.models import ServiceMaster
+
+        search_term = request.query_params.get('search', '')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        invoices = _get_filtered_invoices(request, None, start_date, end_date)
+
+        try:
+            service_ct = ContentType.objects.get_for_model(ServiceMaster)
+        except Exception:
+            return Response([])
+
+        items = InvoiceItem.objects.filter(invoice__in=invoices, content_type=service_ct)
+        
+        if search_term:
+            items = items.filter(
+                Q(description__icontains=search_term) |
+                Q(content_object__category__name__icontains=search_term)
+            )
+
+        grouped = items.values('invoice__center__name').annotate(
+            count=Sum('quantity'),
+            amount=Sum('total_price')
+        ).order_by('-amount')
+
+        results = []
+        for g in grouped:
+            results.append({
+                'center_name': g['invoice__center__name'] or 'Unknown',
+                'count': int(g['count'] or 0),
+                'amount': float(g['amount'] or 0)
+            })
+
+        return Response(results)
+
+class MultiSalonProductDrilldownView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Sum, Count, F, Q
+        from billing.models import InvoiceItem
+        from django.contrib.contenttypes.models import ContentType
+        from inventory.models import Product
+
+        search_term = request.query_params.get('search', '')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        invoices = _get_filtered_invoices(request, None, start_date, end_date)
+
+        try:
+            product_ct = ContentType.objects.get_for_model(Product)
+        except Exception:
+            return Response([])
+
+        items = InvoiceItem.objects.filter(invoice__in=invoices, content_type=product_ct)
+        
+        if search_term:
+            items = items.filter(
+                Q(description__icontains=search_term) |
+                Q(content_object__brand__name__icontains=search_term)
+            )
+
+        grouped = items.values('invoice__center__name').annotate(
+            count=Sum('quantity'),
+            amount=Sum('total_price')
+        ).order_by('-amount')
+
+        results = []
+        for g in grouped:
+            results.append({
+                'center_name': g['invoice__center__name'] or 'Unknown',
+                'count': int(g['count'] or 0),
+                'amount': float(g['amount'] or 0)
+            })
+
+        return Response(results)
