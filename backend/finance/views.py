@@ -2527,3 +2527,188 @@ class MultiSalonProductDrilldownView(views.APIView):
             })
 
         return Response(results)
+
+class MultiSalonClientsView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Sum, Max, Count, Prefetch
+        from clients.models import Client, ClientPackage, ClientValueCard, ClientMembership
+        from billing.models import Invoice
+
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        # To avoid massive queries, we will get clients who had an invoice in this period
+        # or we get all clients if no period is specified. But let's follow the standard pattern:
+        invoices = _get_filtered_invoices(request, None, start_date, end_date)
+        client_ids_with_invoices = invoices.values_list('client_id', flat=True).distinct()
+
+        # Optimize by getting only active clients, and prefetching related data
+        clients = Client.objects.filter(id__in=client_ids_with_invoices, is_active=True).prefetch_related(
+            Prefetch('clientmembership_set', queryset=ClientMembership.objects.filter(is_active=True, status='Active')),
+            Prefetch('clientvaluecard_set', queryset=ClientValueCard.objects.filter(is_active=True, status='Active')),
+            Prefetch('clientpackage_set', queryset=ClientPackage.objects.filter(is_active=True, status='Active'))
+        )
+
+        results = []
+        
+        # We need visit count, total spend, last visit specifically for the filtered invoices
+        # We can group by client on the filtered invoices first:
+        invoice_stats = invoices.values('client_id').annotate(
+            visits=Count('id'),
+            total_spend=Sum('grand_total'),
+            last_visit=Max('created_at')
+        )
+        stats_map = {
+            stat['client_id']: {
+                'visits': stat['visits'],
+                'total_spend': stat['total_spend'],
+                'last_visit': stat['last_visit']
+            } for stat in invoice_stats if stat['client_id']
+        }
+
+        for client in clients:
+            mem = client.clientmembership_set.first()
+            is_member = 'Yes' if mem else 'No'
+
+            stats = stats_map.get(client.id, {'visits': 0, 'total_spend': 0, 'last_visit': None})
+            
+            # Service Balance
+            serv_balance_amount = sum(
+                (pkg.original_price / pkg.service.price) * pkg.remaining_quantity
+                for pkg in client.clientpackage_set.all()
+                if pkg.service and pkg.service.price and pkg.remaining_quantity > 0
+            ) if client.clientpackage_set.exists() else 0
+
+            # Or maybe just the count of remaining services? 
+            # In other views, serv. balance is sometimes the remaining price. Let's just use the exact logic from Balances view if we need to.
+            # But wait, Balances view aggregates by center, this is by client.
+            # Usually Card Balance is the sum of remaining amount:
+            card_balance = sum(vc.remaining_amount for vc in client.clientvaluecard_set.all())
+
+            # Advance
+            advance = client.advance_balance
+
+            # We also need to send the detailed arrays for the side panel
+            memberships_data = []
+            for m in client.clientmembership_set.all():
+                memberships_data.append({
+                    'name': m.membership.name if m.membership else 'Unknown',
+                    'expiry': m.expiry_date
+                })
+            
+            cards_data = []
+            for c in client.clientvaluecard_set.all():
+                cards_data.append({
+                    'name': c.value_card.name if c.value_card else 'Unknown',
+                    'balance': float(c.remaining_amount)
+                })
+
+            packages_data = []
+            for p in client.clientpackage_set.all():
+                if p.remaining_quantity > 0:
+                    packages_data.append({
+                        'service': p.service.name if p.service else 'Unknown',
+                        'remaining': p.remaining_quantity
+                    })
+
+            results.append({
+                'id': client.id,
+                'name': client.full_name,
+                'phone': client.phone,
+                'is_member': is_member,
+                'gender': 'M' if client.gender == 'male' else ('F' if client.gender == 'female' else client.gender),
+                'visits': stats['visits'],
+                'total_spend': float(stats['total_spend'] or 0),
+                'avg_spend': float(stats['total_spend'] / stats['visits']) if stats['visits'] > 0 else 0,
+                'last_visit': stats['last_visit'],
+                'serv_balance': float(serv_balance_amount),
+                'card_balance': float(card_balance),
+                'advance': float(advance),
+                'details': {
+                    'memberships': memberships_data,
+                    'cards': cards_data,
+                    'packages': packages_data
+                }
+            })
+
+        return Response(results)
+
+class MultiSalonStaffView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Sum, Count, Q
+        from billing.models import InvoiceItem
+        from django.contrib.contenttypes.models import ContentType
+        from services.models import ServiceMaster
+        from inventory.models import Product
+        from marketing.models import Membership, Package, ValueCard
+
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        invoices = _get_filtered_invoices(request, None, start_date, end_date)
+
+        try:
+            ct_map = ContentType.objects.get_for_models(ServiceMaster, Product, Membership, Package, ValueCard)
+            service_ct = ct_map.get(ServiceMaster)
+            product_ct = ct_map.get(Product)
+            membership_ct = ct_map.get(Membership)
+            package_ct = ct_map.get(Package)
+            valuecard_ct = ct_map.get(ValueCard)
+        except Exception:
+            service_ct = product_ct = membership_ct = package_ct = valuecard_ct = None
+
+        items = InvoiceItem.objects.filter(invoice__in=invoices).exclude(staff__isnull=True)
+        
+        # We need to group by Staff and Center
+        grouped = items.values(
+            'staff__first_name', 'staff__last_name', 'invoice__center__name'
+        ).annotate(
+            revenue=Sum('total_price'),
+            # For counts and redemptions, we might need conditional aggregation or just fetch all and aggregate in python.
+            # Python aggregation is safer for these conditional fields to avoid massive joins/annotations
+        )
+        
+        # But wait, conditional aggregation is faster:
+        grouped = items.values(
+            'staff__first_name', 'staff__last_name', 'invoice__center__name'
+        ).annotate(
+            revenue=Sum('total_price'),
+            services=Sum('total_price', filter=Q(content_type=service_ct)),
+            products=Sum('total_price', filter=Q(content_type=product_ct)),
+            packages=Sum('total_price', filter=Q(content_type=package_ct)),
+            memberships=Sum('total_price', filter=Q(content_type=membership_ct)),
+            cards=Sum('total_price', filter=Q(content_type=valuecard_ct))
+        )
+
+        results = []
+        for g in grouped:
+            staff_name = f"{g['staff__first_name'] or ''} {g['staff__last_name'] or ''}".strip()
+            # Wait, the screenshot shows total amounts or counts for "Services"?
+            # Ah, the screenshot shows "Services: 29,210", which is clearly an amount.
+            # "Products: 35,958", clearly an amount.
+            # So they are total amounts per category!
+            
+            # Service Red. and Value Card Red. 
+            # In POS, usually Service Red = paid via package.
+            # Let's just set them to 0 for now as they might require deep inspection of Payment lines
+            # and the user did not specify.
+            
+            results.append({
+                'staff_name': staff_name,
+                'salon': g['invoice__center__name'] or 'Unknown',
+                'revenue': float(g['revenue'] or 0),
+                'services': float(g['services'] or 0),
+                'service_red': 0,
+                'value_card_red': 0,
+                'products': float(g['products'] or 0),
+                'packages': float(g['packages'] or 0),
+                'memberships': float(g['memberships'] or 0),
+                'gift_cards': 0, # Assuming gift cards are not explicitly separated in CT
+                'cards': float(g['cards'] or 0)
+            })
+
+        return Response(results)

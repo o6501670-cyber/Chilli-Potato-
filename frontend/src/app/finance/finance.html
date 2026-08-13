@@ -594,7 +594,7 @@
   <!-- ================================================ -->
   <div class="tab-body" *ngIf="activeMainTab === 'multi'">
     
-    <!-- MULTI SALON SUB-NAVIGATION -->
+        <!-- MULTI SALON SUB-NAVIGATION -->
     <div class="tabs-bar" style="margin-bottom: 20px; background-color: #f1f5f9; padding: 10px; border-radius: 8px;">
       <button class="tab-btn" [class.active]="activeMultiTab === 'register'" (click)="setMultiTab('register')">Register Summary</button>
       <button class="tab-btn" [class.active]="activeMultiTab === 'balances'" (click)="setMultiTab('balances')">Balances</button>
@@ -602,6 +602,9 @@
       <button class="tab-btn" [class.active]="activeMultiTab === 'categories'" (click)="setMultiTab('categories')">Categories</button>
       <button class="tab-btn" [class.active]="activeMultiTab === 'service_drilldown'" (click)="setMultiTab('service_drilldown')">Service Drilldown</button>
       <button class="tab-btn" [class.active]="activeMultiTab === 'product_drilldown'" (click)="setMultiTab('product_drilldown')">Product Drilldown</button>
+      <button class="tab-btn" [class.active]="activeMultiTab === 'petty_cash'" (click)="setMultiTab('petty_cash')">Petty Cash</button>
+      <button class="tab-btn" [class.active]="activeMultiTab === 'clients'" (click)="setMultiTab('clients')">Clients</button>
+      <button class="tab-btn" [class.active]="activeMultiTab === 'staff'" (click)="setMultiTab('staff')">Staff</button>
     </div>
 
     <!-- SUB TAB: REGISTER SUMMARY -->
@@ -881,6 +884,251 @@
     </div>
 
   </div>
+
+  
+    <!-- SUB TAB: PETTY CASH -->
+    <div *ngIf="activeMultiTab === 'petty_cash'">
+      <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <span style="font-weight: 500;">From:</span>
+        <input type="date" [(ngModel)]="multiStartDate" class="date-inp">
+        <span style="font-weight: 500;">To:</span>
+        <input type="date" [(ngModel)]="multiEndDate" class="date-inp">
+        <button class="btn-go" (click)="loadMultiPettyCash()" style="background-color: #0f766e; color: white; padding: 5px 20px; border-radius: 5px; border: none; cursor: pointer;">Run</button>
+      </div>
+
+      <div style="display: flex; gap: 20px;">
+        <!-- Left: Summary -->
+        <div style="flex: 1; min-width: 300px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px;">
+          <h3 style="text-align: center; margin-bottom: 15px;">Petty Cash Summary</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tbody>
+              <tr *ngFor="let sum of multiPettyCashSummary" style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 10px 0;">{{ sum.category }}</td>
+                <td style="text-align: right; padding: 10px 0;">{{ formatCurrency(sum.amount) }}</td>
+              </tr>
+              <tr style="border-top: 2px solid #cbd5e1; font-weight: bold;">
+                <td style="padding: 10px 0;">Total</td>
+                <td style="text-align: right; padding: 10px 0;">{{ formatCurrency(multiPettyCashTotal) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Right: List -->
+        <div style="flex: 2; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div>
+              <span style="font-weight: 500; margin-right: 10px;">Select Center</span>
+              <select [(ngModel)]="multiPettyCashCenterId" (change)="loadMultiPettyCash()" style="padding: 5px; border-radius: 5px; border: 1px solid #cbd5e1;">
+                <option *ngFor="let center of centers" [value]="center.id">{{ center.name }}</option>
+              </select>
+            </div>
+            <div style="font-weight: 500; display: flex; align-items: center; gap: 10px;">
+              Petty Cash List
+              <button (click)="exportMultiPettyCash()" style="background: none; border: none; cursor: pointer; color: #0891b2;" title="Export to Excel">
+                <i class="fa fa-file-excel-o"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div *ngIf="isLoading" class="empty-state">Loading...</div>
+          
+          <div class="table-scroll-container" *ngIf="!isLoading">
+            <table class="data-table">
+              <thead>
+                <tr style="background-color: #f1f5f9;">
+                  <th>Date</th>
+                  <th>Recorded by</th>
+                  <th>Category</th>
+                  <th class="num">In</th>
+                  <th class="num">Out</th>
+                  <th>Voucher</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let log of multiPettyCashLogs">
+                  <td>{{ log.created_at | date:'dd-MMM-yyyy HH:mm' }}</td>
+                  <td>{{ log.user_name || 'Unknown' }}</td>
+                  <td>{{ log.description || log.category }}</td>
+                  <td class="num">{{ (log.type === 'in' || (log.amount > 0 && log.type !== 'out')) ? log.amount : '-' }}</td>
+                  <td class="num">{{ (log.type === 'out' || log.amount < 0) ? (log.amount < 0 ? -log.amount : log.amount) : '-' }}</td>
+                  <td>{{ log.voucher_number || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div *ngIf="multiPettyCashLogs.length === 0" class="empty-state">No records found.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+  
+    <!-- SUB TAB: CLIENTS -->
+    <div *ngIf="activeMultiTab === 'clients'">
+      <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <span style="font-weight: 500;">From:</span>
+        <input type="date" [(ngModel)]="multiStartDate" class="date-inp">
+        <span style="font-weight: 500;">To:</span>
+        <input type="date" [(ngModel)]="multiEndDate" class="date-inp">
+        <button class="btn-go" (click)="loadMultiClients()" style="background-color: #0f766e; color: white; padding: 5px 20px; border-radius: 5px; border: none; cursor: pointer;">Run</button>
+        <button (click)="exportMultiClients()" style="background: none; border: none; cursor: pointer; color: #0891b2; font-size: 1.2rem; display: flex; align-items: center; gap: 5px;" title="Export to Excel">
+          <i class="fa fa-file-excel-o"></i> <span style="font-size: 0.9rem;">Get all clients (ever billed)</span>
+        </button>
+      </div>
+
+      <div style="display: flex; gap: 20px;">
+        <!-- Left: Clients List -->
+        <div style="flex: 3; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px;">
+          <div *ngIf="isLoading" class="empty-state">Loading...</div>
+          
+          <div class="table-scroll-container" *ngIf="!isLoading">
+            <table class="data-table">
+              <thead>
+                <tr style="background-color: #f1f5f9;">
+                  <th>Client Name</th>
+                  <th>Phone</th>
+                  <th>Member?</th>
+                  <th>Gender</th>
+                  <th class="num">Visits</th>
+                  <th class="num">Average Spend</th>
+                  <th class="num">Total Spend</th>
+                  <th>Last Visit</th>
+                  <th class="num">Serv. Balance</th>
+                  <th class="num">Card Balance</th>
+                  <th class="num">Advance</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let client of multiClientsData" (click)="selectMultiClient(client)" [style.background-color]="selectedMultiClient?.id === client.id ? '#e2e8f0' : 'transparent'" style="cursor: pointer;">
+                  <td>{{ client.name }}</td>
+                  <td>{{ client.phone }}</td>
+                  <td>{{ client.is_member }}</td>
+                  <td>{{ client.gender }}</td>
+                  <td class="num">{{ client.visits }}</td>
+                  <td class="num">{{ formatCurrency(client.avg_spend) }}</td>
+                  <td class="num">{{ formatCurrency(client.total_spend) }}</td>
+                  <td>{{ client.last_visit ? (client.last_visit | date:'dd-MMM-yyyy, HH:mm') : '-' }}</td>
+                  <td class="num">{{ client.serv_balance !== 0 ? formatCurrency(client.serv_balance) : '-' }}</td>
+                  <td class="num">{{ client.card_balance !== 0 ? formatCurrency(client.card_balance) : '-' }}</td>
+                  <td class="num">{{ client.advance !== 0 ? formatCurrency(client.advance) : '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div *ngIf="multiClientsData.length === 0" class="empty-state">No records found.</div>
+          </div>
+        </div>
+
+        <!-- Right: Client Details Panel -->
+        <div style="flex: 1; min-width: 250px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px;">
+          <div *ngIf="selectedMultiClient">
+            <h3 style="color: #0891b2; margin-bottom: 5px;">{{ selectedMultiClient.name }}</h3>
+            <p style="color: #64748b; margin-bottom: 20px;">{{ selectedMultiClient.phone }}</p>
+
+            <div style="margin-bottom: 20px;">
+              <h4 style="margin-bottom: 5px;">Memberships:</h4>
+              <div *ngIf="selectedMultiClient.details?.memberships?.length > 0">
+                <div *ngFor="let m of selectedMultiClient.details.memberships" style="color: #0891b2; font-size: 0.9rem;">
+                  {{ m.name }}, Expiry: {{ m.expiry | date:'dd-MMM-yyyy' }}
+                </div>
+              </div>
+              <div *ngIf="!selectedMultiClient.details?.memberships?.length">No active memberships</div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <h4 style="margin-bottom: 5px;">Advance Balances:</h4>
+              <div *ngIf="selectedMultiClient.advance > 0" style="color: #0891b2; font-size: 0.9rem;">
+                Total Advance: {{ formatCurrency(selectedMultiClient.advance) }}
+              </div>
+              <div *ngIf="!selectedMultiClient.advance || selectedMultiClient.advance <= 0">No advance balances</div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <h4 style="margin-bottom: 5px;">Cards:</h4>
+              <div *ngIf="selectedMultiClient.details?.cards?.length > 0">
+                <div *ngFor="let c of selectedMultiClient.details.cards" style="color: #0891b2; font-size: 0.9rem;">
+                  {{ c.name }}: {{ formatCurrency(c.balance) }}
+                </div>
+              </div>
+              <div *ngIf="!selectedMultiClient.details?.cards?.length">No Cards</div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <h4 style="margin-bottom: 5px;">Service Balances:</h4>
+              <div *ngIf="selectedMultiClient.details?.packages?.length > 0">
+                <div *ngFor="let p of selectedMultiClient.details.packages" style="color: #0891b2; font-size: 0.9rem;">
+                  {{ p.service }} ({{ p.remaining }} left)
+                </div>
+              </div>
+              <div *ngIf="!selectedMultiClient.details?.packages?.length">No Service Balance Items</div>
+            </div>
+          </div>
+          <div *ngIf="!selectedMultiClient" style="color: #94a3b8; text-align: center; margin-top: 50px;">
+            Select a client to view details
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+  
+    <!-- SUB TAB: STAFF -->
+    <div *ngIf="activeMultiTab === 'staff'">
+      <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <span style="font-weight: 500;">From:</span>
+        <input type="date" [(ngModel)]="multiStartDate" class="date-inp">
+        <span style="font-weight: 500;">To:</span>
+        <input type="date" [(ngModel)]="multiEndDate" class="date-inp">
+        <button class="btn-go" (click)="loadMultiStaff()" style="background-color: #0f766e; color: white; padding: 5px 20px; border-radius: 5px; border: none; cursor: pointer;">Run</button>
+        <button (click)="exportMultiStaff()" style="background: none; border: none; cursor: pointer; color: #0891b2; display: flex; align-items: center; gap: 5px; margin-left: 20px;">
+          Get Excel Export of table
+        </button>
+        <button style="background: none; border: none; cursor: pointer; color: #0891b2; display: flex; align-items: center; gap: 5px;">
+          Get Detailed Staff Report
+        </button>
+      </div>
+
+      <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px;">
+        <div *ngIf="isLoading" class="empty-state">Loading...</div>
+        
+        <div class="table-scroll-container" *ngIf="!isLoading">
+          <table class="data-table">
+            <thead>
+              <tr style="background-color: #f1f5f9;">
+                <th>Staff</th>
+                <th>Salon</th>
+                <th class="num">Revenue</th>
+                <th class="num">Services</th>
+                <th class="num">Service Red.</th>
+                <th class="num">Value Card Red.</th>
+                <th class="num">Products</th>
+                <th class="num">Packages</th>
+                <th class="num">Memberships</th>
+                <th class="num">Gift Cards</th>
+                <th class="num">Cards</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let staff of multiStaffData">
+                <td>{{ staff.staff_name }}</td>
+                <td>{{ staff.salon }}</td>
+                <td class="num">{{ formatCurrency(staff.revenue) }}</td>
+                <td class="num">{{ formatCurrency(staff.services) }}</td>
+                <td class="num">{{ formatCurrency(staff.service_red) }}</td>
+                <td class="num">{{ formatCurrency(staff.value_card_red) }}</td>
+                <td class="num">{{ formatCurrency(staff.products) }}</td>
+                <td class="num">{{ formatCurrency(staff.packages) }}</td>
+                <td class="num">{{ formatCurrency(staff.memberships) }}</td>
+                <td class="num">{{ formatCurrency(staff.gift_cards) }}</td>
+                <td class="num">{{ formatCurrency(staff.cards) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div *ngIf="multiStaffData.length === 0" class="empty-state">No records found.</div>
+        </div>
+      </div>
+    </div>
+
 
   <!-- ================================================ -->
   <!-- INCENTIVES SUBMODULE (CALCULATION & DRILLDOWN)    -->

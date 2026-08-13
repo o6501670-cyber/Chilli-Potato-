@@ -1262,6 +1262,178 @@ export class FinanceComponent implements OnInit {
     }
   }
 
+  
+  multiPettyCashLogs: any[] = [];
+  multiPettyCashSummary: any[] = [];
+  multiPettyCashTotal: number = 0;
+  multiPettyCashCenterId: number = 0;
+
+  loadMultiPettyCash() {
+    if (!this.multiPettyCashCenterId) {
+      if (this.centers && this.centers.length > 0) {
+        this.multiPettyCashCenterId = this.centers[0].id;
+      } else {
+        return;
+      }
+    }
+    
+    this.isLoading = true;
+    this.apiService.getPettyCashEntries(this.multiPettyCashCenterId, this.multiStartDate, this.multiEndDate)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: res => {
+          this.multiPettyCashLogs = res || [];
+          
+          // Calculate summary
+          const summaryMap: any = {};
+          this.multiPettyCashTotal = 0;
+          
+          for (let log of this.multiPettyCashLogs) {
+            const cat = log.description || log.category || 'Miscellaneous';
+            let amount = 0;
+            if (log.type === 'out' || log.amount < 0) {
+              amount = log.amount < 0 ? -log.amount : log.amount;
+            }
+            // We only summarize outgoing expenses per screenshot (In/Out, summary shows positive values for expenses)
+            // Wait, the screenshot shows "Miscellaneous: 57,590", "Total: 57,590"
+            // If it's an expense, we add it. If it's income, do we subtract or keep separate? 
+            // We'll just sum all OUT amounts for the summary.
+            if (amount > 0) {
+                summaryMap[cat] = (summaryMap[cat] || 0) + parseFloat(amount.toString());
+                this.multiPettyCashTotal += parseFloat(amount.toString());
+            }
+          }
+          
+          this.multiPettyCashSummary = Object.keys(summaryMap).map(k => ({ category: k, amount: summaryMap[k] }));
+          
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        },
+        error: err => {
+          console.error(err);
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        }
+      });
+  }
+
+  exportMultiPettyCash() {
+    import('xlsx').then(xlsx => {
+      const data = this.multiPettyCashLogs.map(log => {
+        const isIn = (log.type === 'in' || (log.amount > 0 && log.type !== 'out'));
+        const isOut = (log.type === 'out' || log.amount < 0);
+        return {
+          Date: new Date(log.created_at).toLocaleString(),
+          'Recorded by': log.user_name || 'Unknown',
+          Category: log.description || log.category,
+          In: isIn ? log.amount : '-',
+          Out: isOut ? (log.amount < 0 ? -log.amount : log.amount) : '-',
+          Voucher: log.voucher_number || '-'
+        };
+      });
+      const ws = xlsx.utils.json_to_sheet(data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, 'Petty Cash');
+      xlsx.writeFile(wb, `PettyCash_${this.multiPettyCashCenterId}_${this.multiStartDate}_${this.multiEndDate}.xlsx`);
+    });
+  }
+
+  
+  multiClientsData: any[] = [];
+  selectedMultiClient: any = null;
+
+  loadMultiClients() {
+    this.isLoading = true;
+    const url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/clients/?start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch(url, { headers: { 'Authorization': `Token ${token}` } })
+        .then(res => res.json())
+        .then(data => {
+          this.multiClientsData = data || [];
+          this.selectedMultiClient = null;
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        })
+        .catch(err => {
+          console.error(err);
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        });
+    }
+  }
+
+  exportMultiClients() {
+    import('xlsx').then(xlsx => {
+      const data = this.multiClientsData.map(c => ({
+        'Client Name': c.name,
+        'Phone': c.phone,
+        'Member?': c.is_member,
+        'Gender': c.gender,
+        'Visits': c.visits,
+        'Average Spend': c.avg_spend,
+        'Total Spend': c.total_spend,
+        'Last Visit': c.last_visit ? new Date(c.last_visit).toLocaleString() : '-',
+        'Serv. Balance': c.serv_balance || '-',
+        'Card Balance': c.card_balance || '-',
+        'Advance': c.advance || '-'
+      }));
+      const ws = xlsx.utils.json_to_sheet(data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, 'Clients');
+      xlsx.writeFile(wb, `Clients_${this.multiStartDate}_${this.multiEndDate}.xlsx`);
+    });
+  }
+
+  selectMultiClient(client: any) {
+    this.selectedMultiClient = client;
+  }
+
+  
+  multiStaffData: any[] = [];
+
+  loadMultiStaff() {
+    this.isLoading = true;
+    const url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/staff/?start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch(url, { headers: { 'Authorization': `Token ${token}` } })
+        .then(res => res.json())
+        .then(data => {
+          this.multiStaffData = data || [];
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        })
+        .catch(err => {
+          console.error(err);
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        });
+    }
+  }
+
+  exportMultiStaff() {
+    import('xlsx').then(xlsx => {
+      const data = this.multiStaffData.map(s => ({
+        'Staff': s.staff_name,
+        'Salon': s.salon,
+        'Revenue': s.revenue,
+        'Services': s.services,
+        'Service Red.': s.service_red,
+        'Value Card Red.': s.value_card_red,
+        'Products': s.products,
+        'Packages': s.packages,
+        'Memberships': s.memberships,
+        'Gift Cards': s.gift_cards,
+        'Cards': s.cards
+      }));
+      const ws = xlsx.utils.json_to_sheet(data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, 'Staff Performance');
+      xlsx.writeFile(wb, `Staff_Performance_${this.multiStartDate}_${this.multiEndDate}.xlsx`);
+    });
+  }
+
   runMultiSalon() {
     this.loadMultiSalonData();
   }
