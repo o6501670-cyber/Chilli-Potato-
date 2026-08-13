@@ -2398,19 +2398,35 @@ class MultiSalonCategoriesView(views.APIView):
         services_sold = items.filter(content_type=service_ct).values(
             'object_id', 'description'
         ).annotate(
-            centers_count=Count('invoice__center', distinct=True),
             count=Sum('quantity'),
             amount=Sum('total_price')
         ).order_by('-amount')
+
+        service_centers = items.filter(content_type=service_ct).values('object_id', 'invoice__center__center_name', 'invoice__center__display_name').distinct()
+        sc_map = {}
+        for sc in service_centers:
+            obj_id = sc['object_id']
+            c_name = sc['invoice__center__display_name'] or sc['invoice__center__center_name'] or 'Unknown'
+            if obj_id not in sc_map:
+                sc_map[obj_id] = set()
+            sc_map[obj_id].add(c_name)
 
         # 3. Products Sold
         products_sold = items.filter(content_type=product_ct).values(
             'object_id', 'description'
         ).annotate(
-            centers_count=Count('invoice__center', distinct=True),
             count=Sum('quantity'),
             amount=Sum('total_price')
         ).order_by('-amount')
+
+        product_centers = items.filter(content_type=product_ct).values('object_id', 'invoice__center__center_name', 'invoice__center__display_name').distinct()
+        pc_map = {}
+        for pc in product_centers:
+            obj_id = pc['object_id']
+            c_name = pc['invoice__center__display_name'] or pc['invoice__center__center_name'] or 'Unknown'
+            if obj_id not in pc_map:
+                pc_map[obj_id] = set()
+            pc_map[obj_id].add(c_name)
 
         # We will retrieve HSN codes for services by querying the master tables
         service_ids = [s['object_id'] for s in services_sold]
@@ -2425,20 +2441,22 @@ class MultiSalonCategoriesView(views.APIView):
 
         services_result = []
         for s in services_sold:
+            centers_list = sorted(list(sc_map.get(s['object_id'], set())))
             services_result.append({
                 'name': s['description'],
                 'hsn': service_hsn_map.get(s['object_id'], ''),
-                'centers': s['centers_count'],
+                'centers': ", ".join(centers_list) if centers_list else "Unknown",
                 'count': int(s['count'] or 0),
                 'amount': float(s['amount'] or 0)
             })
 
         products_result = []
         for p in products_sold:
+            centers_list = sorted(list(pc_map.get(p['object_id'], set())))
             products_result.append({
                 'name': p['description'],
                 'hsn': product_hsn_map.get(p['object_id'], ''),
-                'centers': p['centers_count'],
+                'centers': ", ".join(centers_list) if centers_list else "Unknown",
                 'count': int(p['count'] or 0),
                 'amount': float(p['amount'] or 0)
             })
