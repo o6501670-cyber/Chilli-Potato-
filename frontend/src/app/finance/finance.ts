@@ -32,7 +32,6 @@ export class FinanceComponent implements OnInit {
   activeMainTab = 'single';
   activeMultiTab = 'register';
   activeSingleTab = 'register';
-  activeMultiTab = 'balances';
   activePettyCashTab = 'admin';
   activeClosingTab = 'admin';
   selectedAdminClosing: any = null;
@@ -571,7 +570,6 @@ export class FinanceComponent implements OnInit {
 
     if (this.isOwner || this.permissions.finance?.register_summary?.read || this.permissions.finance?.monthly_sales?.read || this.permissions.finance?.detailed_revenues?.read || this.permissions.finance?.refunds?.read || this.permissions.finance?.procurement?.read) {
       this.activeMainTab = 'single';
-  activeMultiTab = 'register';
       if (this.isOwner || this.permissions.finance?.register_summary?.read) {
         this.activeSingleTab = 'register';
       } else if (this.permissions.finance?.monthly_sales?.read) {
