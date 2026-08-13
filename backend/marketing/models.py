@@ -54,6 +54,7 @@ class Promotion(models.Model):
         return self.name
 
     class Meta:
+        ordering = ['name']
         indexes = [
             models.Index(fields=['is_active', 'start_date', 'end_date'], name='promo_active_dates_idx'),
             models.Index(fields=['created_at'], name='promo_created_idx'),
@@ -122,6 +123,7 @@ class Membership(models.Model):
         return self.name
 
     class Meta:
+        ordering = ['name']
         indexes = [
             models.Index(fields=['is_active'], name='mbr_active_idx'),
             models.Index(fields=['created_at'], name='mbr_created_idx'),
@@ -144,6 +146,7 @@ class Package(models.Model):
         return self.name
 
     class Meta:
+        ordering = ['name']
         indexes = [
             models.Index(fields=['is_active'], name='pkg_active_idx'),
             models.Index(fields=['created_at'], name='pkg_created_idx'),

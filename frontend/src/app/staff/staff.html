@@ -478,7 +478,7 @@
             <div class="grid-item">
               <label>SALARY</label>
               <div class="edit-wrapper">
-                <input type="number" class="inline-input" [ngModel]="selectedStaff.salary"
+                <input type="number" min="0" oninput="validity.valid||(value='');" class="inline-input" [ngModel]="selectedStaff.salary"
                   (change)="updateStaffField('salary', $event)" placeholder="0" [readonly]="!isOwner">
                 <span class="edit-icon" *ngIf="isOwner"><svg width='16' height='16' viewBox='0 0 24 24' fill='none'
                     stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
@@ -489,7 +489,7 @@
             <div class="grid-item">
               <label style="color: #007B8F; font-weight:700;">PERK POINTS</label>
               <div class="edit-wrapper">
-                <input type="number" class="inline-input" style="color: #007B8F; font-weight:600;"
+                <input type="number" min="0" oninput="validity.valid||(value='');" class="inline-input" style="color: #007B8F; font-weight:600;"
                   [ngModel]="selectedStaff.allocated_points" (change)="updateStaffField('allocated_points', $event)"
                   placeholder="0.00" [readonly]="!isOwner">
                 <span class="edit-icon" *ngIf="isOwner"><svg width='16' height='16' viewBox='0 0 24 24' fill='none'
@@ -727,15 +727,15 @@
         </div>
         <div class="form-group" style="width: 120px;">
           <label>Base Salary</label>
-          <input type="number" class="form-control" [(ngModel)]="newDesignation.salary" placeholder="0">
+          <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newDesignation.salary" placeholder="0">
         </div>
         <div class="form-group" style="width: 120px;">
           <label>Service Comm %</label>
-          <input type="number" class="form-control" [(ngModel)]="newDesignation.commission_percentage" placeholder="0">
+          <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newDesignation.commission_percentage" placeholder="0">
         </div>
         <div class="form-group" style="width: 120px;">
           <label>Prod Comm %</label>
-          <input type="number" class="form-control" [(ngModel)]="newDesignation.product_commission_percentage"
+          <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newDesignation.product_commission_percentage"
             placeholder="0">
         </div>
         <div class="form-group">
@@ -869,23 +869,23 @@
         <div class="form-row">
           <div class="form-group">
             <label>Salary</label>
-            <input type="number" class="form-control" [(ngModel)]="newStaff.salary" name="salary">
+            <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newStaff.salary" name="salary">
           </div>
           <div class="form-group">
             <label>Service Commission (%)</label>
-            <input type="number" class="form-control" [(ngModel)]="newStaff.commission_percentage"
+            <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newStaff.commission_percentage"
               name="commission_percentage">
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Product Commission (%)</label>
-            <input type="number" class="form-control" [(ngModel)]="newStaff.product_commission_percentage"
+            <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newStaff.product_commission_percentage"
               name="product_commission_percentage">
           </div>
           <div class="form-group" style="width: 50%;">
             <label style="color: #007B8F; font-weight: 600;">Perk Points</label>
-            <input type="number" class="form-control" [(ngModel)]="newStaff.allocated_points" step="0.01"
+            <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newStaff.allocated_points" step="0.01"
               name="allocated_points">
           </div>
         </div>
@@ -964,7 +964,7 @@
         </div>
         <div class="form-group">
           <label>Price Collected</label>
-          <input type="number" class="form-control" [(ngModel)]="newLog.price">
+          <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newLog.price">
         </div>
       </ng-container>
 
@@ -994,7 +994,7 @@
         <div class="form-row">
           <div class="form-group">
             <label>Amount (Cost of Service)</label>
-            <input type="number" class="form-control" [(ngModel)]="newConsumptionLog.amount">
+            <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newConsumptionLog.amount">
           </div>
           <div class="form-group">
             <label>Payment Method</label>
@@ -1440,11 +1440,11 @@
       <div class="form-row">
         <div class="form-group">
           <label>Start Date</label>
-          <input type="date" class="form-control" [(ngModel)]="newTransfer.start_date">
+          <input type="date" class="form-control" min="{{todayDate}}" [(ngModel)]="newTransfer.start_date">
         </div>
         <div class="form-group" *ngIf="newTransfer.transfer_type === 'Temporary'">
           <label>End Date (Optional)</label>
-          <input type="date" class="form-control" [(ngModel)]="newTransfer.end_date">
+          <input type="date" class="form-control" min="{{todayDate}}" [(ngModel)]="newTransfer.end_date">
         </div>
       </div>
     </div>
@@ -1481,7 +1481,7 @@
         </div>
         <div class="form-group" style="width: 20%;">
           <label>Qty / Amount</label>
-          <input type="number" class="form-control" [(ngModel)]="newTool.amount">
+          <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newTool.amount">
         </div>
         <div class="form-group">
           <label>Date Taken</label>
@@ -1560,10 +1560,10 @@
           <label style="font-weight: 600;">Select Month:</label>
           <input type="month" class="form-control" style="width: auto;" [(ngModel)]="reportMonth">
           <label style="font-weight: 600; margin-left: 10px;">Target Multiplier (x):</label>
-          <input type="number" class="form-control" style="width: 80px;" [(ngModel)]="targetMultiplier" min="0"
+          <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 80px;" [(ngModel)]="targetMultiplier" min="0"
             step="0.5">
           <label style="font-weight: 600; margin-left: 10px;">Incentive %:</label>
-          <input type="number" class="form-control" style="width: 80px;" [(ngModel)]="incentivePercent" min="0">
+          <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 80px;" [(ngModel)]="incentivePercent" min="0">
           <button class="btn btn-dark" (click)="loadIncentiveReport()">Calculate Incentives</button>
           <button class="btn btn-primary" style="background-color: #10b981; border-color: #10b981;"
             (click)="exportIncentivesExcel()" *ngIf="incentiveReport.length > 0">
@@ -1590,7 +1590,7 @@
               <td class="font-weight-bold">{{ item.staff_name }}</td>
               <td>{{item.display_name || item.center_name}}</td>
               <td class="text-right">
-                <input type="number" class="form-control inline-input"
+                <input type="number" min="0" oninput="validity.valid||(value='');" class="form-control inline-input"
                   style="width: 100px; display: inline-block; text-align: right;" [(ngModel)]="item.salary"
                   (change)="updateStaffSalary(item.staff_id, item.salary)">
               </td>

@@ -11,6 +11,7 @@ import { AuthService } from '../services/auth';
   styleUrl: './login.css',
 })
 export class LoginComponent implements OnInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   authService = inject(AuthService);
 

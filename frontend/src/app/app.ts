@@ -11,6 +11,7 @@ import { LoadingService } from './loading.service';
   styleUrl: './app.css'
 })
 export class App {
+  todayDate: string = new Date().toISOString().split('T')[0];
   protected readonly title = signal('pos-frontend');
   public loadingService = inject(LoadingService);
 }

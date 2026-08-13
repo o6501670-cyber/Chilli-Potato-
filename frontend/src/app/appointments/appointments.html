@@ -14,7 +14,7 @@
 
       <div class="date-picker-group">
         <button class="icon-btn" (click)="prevDay()">❮</button>
-        <input type="date" class="form-control date-input" [ngModel]="selectedDate" (change)="onDateChange($event)">
+        <input type="date" class="form-control date-input" min="{{todayDate}}" [ngModel]="selectedDate" (change)="onDateChange($event)">
         <button class="icon-btn" (click)="nextDay()">❯</button>
         <button class="btn btn-outline today-btn" (click)="setToday()">Today</button>
       </div>
@@ -204,7 +204,7 @@
           <div class="form-row">
             <div class="form-group w-50">
               <label>DATE</label>
-              <input type="date" class="form-control" [(ngModel)]="currentAppointment.date">
+              <input type="date" class="form-control" min="{{todayDate}}" [(ngModel)]="currentAppointment.date">
             </div>
             <div class="form-group w-50">
               <label>START TIME</label>
@@ -258,7 +258,7 @@
                   <input type="time" class="form-control" [(ngModel)]="s.time" (ngModelChange)="recalculateTimes()">
                 </div>
                 <div class="col-dur">
-                  <input type="number" class="form-control" [(ngModel)]="s.duration"
+                  <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="s.duration"
                     (ngModelChange)="recalculateTimes()">
                 </div>
                 <div class="col-staff">

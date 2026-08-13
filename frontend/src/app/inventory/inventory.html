@@ -130,11 +130,11 @@
             </div>
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:0.8rem; color: #64748b;">Price:</label>
-              <input type="number" class="form-control" [(ngModel)]="newProduct.price" name="price" step="0.01">
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newProduct.price" name="price" step="0.01">
             </div>
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:0.8rem; color: #64748b;">GST:</label>
-              <input type="number" class="form-control" [(ngModel)]="newProduct.gst_percent" name="gst_percent" step="0.01">
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newProduct.gst_percent" name="gst_percent" step="0.01">
             </div>
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:0.8rem; color: #64748b;">SAC code:</label>
@@ -146,11 +146,11 @@
             </div>
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:0.8rem; color: #64748b;">Reorder Lvl:</label>
-              <input type="number" class="form-control" [(ngModel)]="newProduct.reorder_level" name="reorder_level">
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newProduct.reorder_level" name="reorder_level">
             </div>
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:0.8rem; color: #64748b;">Reorder Qty:</label>
-              <input type="number" class="form-control" [(ngModel)]="newProduct.reorder_quantity" name="reorder_quantity">
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" [(ngModel)]="newProduct.reorder_quantity" name="reorder_quantity">
             </div>
             <div style="display:flex; flex-direction:row; align-items:center; gap:8px;">
               <input type="checkbox" [(ngModel)]="newProduct.is_active" name="is_active">
@@ -249,8 +249,8 @@
           
           <form (ngSubmit)="addProductLot()" style="display:flex; gap:0.5rem; align-items:center; margin-bottom: 1rem; flex-wrap: wrap;">
             <input type="text" class="form-control" placeholder="Lot Num" style="flex:1;" [(ngModel)]="newLot.lot_number" name="lot_number" required>
-            <input type="number" class="form-control" placeholder="MRP" style="width: 70px;" [(ngModel)]="newLot.mrp" name="mrp" step="0.01" required>
-            <input type="number" class="form-control" placeholder="Net" style="width: 70px;" [(ngModel)]="newLot.net_price" name="net_price" step="0.01" required>
+            <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="MRP" style="width: 70px;" [(ngModel)]="newLot.mrp" name="mrp" step="0.01" required>
+            <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Net" style="width: 70px;" [(ngModel)]="newLot.net_price" name="net_price" step="0.01" required>
             <input type="date" class="form-control" placeholder="Expiry" style="flex:1;" [(ngModel)]="newLot.expiry_date" name="expiry_date">
             <button type="submit" class="btn btn-outline" style="color: #0f172a; padding:0.4rem; white-space:nowrap;" [disabled]="isSaving">
               <span *ngIf="isSaving">Saving...</span>
@@ -546,10 +546,10 @@
                       {{ getProductProperty(item.product_id, 'sac_code') }}
                     </ng-container>
                   </td>
-                  <td><input type="number" class="form-control text-center" style="width:60px" [(ngModel)]="item.quantity" min="1"></td>
-                  <td><input type="number" class="form-control text-right" style="width:80px" [(ngModel)]="item.rate" step="0.01"></td>
-                  <td><input type="number" class="form-control text-center" style="width:70px" [(ngModel)]="item.discount_percent" step="0.01"></td>
-                  <td><input type="number" class="form-control text-center" style="width:70px" [(ngModel)]="item.tax_percent" step="0.01"></td>
+                  <td><input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control text-center" style="width:60px" [(ngModel)]="item.quantity" min="1"></td>
+                  <td><input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control text-right" style="width:80px" [(ngModel)]="item.rate" step="0.01"></td>
+                  <td><input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control text-center" style="width:70px" [(ngModel)]="item.discount_percent" step="0.01"></td>
+                  <td><input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control text-center" style="width:70px" [(ngModel)]="item.tax_percent" step="0.01"></td>
                   <td class="text-right"><strong>{{ calculateItemTotal(item) | currency:'INR' }}</strong></td>
                   <td><button class="icon-btn" (click)="removePOItem(i)">🗑️</button></td>
                 </tr>
@@ -717,7 +717,7 @@
                 <td>{{ (product.price * product.current_stock) || 0 | currency:'INR' }}</td>
                 <td>
                   <div style="display: flex; gap: 5px; align-items: center;">
-                    <input type="number" class="form-control" style="width: 70px; padding: 4px 8px; text-align: center;" [(ngModel)]="checkoutQuantities[product.id]" min="1" placeholder="0">
+                    <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 70px; padding: 4px 8px; text-align: center;" [(ngModel)]="checkoutQuantities[product.id]" min="1" placeholder="0">
                     <button class="btn btn-primary" style="padding: 4px 12px; font-size: 0.85rem; background-color: #0f172a;" (click)="processCheckout(product)" [disabled]="isSaving">
                       <span *ngIf="isSaving">Confirming...</span>
                       <span *ngIf="!isSaving">Confirm</span>
@@ -805,7 +805,7 @@
             <td>{{ product.price !== null ? product.price : '-' }}</td>
             <td><strong>{{ product.current_stock }}</strong></td>
             <td>
-              <input type="number" class="form-control" style="width: 100px; background-color: var(--bg-2);" [(ngModel)]="auditQuantities[product.id]">
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 100px; background-color: var(--bg-2);" [(ngModel)]="auditQuantities[product.id]">
             </td>
           </tr>
           <tr *ngIf="auditPaginatedProducts.length === 0">

@@ -29,6 +29,7 @@ import { ApiService } from '../services/api';
 })
 
 export class BillingComponent implements OnInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   @ViewChild('clientSearchInput') clientSearchInput!: ElementRef;
   @ViewChild('serviceSearchInput') serviceSearchInput!: ElementRef;
@@ -650,7 +651,8 @@ export class BillingComponent implements OnInit {
   searchClients() {
 
     this.apiService.getClients(this.searchPhone).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (d: any[]) => {
+      next: (res: any) => {
+        const d = res && res.results ? res.results : res;
         this.clients = d || [];
         this.cdr.detectChanges();
       }, error: (err: any) => {
@@ -1200,6 +1202,13 @@ export class BillingComponent implements OnInit {
     const dType = this.selectedPromotion.discount_type || this.selectedPromotion.config?.discount_type;
     const dValue = this.selectedPromotion.discount_value || this.selectedPromotion.config?.discount_value;
 
+    let preTaxSubtotal = 0;
+    for (const it of this.cart) {
+      const qty = Number(it.quantity) || 1;
+      const unitPrice = Number(it.unit_price) || 0;
+      preTaxSubtotal += (unitPrice * qty);
+    }
+
     if (this.selectedPromotion.promo_type === 'Trigger' && this.selectedPromotion.config?.trigger_services?.length === 2) {
       const svc1 = this.selectedPromotion.config.trigger_services[0];
       const svc2 = this.selectedPromotion.config.trigger_services[1];
@@ -1212,9 +1221,9 @@ export class BillingComponent implements OnInit {
         discount = (cartSvc2.unit_price * triggerDiscountPct) / 100;
       }
     } else if (dPercent) { // It's a membership
-      discount = (this.subtotalAmount * Number(dPercent)) / 100;
+      discount = (preTaxSubtotal * Number(dPercent)) / 100;
     } else if (dType === 'Percentage') {
-      discount = (this.subtotalAmount * Number(dValue)) / 100;
+      discount = (preTaxSubtotal * Number(dValue)) / 100;
     } else if (dType === 'Flat') {
       discount = Number(dValue);
     }
@@ -1891,9 +1900,28 @@ export class BillingComponent implements OnInit {
       this.clearDraft();
       return;
     }
+    
+    let subtotalBase = this.subtotalAmount; 
     let totalTax = 0;
+    
     for (const it of this.cart) {
-      totalTax += this.getItemTaxAmount(it);
+      let taxPct = Number(it.tax_percentage) || 0;
+      if (taxPct > 0) {
+          let qty = Number(it.quantity) || 1;
+          let unitPrice = Number(it.unit_price) || 0;
+          let itemDiscount = Number(it.discount) || 0;
+          let itemTotal = (unitPrice * qty) - itemDiscount;
+          if (itemTotal < 0) itemTotal = 0;
+          
+          if (subtotalBase > 0 && this.invoiceDiscount > 0) {
+              let proportion = itemTotal / subtotalBase;
+              let apportionedGlobalDiscount = this.invoiceDiscount * proportion;
+              itemTotal -= apportionedGlobalDiscount;
+              if (itemTotal < 0) itemTotal = 0;
+          }
+          
+          totalTax += itemTotal * (taxPct / 100);
+      }
     }
     
     let totalCGST = totalTax / 2;
@@ -2162,6 +2190,8 @@ export class BillingComponent implements OnInit {
         this.cart.push({
           content_type: it.content_type,
           object_id: it.object_id,
+          id: it.object_id,
+          name: it.description,
           description: it.description,
           unit_price: Number(it.unit_price),
           discount: Number(it.discount),

@@ -63,7 +63,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             base = qty * rate
             discount_amount = base * (discount / 100)
             subtotal = base - discount_amount
-            tax_amount = subtotal * (tax / 100)
+            tax_amount = base * (tax / 100)
             total_price = subtotal + tax_amount
             
             item_data['total_price'] = total_price

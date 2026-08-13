@@ -10,5 +10,6 @@ import { ToastService } from '../../services/toast.service';
   styleUrl: './toast.css'
 })
 export class ToastComponent {
+  todayDate: string = new Date().toISOString().split('T')[0];
   toastService = inject(ToastService);
 }

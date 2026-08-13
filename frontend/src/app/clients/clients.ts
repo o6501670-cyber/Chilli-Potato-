@@ -15,6 +15,7 @@ import { CsvService } from '../services/csv.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ClientsComponent implements OnInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
   csvService = inject(CsvService);

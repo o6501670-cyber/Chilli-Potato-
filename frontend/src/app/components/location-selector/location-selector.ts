@@ -9,6 +9,7 @@ import { CommonModule } from '@angular/common';
   styleUrl: './location-selector.css'
 })
 export class LocationSelectorComponent {
+  todayDate: string = new Date().toISOString().split('T')[0];
   @Input() centers: any[] = [];
   @Input() hasGlobalAccess: boolean = false;
   @Input() selectedCenterId: number | null = null;

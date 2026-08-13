@@ -254,6 +254,27 @@ class ProductViewSet(InventoryBaseViewSet):
     queryset = Product.objects.all().select_related('center').prefetch_related('lots')
     serializer_class = ProductSerializer
 
+    def create(self, request, *args, **kwargs):
+        create_all = str(request.data.get('create_all_centers', 'false')).lower() == 'true'
+        if create_all:
+            from salon_admin.models import Center
+            centers = Center.objects.all()
+            if not centers.exists():
+                return super().create(request, *args, **kwargs)
+            instances = []
+            for center in centers:
+                data = request.data.copy()
+                data['center'] = center.id
+                serializer = self.get_serializer(data=data)
+                serializer.is_valid(raise_exception=True)
+                self.perform_create(serializer)
+                instances.append(serializer.data)
+            from rest_framework.response import Response
+            from rest_framework import status
+            return Response(instances[0], status=status.HTTP_201_CREATED)
+        else:
+            return super().create(request, *args, **kwargs)
+
     @method_decorator(vary_on_headers('Authorization'))
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)

@@ -24,6 +24,7 @@ interface ModuleCard {
   styleUrl: './home.css',
 })
 export class HomeComponent implements OnInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   router = inject(Router);
   sanitizer = inject(DomSanitizer);

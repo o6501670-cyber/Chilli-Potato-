@@ -14,9 +14,9 @@
       <div class="kpi-card-light" style="display: flex; align-items: center; gap: 8px; background: #fffbe8; border: 1px solid #fde047; padding: 4px 12px; border-radius: 6px; white-space: nowrap; overflow: hidden;">
         <div style="color: #a16207; font-size: 10px; font-weight: 700;">INFO:</div>
         <div style="font-size: 11px; color: #854d0e; display: flex; gap: 12px; font-weight: 500;">
-          <span>• Click headers to sort</span>
-          <span>• Edit center prices inline</span>
-          <span>• Delete price to deactivate</span>
+          <span> Click headers to sort</span>
+          <span> Edit center prices inline</span>
+          <span> Delete price to deactivate</span>
         </div>
       </div>
 
@@ -85,7 +85,7 @@
               <span *ngIf="s.level !== 'Organisation' && !s.centers?.length" style="color:#9ca3af; font-size:11px;">Unassigned</span>
             </td>
             <td class="center-col-cell" style="padding: 4px;">
-              <input type="number" class="price-input" [value]="s.center_override?.price ?? s.default_price"
+              <input type="number" min="0" oninput="validity.valid||(value='');" class="price-input" [value]="s.center_override?.price ?? s.default_price"
                 (input)="onPriceChange(s, $event.target.value)" (blur)="saveOverride(s)" [placeholder]="s.default_price"
                 [readonly]="!isOwner && !permissions.admin?.services?.update" 
                 style="width: 80px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; outline: none; font-size: 12px; font-weight: 600;" />
@@ -154,21 +154,21 @@
 
       <div class="form-group" style="margin-top: 1rem;">
         <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem;">Tax (%)</label>
-        <input type="number" [(ngModel)]="newService.tax_percentage"
+        <input type="number" min="0" oninput="validity.valid||(value='');" [(ngModel)]="newService.tax_percentage"
           style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;" />
       </div>
 
       <div class="form-group" style="margin-top: 1rem;">
         <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem;">Default Price
           (before tax)</label>
-        <input type="number" [(ngModel)]="newService.default_price"
+        <input type="number" min="0" oninput="validity.valid||(value='');" [(ngModel)]="newService.default_price"
           style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;" />
       </div>
 
       <div class="form-group" style="margin-top: 1rem;">
         <label style="display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem;">Duration
           (minutes)</label>
-        <input type="number" [(ngModel)]="newService.duration_mins"
+        <input type="number" min="0" oninput="validity.valid||(value='');" [(ngModel)]="newService.duration_mins"
           style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;" />
       </div>
 

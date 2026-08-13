@@ -364,7 +364,11 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                     id=membership_id, client=invoice.client, is_active=True
                 ).first()
                 if cm and cm.membership.discount_percent:
-                    expected_discount = Decimal(str(invoice.subtotal)) * Decimal(str(cm.membership.discount_percent)) / 100
+                    pre_tax_total = Decimal('0')
+                    for item in invoice.items.all():
+                        pre_tax_total += Decimal(str(item.unit_price)) * Decimal(str(item.quantity))
+                    
+                    expected_discount = pre_tax_total * Decimal(str(cm.membership.discount_percent)) / Decimal('100')
                     if Decimal(str(invoice.discount)) > expected_discount + 1:  # Allow 1 unit rounding difference
                         logger.warning(f"[Security] Invoice #{invoice.id} claimed discount {invoice.discount} exceeds membership allowed {expected_discount}. Reverting.")
                         invoice.discount = Decimal(str(expected_discount))

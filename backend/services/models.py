@@ -23,6 +23,7 @@ class ServiceMaster(models.Model):
         return self.name
 
     class Meta:
+        ordering = ['name']
         indexes = [
             models.Index(fields=['category'], name='svc_category_idx'),
             models.Index(fields=['created_at'], name='svc_created_idx'),

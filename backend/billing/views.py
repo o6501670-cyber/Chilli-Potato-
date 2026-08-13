@@ -110,6 +110,10 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             from django.utils import timezone
             qs = qs.filter(created_at__gte=timezone.now() - datetime.timedelta(days=30))
 
+        # Auto-expiry for drafts: only show drafts created today
+        today_date = datetime.date.today()
+        qs = qs.exclude(status='draft', created_at__date__lt=today_date)
+
         return qs
 
     @action(detail=True, methods=['post'])

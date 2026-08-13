@@ -55,7 +55,7 @@
       
       <!-- Edit Mode -->
       <div *ngIf="isEditingTarget" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; margin: auto 0;">
-        <input type="number" [(ngModel)]="tempMonthlyTarget" class="form-control target-input" placeholder="Target">
+        <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" [(ngModel)]="tempMonthlyTarget" class="form-control target-input" placeholder="Target">
         <div style="display: flex; gap: 8px;">
           <button (click)="saveMonthlyTarget()" class="btn-save-target">Save</button>
           <button (click)="isEditingTarget = false" class="btn-cancel-target">Cancel</button>

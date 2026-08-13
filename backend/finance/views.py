@@ -507,10 +507,8 @@ def compute_register_summary(user, center_id, start_date, end_date) -> dict:
     req = MockReq()
     req.user = user
     request = req
-    start_date = request.query_params.get('start_date')
-    end_date = request.query_params.get('end_date')
+    # start_date and end_date are already passed as arguments, do not read from query_params
 
-    user = request.user
 
     invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
     

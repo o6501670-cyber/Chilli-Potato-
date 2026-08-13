@@ -30,6 +30,7 @@ const FLAG_FALLBACK = '🌐';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LogsComponent implements OnInit, OnDestroy {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   logs: any[] = [];
   loading = false;

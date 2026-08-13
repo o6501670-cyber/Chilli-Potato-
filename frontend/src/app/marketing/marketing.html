@@ -99,9 +99,9 @@
 
           <div class="form-row">
 
-            <input type="date" class="form-control" [(ngModel)]="newPromotion.start_date">
+            <input type="date" class="form-control" min="{{todayDate}}" [(ngModel)]="newPromotion.start_date">
 
-            <input type="date" class="form-control" [(ngModel)]="newPromotion.end_date">
+            <input type="date" class="form-control" min="{{todayDate}}" [(ngModel)]="newPromotion.end_date">
 
           </div>
 
@@ -114,7 +114,7 @@
 
             
 
-            <input type="number" class="form-control" style="width: 120px; margin-bottom: 0;"
+            <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 120px; margin-bottom: 0;"
               placeholder="Max Usage/Client" [(ngModel)]="newPromotion.max_usage_per_client">
 
           </div>
@@ -147,7 +147,7 @@
 
                 </select>
 
-                <input type="number" class="form-control" placeholder="Discount Value"
+                <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Discount Value"
                   [(ngModel)]="newPromotion.config.discount_value">
 
               </div>
@@ -177,7 +177,7 @@
               <p style="color: var(--text-secondary); font-size: 0.75rem; margin-bottom: 0.25rem;">Minimum bill amount
                 for validity:</p>
 
-              <input type="number" class="form-control" placeholder="Min bill amount"
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Min bill amount"
                 [(ngModel)]="newPromotion.config.min_bill_amount">
 
             </div>
@@ -202,7 +202,7 @@
 
               </select>
 
-              <input type="number" class="form-control" placeholder="Flat Price"
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Flat Price"
                 [(ngModel)]="newPromotion.config.flat_price">
 
             </div>
@@ -237,7 +237,7 @@
 
               <div style="display: flex; align-items: center; gap: 0.5rem;">
 
-                <input type="number" class="form-control" style="margin-bottom: 0;" placeholder="Discount %"
+                <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="margin-bottom: 0;" placeholder="Discount %"
                   [(ngModel)]="newPromotion.config.trigger_discount">
 
                 <span style="color: var(--text-secondary); font-size: 0.75rem; white-space: nowrap;">(e.g. 20 for
@@ -258,15 +258,15 @@
 
                 Cashback Configuration</h4>
 
-              <input type="number" class="form-control" style="margin-top: 0.5rem;" placeholder="Minimum Bill Amount"
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="margin-top: 0.5rem;" placeholder="Minimum Bill Amount"
                 [(ngModel)]="newPromotion.config.cashback_min_bill">
 
-              <input type="number" class="form-control" placeholder="Discount in %"
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Discount in %"
                 [(ngModel)]="newPromotion.config.cashback_discount">
 
               <div class="form-row">
 
-                <input type="number" class="form-control" placeholder="Valid Days"
+                <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Valid Days"
                   [(ngModel)]="newPromotion.config.cashback_validity_days">
 
                 <input type="date" class="form-control" placeholder="Specific Date"
@@ -503,17 +503,17 @@
 
           <input type="text" class="form-control" placeholder="Card Title" [(ngModel)]="newCard.title">
 
-          <input type="number" class="form-control" placeholder="Post tax Price" [(ngModel)]="newCard.post_tax_price" (ngModelChange)="calculateCardPreTax()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Post tax Price" [(ngModel)]="newCard.post_tax_price" (ngModelChange)="calculateCardPreTax()">
 
-          <input type="number" class="form-control" placeholder="Pre Tax Price" [(ngModel)]="newCard.pre_tax_price" (ngModelChange)="calculateCardPostTax()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Pre Tax Price" [(ngModel)]="newCard.pre_tax_price" (ngModelChange)="calculateCardPostTax()">
 
-          <input type="number" class="form-control" placeholder="Value" [(ngModel)]="newCard.value" (ngModelChange)="calculateCardBenefit()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Value" [(ngModel)]="newCard.value" (ngModelChange)="calculateCardBenefit()">
 
-          <input type="number" class="form-control" placeholder="Enter Benefit in %" [(ngModel)]="newCard.benefit_percent" (ngModelChange)="calculateCardValue()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Enter Benefit in %" [(ngModel)]="newCard.benefit_percent" (ngModelChange)="calculateCardValue()">
 
-          <input type="number" class="form-control" placeholder="Incentive" [(ngModel)]="newCard.incentive">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Incentive" [(ngModel)]="newCard.incentive">
 
-          <input type="number" class="form-control" placeholder="Expiry days" [(ngModel)]="newCard.expiry_days">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Expiry days" [(ngModel)]="newCard.expiry_days">
 
           <textarea class="form-control" rows="3" placeholder="Enter card description"
             [(ngModel)]="newCard.description"></textarea>
@@ -743,17 +743,17 @@
 
           <input type="text" class="form-control" placeholder="Enter Membership Name" [(ngModel)]="newMembership.name">
 
-          <input type="number" class="form-control" placeholder="Post Tax Price" [(ngModel)]="newMembership.post_tax_price" (ngModelChange)="calculateMembershipPreTax()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Post Tax Price" [(ngModel)]="newMembership.post_tax_price" (ngModelChange)="calculateMembershipPreTax()">
 
-          <input type="number" class="form-control" placeholder="Pre Tax Price" [(ngModel)]="newMembership.pre_tax_price" (ngModelChange)="calculateMembershipPostTax()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Pre Tax Price" [(ngModel)]="newMembership.pre_tax_price" (ngModelChange)="calculateMembershipPostTax()">
 
-          <input type="number" class="form-control" placeholder="Value" [(ngModel)]="newMembership.value" (ngModelChange)="calculateMembershipBenefit()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Value" [(ngModel)]="newMembership.value" (ngModelChange)="calculateMembershipBenefit()">
 
-          <input type="number" class="form-control" placeholder="Enter Benefit in %" [(ngModel)]="newMembership.discount_percent" (ngModelChange)="calculateMembershipValue()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Enter Benefit in %" [(ngModel)]="newMembership.discount_percent" (ngModelChange)="calculateMembershipValue()">
 
-          <input type="number" class="form-control" placeholder="Incentive" [(ngModel)]="newMembership.incentive">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Incentive" [(ngModel)]="newMembership.incentive">
 
-          <input type="number" class="form-control" placeholder="Days to Expiry"
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Days to Expiry"
             [(ngModel)]="newMembership.expiry_days">
 
           <textarea class="form-control" rows="3" placeholder="Enter Description (prints on client bills)"
@@ -1007,14 +1007,14 @@
 
           </select>
 
-          <input type="number" class="form-control" placeholder="Number of Sessions" [(ngModel)]="newPackage.pkgQty">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Number of Sessions" [(ngModel)]="newPackage.pkgQty">
 
           <textarea class="form-control" rows="3" placeholder="Enter package description"
             [(ngModel)]="newPackage.description"></textarea>
 
-          <input type="number" class="form-control" placeholder="Package Price" [(ngModel)]="newPackage.price">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Package Price" [(ngModel)]="newPackage.price">
 
-          <input type="number" class="form-control" placeholder="Validity Days" [(ngModel)]="newPackage.validity_days">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Validity Days" [(ngModel)]="newPackage.validity_days">
 
           <button class="btn btn-primary" (click)="addPackage()" [disabled]="isSaving">
 
@@ -1425,8 +1425,8 @@
             <input type="text" class="form-control" placeholder="Promotion Name" [(ngModel)]="editItemData.name">
           </div>
           <div class="form-row">
-            <input type="date" class="form-control" [(ngModel)]="editItemData.start_date">
-            <input type="date" class="form-control" [(ngModel)]="editItemData.end_date">
+            <input type="date" class="form-control" min="{{todayDate}}" [(ngModel)]="editItemData.start_date">
+            <input type="date" class="form-control" min="{{todayDate}}" [(ngModel)]="editItemData.end_date">
           </div>
           <textarea class="form-control" rows="3" placeholder="Promotion description"
             [(ngModel)]="editItemData.description"></textarea>
@@ -1435,7 +1435,7 @@
             <div style="display: flex; flex-direction: column; align-items: flex-end;">
               <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Max Uses /
                 Client</label>
-              <input type="number" class="form-control" style="width: 120px; margin-bottom: 0;" placeholder="Unlimited"
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 120px; margin-bottom: 0;" placeholder="Unlimited"
                 [(ngModel)]="editItemData.max_usage_per_client">
             </div>
           </div>
@@ -1451,7 +1451,7 @@
                   <option value="Percentage">Percentage</option>
                   <option value="Flat">Flat Amount</option>
                 </select>
-                <input type="number" class="form-control" placeholder="Discount Value"
+                <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Discount Value"
                   [(ngModel)]="editItemData.config.discount_value">
               </div>
               <div class="segmented-control" style="color: var(--primary-color); font-size: 0.8rem; margin: 0.5rem 0;">
@@ -1468,7 +1468,7 @@
               </div>
               <p style="color: var(--text-secondary); font-size: 0.75rem; margin-bottom: 0.25rem;">Minimum bill amount
                 for validity:</p>
-              <input type="number" class="form-control" placeholder="Min bill amount"
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Min bill amount"
                 [(ngModel)]="editItemData.config.min_bill_amount">
             </div>
             <div *ngIf="editItemData.promo_type === 'FlatPrice'">
@@ -1480,7 +1480,7 @@
                 <option value="">Select Service</option>
                 <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
               </select>
-              <input type="number" class="form-control" placeholder="Flat Price"
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Flat Price"
                 [(ngModel)]="editItemData.config.flat_price">
             </div>
             <div *ngIf="editItemData.promo_type === 'Trigger'">
@@ -1497,7 +1497,7 @@
                 <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
               </select>
               <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <input type="number" class="form-control" style="margin-bottom: 0;" placeholder="Discount %"
+                <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="margin-bottom: 0;" placeholder="Discount %"
                   [(ngModel)]="editItemData.config.trigger_discount">
                 <span style="color: var(--text-secondary); font-size: 0.75rem; white-space: nowrap;">(e.g. 20 for
                   20%)</span>
@@ -1507,12 +1507,12 @@
               <h4
                 style="color: var(--primary-color); margin-top: 0; font-size: 0.9rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
                 Cashback Configuration</h4>
-              <input type="number" class="form-control" style="margin-top: 0.5rem;" placeholder="Minimum Bill Amount"
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="margin-top: 0.5rem;" placeholder="Minimum Bill Amount"
                 [(ngModel)]="editItemData.config.cashback_min_bill">
-              <input type="number" class="form-control" placeholder="Discount in %"
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Discount in %"
                 [(ngModel)]="editItemData.config.cashback_discount">
               <div class="form-row">
-                <input type="number" class="form-control" placeholder="Valid Days"
+                <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Valid Days"
                   [(ngModel)]="editItemData.config.cashback_validity_days">
                 <input type="date" class="form-control" placeholder="Specific Date"
                   [(ngModel)]="editItemData.config.cashback_specific_date">
@@ -1524,13 +1524,13 @@
         <!-- Card Edit Fields -->
         <ng-container *ngIf="editItemType === 'card'">
           <input type="text" class="form-control" placeholder="Card Title" [(ngModel)]="editItemData.title">
-          <input type="number" class="form-control" placeholder="Post tax Price"
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Post tax Price"
             [(ngModel)]="editItemData.post_tax_price" (ngModelChange)="calculateEditCardPreTax()">
-          <input type="number" class="form-control" placeholder="Pre tax Price" [(ngModel)]="editItemData.pre_tax_price" (ngModelChange)="calculateEditCardPostTax()">
-          <input type="number" class="form-control" placeholder="Value" [(ngModel)]="editItemData.value" (ngModelChange)="calculateEditCardBenefit()">
-          <input type="number" class="form-control" placeholder="Benefit %" [(ngModel)]="editItemData.benefit_percent" (ngModelChange)="calculateEditCardValue()">
-          <input type="number" class="form-control" placeholder="Incentive" [(ngModel)]="editItemData.incentive">
-          <input type="number" class="form-control" placeholder="Expiry days" [(ngModel)]="editItemData.expiry_days">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Pre tax Price" [(ngModel)]="editItemData.pre_tax_price" (ngModelChange)="calculateEditCardPostTax()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Value" [(ngModel)]="editItemData.value" (ngModelChange)="calculateEditCardBenefit()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Benefit %" [(ngModel)]="editItemData.benefit_percent" (ngModelChange)="calculateEditCardValue()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Incentive" [(ngModel)]="editItemData.incentive">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Expiry days" [(ngModel)]="editItemData.expiry_days">
           <textarea class="form-control" rows="3" placeholder="Enter card description"
             [(ngModel)]="editItemData.description"></textarea>
         </ng-container>
@@ -1538,12 +1538,12 @@
         <!-- Membership Edit Fields -->
         <ng-container *ngIf="editItemType === 'membership'">
           <input type="text" class="form-control" placeholder="Enter Membership Name" [(ngModel)]="editItemData.name">
-          <input type="number" class="form-control" placeholder="Post Tax Price" [(ngModel)]="editItemData.post_tax_price" (ngModelChange)="calculateEditMembershipPreTax()">
-          <input type="number" class="form-control" placeholder="Pre Tax Price" [(ngModel)]="editItemData.pre_tax_price" (ngModelChange)="calculateEditMembershipPostTax()">
-          <input type="number" class="form-control" placeholder="Value" [(ngModel)]="editItemData.value" (ngModelChange)="calculateEditMembershipBenefit()">
-          <input type="number" class="form-control" placeholder="Enter Benefit in %" [(ngModel)]="editItemData.discount_percent" (ngModelChange)="calculateEditMembershipValue()">
-          <input type="number" class="form-control" placeholder="Incentive" [(ngModel)]="editItemData.incentive">
-          <input type="number" class="form-control" placeholder="Days to Expiry" [(ngModel)]="editItemData.expiry_days">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Post Tax Price" [(ngModel)]="editItemData.post_tax_price" (ngModelChange)="calculateEditMembershipPreTax()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Pre Tax Price" [(ngModel)]="editItemData.pre_tax_price" (ngModelChange)="calculateEditMembershipPostTax()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Value" [(ngModel)]="editItemData.value" (ngModelChange)="calculateEditMembershipBenefit()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Enter Benefit in %" [(ngModel)]="editItemData.discount_percent" (ngModelChange)="calculateEditMembershipValue()">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Incentive" [(ngModel)]="editItemData.incentive">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Days to Expiry" [(ngModel)]="editItemData.expiry_days">
           <textarea class="form-control" rows="3" placeholder="Enter Description"
             [(ngModel)]="editItemData.description"></textarea>
           <label class="checkbox-label" style="margin-bottom: 1rem;">
@@ -1558,11 +1558,11 @@
             <option value="">Select Service</option>
             <option *ngFor="let s of servicesList" [value]="s.name">{{ s.name }}</option>
           </select>
-          <input type="number" class="form-control" placeholder="Number of Sessions" [(ngModel)]="editItemData.pkgQty">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Number of Sessions" [(ngModel)]="editItemData.pkgQty">
           <textarea class="form-control" rows="3" placeholder="Enter package description"
             [(ngModel)]="editItemData.description"></textarea>
-          <input type="number" class="form-control" placeholder="Package Price" [(ngModel)]="editItemData.price">
-          <input type="number" class="form-control" placeholder="Validity Days"
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Package Price" [(ngModel)]="editItemData.price">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Validity Days"
             [(ngModel)]="editItemData.validity_days">
         </ng-container>
 

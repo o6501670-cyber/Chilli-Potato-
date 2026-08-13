@@ -33,6 +33,7 @@ function extractErrorMessage(err: any): string {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppointmentsComponent implements OnInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   centers: any[] = [];
   selectedCenterId: any = null;
@@ -305,7 +306,8 @@ export class AppointmentsComponent implements OnInit {
       return;
     }
     this.searchTimeout = setTimeout(() => {
-      this.apiService.getClients(val).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((data: any) => {
+      this.apiService.getClients(val).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((res: any) => {
+        const data = res && res.results ? res.results : res;
         this.clientSearchResults = data || [];
         this.cdr.detectChanges();
       });

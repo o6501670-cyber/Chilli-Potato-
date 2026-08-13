@@ -15,6 +15,7 @@ import { forkJoin } from 'rxjs';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FinanceComponent implements OnInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
   cdr = inject(ChangeDetectorRef);

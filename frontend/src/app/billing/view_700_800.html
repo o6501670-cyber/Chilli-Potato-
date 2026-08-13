@@ -51,7 +51,7 @@
         </div>
         <div style="position: relative; width: 120px;">
           <span style="position: absolute; left: 12px; top: 12px; color: var(--text-secondary); font-weight: 600; font-size: 13px;">Rs.</span>
-          <input type="number" [(ngModel)]="checkoutTipAmount" (ngModelChange)="calcCheckoutRemaining()" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-sizing: border-box; background: var(--surface); outline: none;">
+          <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" [(ngModel)]="checkoutTipAmount" (ngModelChange)="calcCheckoutRemaining()" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-sizing: border-box; background: var(--surface); outline: none;">
         </div>
       </div>
 
@@ -72,7 +72,7 @@
           
           <div style="position: relative; flex: 1;">
             <span style="position: absolute; left: 12px; top: 12px; color: var(--text-secondary); font-weight: 600; font-size: 13px;">Rs.</span>
-            <input type="number" [(ngModel)]="p.amount" (ngModelChange)="calcCheckoutRemaining()" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-sizing: border-box; background: var(--bg-card); color: var(--text-primary); outline: none;">
+            <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" [(ngModel)]="p.amount" (ngModelChange)="calcCheckoutRemaining()" style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-sizing: border-box; background: var(--bg-card); color: var(--text-primary); outline: none;">
           </div>
           
           <button (click)="removePaymentRow(i)" *ngIf="checkoutPayments.length > 1" class="btn-icon-danger" style="padding: 10px;"><i class="fa fa-trash"></i></button>

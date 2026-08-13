@@ -13,6 +13,7 @@ import { ToastService } from '../services/toast.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CentersComponent implements OnInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   toastService = inject(ToastService);
   apiService = inject(ApiService);

@@ -14,6 +14,7 @@ import { LocationSelectorComponent } from '../components/location-selector/locat
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MarketingComponent implements OnInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
   toastService = inject(ToastService);

@@ -435,7 +435,7 @@
 
             <div class="config-form-grid-large" style="grid-template-columns: 180px auto;">
               <label>Add to Advance (Rs.)</label>
-              <input type="number" placeholder="Enter amount in Rupees" [(ngModel)]="advanceAmount"
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" placeholder="Enter amount in Rupees" [(ngModel)]="advanceAmount"
                 class="input-grey-center">
 
               <label>Description</label>
@@ -467,7 +467,7 @@
 
           <div class="config-form-grid">
             <label>{{ configType === 'service' ? 'Service' : 'Product' }} Price before tax:</label>
-            <input type="number" disabled [value]="finalConfigPrice">
+            <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" disabled [value]="finalConfigPrice">
             <button class="btn-link" (click)="resetConfig()">Reset</button>
 
             <label>Memberships:</label>
@@ -480,9 +480,9 @@
 
             <label>Manager Discount:</label>
             <div style="display: flex; gap: 5px; align-items: center;">
-              % <input type="number" [(ngModel)]="managerDiscountPercent" (ngModelChange)="recalcConfigPrice()"
+              % <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" [(ngModel)]="managerDiscountPercent" (ngModelChange)="recalcConfigPrice()"
                 style="width: 50px;">
-              Rs. <input type="number" [(ngModel)]="managerDiscountAmount" (ngModelChange)="recalcConfigPrice()"
+              Rs. <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" [(ngModel)]="managerDiscountAmount" (ngModelChange)="recalcConfigPrice()"
                 style="width: 70px;">
             </div>
             <span></span>
@@ -666,7 +666,7 @@
 
           <div class="config-form-grid-large">
             <label>Selling Price (Rs.)</label>
-            <input type="number" [(ngModel)]="finalConfigPrice" placeholder="Enter price in Rupees"
+            <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" [(ngModel)]="finalConfigPrice" placeholder="Enter price in Rupees"
               class="input-grey-center">
             <span></span>
 
@@ -862,7 +862,7 @@
                 <div style="display: flex; align-items: center; gap: 3px;" *ngIf="currentInvoiceStatus === 'draft'">
                   <button type="button" (click)="updateQuantity(i, -1)" [disabled]="it.quantity <= 1"
                     style="width: 20px; height: 20px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); cursor: pointer; color: var(--text-primary); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">-</button>
-                  <input type="number" min="1" [(ngModel)]="it.quantity" (ngModelChange)="onQuantityDirectChange(i)"
+                  <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" min="1" [(ngModel)]="it.quantity" (ngModelChange)="onQuantityDirectChange(i)"
                     style="width: 32px; height: 20px; text-align: center; font-weight: 700; font-size: 11px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text-primary); padding: 0; outline: none;" />
                   <button type="button" (click)="updateQuantity(i, 1)"
                     style="width: 20px; height: 20px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); cursor: pointer; color: var(--text-primary); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;">+</button>
@@ -902,7 +902,7 @@
            <div style="display: flex; justify-content: space-between; align-items: center;">
               <span>CGST:</span>
               <span style="display: flex; align-items: center; gap: 2px;">
-                Rs. <input type="number" [(ngModel)]="invoiceCGST" style="width: 40px; background: transparent; border: 1px solid transparent; color: inherit; text-align: right; font-size: 11px; outline: none; padding: 0;">
+                Rs. <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" [(ngModel)]="invoiceCGST" style="width: 40px; background: transparent; border: 1px solid transparent; color: inherit; text-align: right; font-size: 11px; outline: none; padding: 0;">
               </span>
            </div>
            <div style="display: flex; justify-content: space-between;">
@@ -912,7 +912,7 @@
            <div style="display: flex; justify-content: space-between; align-items: center;">
               <span>SGST:</span>
               <span style="display: flex; align-items: center; gap: 2px;">
-                Rs. <input type="number" [(ngModel)]="invoiceSGST" style="width: 40px; background: transparent; border: 1px solid transparent; color: inherit; text-align: right; font-size: 11px; outline: none; padding: 0;">
+                Rs. <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" [(ngModel)]="invoiceSGST" style="width: 40px; background: transparent; border: 1px solid transparent; color: inherit; text-align: right; font-size: 11px; outline: none; padding: 0;">
               </span>
            </div>
         </div>
@@ -978,7 +978,7 @@
           <div style="position: relative; width: 120px;">
             <span
               style="position: absolute; left: 12px; top: 12px; color: var(--text-secondary); font-weight: 600; font-size: 13px;">Rs.</span>
-            <input type="number" [(ngModel)]="checkoutTipAmount" (ngModelChange)="calcCheckoutRemaining()"
+            <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" [(ngModel)]="checkoutTipAmount" (ngModelChange)="calcCheckoutRemaining()"
               style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-sizing: border-box; background: white; outline: none;">
           </div>
         </div>
@@ -1006,7 +1006,7 @@
           <div style="position: relative; flex: 1;">
             <span
               style="position: absolute; left: 12px; top: 12px; color: var(--text-secondary); font-weight: 600; font-size: 13px;">Rs.</span>
-            <input type="number" [(ngModel)]="p.amount" (ngModelChange)="calcCheckoutRemaining()"
+            <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" [(ngModel)]="p.amount" (ngModelChange)="calcCheckoutRemaining()"
               style="width: 100%; padding: 12px 12px 12px 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; box-sizing: border-box; background: var(--bg-card); color: var(--text-primary); outline: none;">
           </div>
 

@@ -15,6 +15,7 @@ import { LocationSelectorComponent } from '../components/location-selector/locat
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class InventoryComponent implements OnInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
   toastService = inject(ToastService);
@@ -221,11 +222,14 @@ export class InventoryComponent implements OnInit {
     const cid = this.selectedCenterId ? this.selectedCenterId : undefined;
     
     // Load Fast Movers
-    this.apiService.getUsageReport().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(res => {
-      if (res && res.breakdown) {
-          this.fastMovers = res.breakdown.filter((item: any) => item.service_type === 'Product').slice(0, 3);
-          this.cdr.detectChanges();
-      }
+    this.apiService.getUsageReport().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (res: any) => {
+          if (res && res.breakdown) {
+              this.fastMovers = res.breakdown.filter((item: any) => item.service_type === 'Product');
+              this.cdr.detectChanges();
+          }
+      },
+      error: (err: any) => console.error('Failed to load breakdown:', err)
     });
 
     this.apiService.getProducts(cid).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
@@ -520,11 +524,8 @@ export class InventoryComponent implements OnInit {
     const payload = { ...this.newProduct };
     if (this.selectedCenterId) {
       payload.center = Number(this.selectedCenterId);
-    } else if (this.centers && this.centers.length > 0) {
-      payload.center = this.centers[0].id;
     } else {
-      this.toastService.showError('Error: A center must be selected to add a product.');
-      return;
+      payload.create_all_centers = true;
     }
     
     this.isSaving = true;

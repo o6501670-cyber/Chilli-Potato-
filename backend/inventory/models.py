@@ -22,6 +22,7 @@ class Vendor(models.Model):
         return self.name
 
     class Meta:
+        ordering = ['name']
         indexes = [
             models.Index(fields=['center'], name='vendor_center_idx'),
             models.Index(fields=['created_at'], name='vendor_created_idx'),
@@ -53,6 +54,7 @@ class Product(models.Model):
         return self.name
 
     class Meta:
+        ordering = ['name']
         indexes = [
             models.Index(fields=['center', 'is_active'], name='product_center_active_idx'),
             models.Index(fields=['category'], name='product_category_idx'),

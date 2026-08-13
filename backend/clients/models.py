@@ -128,6 +128,7 @@ class Client(models.Model):
                 logger.error(f"[Welcome Email] Thread start error for {self.email}: {thread_err}", exc_info=True)
 
     class Meta:
+        ordering = ['first_name']
         indexes = [
             models.Index(fields=['phone'], name='client_phone_idx'),
             models.Index(fields=['center'], name='client_center_idx'),

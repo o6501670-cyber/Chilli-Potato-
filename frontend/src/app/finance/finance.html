@@ -1291,7 +1291,7 @@
           <!-- Entry Form -->
           <div class="form-row">
             <input type="text" class="form-control" placeholder="Enter Description" [(ngModel)]="pettyCashForm.description">
-            <input type="number" class="form-control" placeholder="Enter Amount in Rs." [(ngModel)]="pettyCashForm.amount">
+            <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Enter Amount in Rs." [(ngModel)]="pettyCashForm.amount">
             <input type="text" class="form-control" placeholder="Voucher Number" [(ngModel)]="pettyCashForm.voucher_number">
           </div>
           <div class="form-row" style="align-items: flex-start;">
@@ -1354,12 +1354,12 @@
           <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Opening Balance</span><span>{{ closingData.opening_balance }}</span></div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;">
             <span>Cash in hand</span>
-            <input type="number" class="form-control" placeholder="Amount" style="width: 120px; margin-bottom: 0; background: #fca5a5; text-align: center;" [(ngModel)]="closingData.cash_in_hand">
+            <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Amount" style="width: 120px; margin-bottom: 0; background: #fca5a5; text-align: center;" [(ngModel)]="closingData.cash_in_hand">
           </div>
           <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Today's Expenses</span><span style="color: #ef4444;">{{ closingData.todays_expenses || 0 }}</span></div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; font-size: 0.9rem;">
             <span>Cash Deposit</span>
-            <input type="number" class="form-control" placeholder="Amount" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.cash_deposit">
+            <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Amount" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.cash_deposit">
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 0.9rem; border-top: 1px solid var(--border); padding-top: 0.5rem;"><span>Closing Balance</span><strong>{{ closingBalance > 0 ? formatCurrency(closingBalance) : '-' }}</strong></div>
         </div>
@@ -1369,20 +1369,20 @@
           <h4 style="margin-top: 0;">CREDIT/DEBIT CARD</h4>
           <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;">
             <span>Credit/Debit Card</span>
-            <input type="number" class="form-control" placeholder="Amount" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.credit_card">
+            <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" placeholder="Amount" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.credit_card">
           </div>
         </div>
 
         <!-- Other Payment Methods -->
         <div class="list-card" style="margin-bottom: 1.5rem;">
           <h4 style="margin-top: 0;">OTHER PAYMENT METHODS</h4>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>PayTM</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.paytm"></div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Bharat Pay</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.bharat_pe"></div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Cheque/Net Banking</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.cheque_netbanking"></div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>GooglePay</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.google_pay"></div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Phone Pe</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.phone_pe"></div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>NearBuy</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.nearbuy"></div>
-          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;"><span>Other</span><input type="number" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.other"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>PayTM</span><input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.paytm"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Bharat Pay</span><input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.bharat_pe"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Cheque/Net Banking</span><input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.cheque_netbanking"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>GooglePay</span><input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.google_pay"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>Phone Pe</span><input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.phone_pe"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.9rem;"><span>NearBuy</span><input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.nearbuy"></div>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;"><span>Other</span><input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" class="form-control" style="width: 120px; margin-bottom: 0; text-align: center;" [(ngModel)]="closingData.other"></div>
         </div>
 
         <button class="btn btn-primary" (click)="submitClosing()" [disabled]="isSaving" style="width: 100%; padding: 0.75rem;">
@@ -1674,19 +1674,19 @@
                 <tr *ngFor="let tier of currentRule.tiers; let i = index">
                   <td>
                     <div class="input-with-suffix">
-                      <input type="number" step="0.1" class="form-control" [(ngModel)]="tier.min_multiple" placeholder="e.g. 5.0">
+                      <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="0.1" class="form-control" [(ngModel)]="tier.min_multiple" placeholder="e.g. 5.0">
                       <span>×</span>
                     </div>
                   </td>
                   <td>
                     <div class="input-with-suffix">
-                      <input type="number" step="0.1" class="form-control" [(ngModel)]="tier.max_multiple" placeholder="e.g. 5.99 (or leave blank for +)">
+                      <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="0.1" class="form-control" [(ngModel)]="tier.max_multiple" placeholder="e.g. 5.99 (or leave blank for +)">
                       <span>×</span>
                     </div>
                   </td>
                   <td>
                     <div class="input-with-suffix">
-                      <input type="number" step="0.5" class="form-control" [(ngModel)]="tier.incentive_percent" placeholder="e.g. 3.0">
+                      <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="0.5" class="form-control" [(ngModel)]="tier.incentive_percent" placeholder="e.g. 3.0">
                       <span>%</span>
                     </div>
                   </td>
@@ -1731,19 +1731,19 @@
                   <td>
                     <div class="input-with-suffix">
                       <span>₹</span>
-                      <input type="number" step="1000" class="form-control" [(ngModel)]="slab.min_amount" placeholder="11000">
+                      <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="1000" class="form-control" [(ngModel)]="slab.min_amount" placeholder="11000">
                     </div>
                   </td>
                   <td>
                     <div class="input-with-suffix">
                       <span>₹</span>
-                      <input type="number" step="1000" class="form-control" [(ngModel)]="slab.max_amount" placeholder="14000">
+                      <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="1000" class="form-control" [(ngModel)]="slab.max_amount" placeholder="14000">
                     </div>
                   </td>
                   <td>
                     <div class="input-with-suffix">
                       <span>₹</span>
-                      <input type="number" step="50" class="form-control" [(ngModel)]="slab.incentive_amount" placeholder="200">
+                      <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="50" class="form-control" [(ngModel)]="slab.incentive_amount" placeholder="200">
                     </div>
                   </td>
                   <td class="text-center">
@@ -1783,7 +1783,7 @@
                   <td>
                     <div class="input-with-suffix">
                       <span>₹</span>
-                      <input type="number" step="1000" class="form-control" [(ngModel)]="slab.min_amount" placeholder="8000">
+                      <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="1000" class="form-control" [(ngModel)]="slab.min_amount" placeholder="8000">
                     </div>
                   </td>
                   <td>
@@ -1795,7 +1795,7 @@
                   <td>
                     <div class="input-with-suffix">
                       <span *ngIf="slab.type === 'flat'">₹</span>
-                      <input type="number" step="10" class="form-control" [(ngModel)]="slab.incentive_amount" [placeholder]="slab.type === 'percent' ? '5.0' : '350'">
+                      <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="10" class="form-control" [(ngModel)]="slab.incentive_amount" [placeholder]="slab.type === 'percent' ? '5.0' : '350'">
                       <span *ngIf="slab.type === 'percent'">%</span>
                     </div>
                   </td>
@@ -1843,13 +1843,13 @@
                   <td>
                     <div class="input-with-suffix">
                       <span>₹</span>
-                      <input type="number" step="100" class="form-control" [(ngModel)]="item.worth" placeholder="3600">
+                      <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="100" class="form-control" [(ngModel)]="item.worth" placeholder="3600">
                     </div>
                   </td>
                   <td>
                     <div class="input-with-suffix">
                       <span>₹</span>
-                      <input type="number" step="50" class="form-control" [(ngModel)]="item.incentive_amount" placeholder="150">
+                      <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="50" class="form-control" [(ngModel)]="item.incentive_amount" placeholder="150">
                     </div>
                   </td>
                   <td class="text-center">
@@ -1894,12 +1894,12 @@
                     <input type="text" class="form-control" [(ngModel)]="item.keyword" placeholder="e.g. ritual, mani, pedi">
                   </td>
                   <td>
-                    <input type="number" step="1" class="form-control" [(ngModel)]="item.min_amount" placeholder="5">
+                    <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="1" class="form-control" [(ngModel)]="item.min_amount" placeholder="5">
                   </td>
                   <td>
                     <div class="input-with-suffix">
                       <span>₹</span>
-                      <input type="number" step="50" class="form-control" [(ngModel)]="item.incentive_amount" placeholder="500">
+                      <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="50" class="form-control" [(ngModel)]="item.incentive_amount" placeholder="500">
                     </div>
                   </td>
                   <td class="text-center">
@@ -1920,7 +1920,7 @@
           <div class="form-group" *ngIf="currentRule.rule_type === 'flat_percentage'">
             <label class="form-label required">Flat Commission Percentage</label>
             <div class="input-with-suffix">
-              <input type="number" step="0.5" class="form-control" [(ngModel)]="currentRule.flat_percent" placeholder="e.g. 5.0">
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="0.5" class="form-control" [(ngModel)]="currentRule.flat_percent" placeholder="e.g. 5.0">
               <span>%</span>
             </div>
           </div>
@@ -1928,7 +1928,7 @@
             <label class="form-label required">Flat Rupees per Unit</label>
             <div class="input-with-suffix">
               <span>₹</span>
-              <input type="number" step="50" class="form-control" [(ngModel)]="currentRule.flat_amount" placeholder="e.g. 200">
+              <input type="number" min="0" oninput="validity.valid||(value='');" min="0" oninput="validity.valid||(value='');" step="50" class="form-control" [(ngModel)]="currentRule.flat_amount" placeholder="e.g. 200">
             </div>
           </div>
 

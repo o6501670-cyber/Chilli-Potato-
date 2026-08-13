@@ -8,6 +8,7 @@ import { environment } from '../../environments/environment';
   providedIn: 'root'
 })
 export class AuthService {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private http = inject(HttpClient);
   private router = inject(Router);
   // FIXED: was hardcoded to 'http://localhost:8000', now uses environment config

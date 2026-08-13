@@ -17,6 +17,7 @@ import { ToastService } from '../../services/toast.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminBillsComponent implements OnInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   permissions: any = {};
   isOwner = false;

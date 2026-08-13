@@ -17,6 +17,7 @@ import { AdminFilterService } from '../admin/admin-filter.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ServicesComponent implements OnInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   toastService = inject(ToastService);
 

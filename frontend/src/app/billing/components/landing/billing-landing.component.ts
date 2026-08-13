@@ -118,6 +118,7 @@ import { CommonModule, DatePipe } from '@angular/common';
   `]
 })
 export class BillingLandingComponent {
+  todayDate: string = new Date().toISOString().split('T')[0];
   @Input() globalInvoices: any[] = [];
   @Input() appointments: any[] = [];
   @Input() staffActivity: any[] = [];

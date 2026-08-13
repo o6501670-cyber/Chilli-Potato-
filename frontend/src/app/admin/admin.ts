@@ -16,6 +16,7 @@ import { ApiService } from '../services/api';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   authService = inject(AuthService);
   apiService = inject(ApiService);

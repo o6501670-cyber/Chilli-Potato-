@@ -108,6 +108,7 @@ const dataLabelsPlugin = {
 })
 
 export class DashboardComponent implements OnInit, AfterViewInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
   cdr = inject(ChangeDetectorRef);

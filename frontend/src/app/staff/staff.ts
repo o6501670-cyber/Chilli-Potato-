@@ -15,6 +15,7 @@ import { LocationSelectorComponent } from '../components/location-selector/locat
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class StaffComponent implements OnInit {
+  todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
   toastService = inject(ToastService);
@@ -220,7 +221,8 @@ export class StaffComponent implements OnInit {
     let filter: any = this.selectedFilterLocation;
     if (filter === 'null' || filter === null) filter = undefined;
 
-    this.apiService.getClients(undefined, filter).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(data => {
+    this.apiService.getClients(undefined, filter).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((res: any) => {
+      const data = res && res.results ? res.results : res;
       this.clients = data;
     });
 
