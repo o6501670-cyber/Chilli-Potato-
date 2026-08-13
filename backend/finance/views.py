@@ -2204,13 +2204,13 @@ class MultiSalonBalancesView(views.APIView):
                 'count': 1,
                 'value': float(vc.balance),
                 'client': f"{vc.client.first_name} {vc.client.last_name}".strip(),
-                'phone': vc.client.phone_number,
+                'phone': vc.client.phone,
                 'expiry': vc.expiry_date.strftime('%Y-%m-%d') if vc.expiry_date else None
             })
 
         # 2. Advances (AdvancePayment)
         advances = AdvancePayment.objects.filter(client__center_id__in=center_ids).values(
-            'client_id', 'client__first_name', 'client__last_name', 'client__phone_number', 'client__center_id'
+            'client_id', 'client__first_name', 'client__last_name', 'client__phone', 'client__center_id'
         ).annotate(
             total_amount=Sum('amount')
         ).filter(total_amount__gt=0)
@@ -2223,7 +2223,7 @@ class MultiSalonBalancesView(views.APIView):
                 'count': 1,
                 'value': float(adv['total_amount']),
                 'client': f"{adv['client__first_name']} {adv['client__last_name']}".strip(),
-                'phone': adv['client__phone_number'],
+                'phone': adv['client__phone'],
                 'expiry': '-'
             })
 
@@ -2243,7 +2243,7 @@ class MultiSalonBalancesView(views.APIView):
                     'count': total_count,
                     'value': '-',
                     'client': f"{pkg.client.first_name} {pkg.client.last_name}".strip(),
-                    'phone': pkg.client.phone_number,
+                    'phone': pkg.client.phone,
                     'expiry': pkg.expiry_date.strftime('%Y-%m-%d') if pkg.expiry_date else None
                 })
 
@@ -2277,7 +2277,7 @@ class MultiSalonSalesExportView(views.APIView):
                     adv.created_at.strftime('%Y-%m-%d') if adv.created_at else '',
                     (adv.client.center.display_name or adv.client.center.center_name) if adv.client and adv.client.center else 'Unknown',
                     f"{adv.client.first_name} {adv.client.last_name}".strip() if adv.client else '',
-                    adv.client.phone_number if adv.client else '',
+                    adv.client.phone if adv.client else '',
                     float(adv.amount)
                 ])
         else:
