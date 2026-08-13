@@ -107,8 +107,8 @@
 
             <!-- Appointment Blocks -->
             <div class="appt-block" *ngFor="let item of getAppointmentsForStaff(null); trackBy: trackById"
-              [style.left]="calculateLeftStyle(item.service.time)"
-              [style.width]="calculateWidthStyle(item.service.duration, item.service.time)"
+              [style.left]="item.leftStyle"
+              [style.width]="item.widthStyle"
               [class.scheduled]="item.appointment.status === 'Scheduled'"
               [class.completed]="item.appointment.status === 'Completed'"
               [class.cancelled]="item.appointment.status === 'Cancelled'" (mousedown)="openEditModal(item.appointment)">
@@ -129,9 +129,9 @@
               <div class="grid-line" *ngFor="let t of timeSlots"></div>
             </div>
 
-            <div class="appt-block" *ngFor="let item of getAppointmentsForStaff(staff.id)"
-              [style.left]="calculateLeftStyle(item.service.time)"
-              [style.width]="calculateWidthStyle(item.service.duration, item.service.time)"
+            <div class="appt-block" *ngFor="let item of getAppointmentsForStaff(staff.id); trackBy: trackById"
+              [style.left]="item.leftStyle"
+              [style.width]="item.widthStyle"
               [class.scheduled]="item.appointment.status === 'Scheduled'"
               [class.completed]="item.appointment.status === 'Completed'"
               [class.cancelled]="item.appointment.status === 'Cancelled'" (mousedown)="openEditModal(item.appointment)">
