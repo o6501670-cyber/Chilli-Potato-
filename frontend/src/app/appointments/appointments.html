@@ -16,7 +16,7 @@
         <button class="icon-btn" (click)="prevDay()">❮</button>
         <input type="date" class="form-control date-input" min="{{todayDate}}" [ngModel]="selectedDate" (change)="onDateChange($event)">
         <button class="icon-btn" (click)="nextDay()">❯</button>
-        <button class="btn btn-outline today-btn" (click)="setToday()">Today</button>
+        <button class="today-btn" (click)="setToday()">Today</button>
       </div>
 
       <label class="checkbox-label">
