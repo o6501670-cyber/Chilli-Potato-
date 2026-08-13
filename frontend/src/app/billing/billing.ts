@@ -1989,21 +1989,21 @@ export class BillingComponent implements OnInit {
 
       notes: this.selectedPromotion ? `Promo Applied: ${this.selectedPromotion.name}` : '',
 
-      subtotal: this.subtotalAmount,
+      subtotal: Number(this.subtotalAmount).toFixed(2),
 
-      discount: this.invoiceDiscount,
+      discount: Number(this.invoiceDiscount).toFixed(2),
 
-      cgst: this.invoiceCGST,
+      cgst: Number(this.invoiceCGST).toFixed(2),
 
-      sgst: this.invoiceSGST,
+      sgst: Number(this.invoiceSGST).toFixed(2),
 
-      rounding: this.roundingAmount,
+      rounding: Number(this.roundingAmount).toFixed(2),
 
-      total_amount: this.finalTotalAmount,
+      total_amount: Number(this.finalTotalAmount).toFixed(2),
 
-      paid_amount: onHold ? 0 : this.finalTotalAmount + this.checkoutTipAmount,
+      paid_amount: onHold ? 0 : Number(this.finalTotalAmount + this.checkoutTipAmount).toFixed(2),
 
-      tip_amount: this.checkoutTipAmount,
+      tip_amount: Number(this.checkoutTipAmount).toFixed(2),
 
       status: onHold ? 'draft' : 'paid',
 
@@ -2029,10 +2029,10 @@ export class BillingComponent implements OnInit {
           content_type: c.content_type,
           object_id: c.object_id,
           description: c.description,
-          unit_price: c.unit_price,
-          discount: c.discount,
+          unit_price: Number(c.unit_price).toFixed(2),
+          discount: Number(c.discount).toFixed(2),
           quantity: c.quantity,
-          tax_percentage: c.tax_percentage,
+          tax_percentage: Number(c.tax_percentage).toFixed(2),
           staff: c.staff,
           staff_members: c.staff_members,
           custom_package_services: c.custom_package_services
