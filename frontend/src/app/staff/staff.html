@@ -166,7 +166,7 @@
         <div class="staff-item" *ngFor="let staff of filteredStaff; trackBy: trackById" [class.active]="selectedStaff?.id === staff.id"
           (mousedown)="selectStaff(staff)">
           <img *ngIf="staff.image" [src]="staff.image" class="avatar-circle" style="object-fit: cover;">
-          <div *ngIf="!staff.image" class="avatar-circle">{{ getInitials(staff) }}</div>
+          <div *ngIf="!staff.image" class="avatar-circle">{{ staff.initials }}</div>
           <div class="staff-info">
             <div class="staff-name">
               {{ staff.first_name }} {{ staff.last_name }}
@@ -1008,7 +1008,7 @@
 
       <!-- Global Datalists for Autocomplete -->
       <datalist id="clientOptions">
-        <option *ngFor="let c of clients | slice:0:200; trackBy: trackById" [value]="c.name || (c.first_name + ' ' + (c.last_name || ''))">{{ c.phone }}
+        <option *ngFor="let c of clients | slice:0:200; trackBy: trackById" [value]="c.display_name">{{ c.phone }}
         </option>
       </datalist>
       <datalist id="serviceOptions">
@@ -1316,10 +1316,10 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let t of allToolsReport; trackBy: trackByIndex" [class.danger-row]="isToolOverdue(t)">
+            <tr *ngFor="let t of allToolsReport; trackBy: trackByIndex" [class.danger-row]="t.is_overdue">
               <td class="font-weight-bold">
                 {{ t.staff_name }}
-                <span *ngIf="isToolOverdue(t)" class="alert-icon" title="Overdue"><svg width='16' height='16'
+                <span *ngIf="t.is_overdue" class="alert-icon" title="Overdue"><svg width='16' height='16'
                     viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round'
                     stroke-linejoin='round'>
                     <circle cx='12' cy='12' r='10' />
@@ -1333,7 +1333,7 @@
               <td>{{ t.amount }}</td>
               <td>{{ t.date_taken | date:'mediumDate' }}</td>
               <td>
-                <span [style.color]="isToolOverdue(t) ? '#ef4444' : 'inherit'">
+                <span [style.color]="t.is_overdue ? '#ef4444' : 'inherit'">
                   {{ t.expected_return_date ? (t.expected_return_date | date:'mediumDate') : 'N/A' }}
                 </span>
               </td>
