@@ -633,7 +633,7 @@ export class FinanceComponent implements OnInit {
         this.checkActiveShift();
         this.loadTodayClosingData();
       } else if (this.activeMainTab === 'multi') {
-        this.loadMultiSalonData();
+        this.runMultiSalon();
       } else if (this.activeMainTab === 'incentives') {
         this.loadIncentives();
       } else {
@@ -695,7 +695,7 @@ export class FinanceComponent implements OnInit {
       this.loadPettyCash();
       this.loadClosingHistory();
     } else if (this.activeMainTab === 'multi') {
-      this.loadMultiSalonData();
+      this.runMultiSalon();
     } else if (this.activeMainTab === 'incentives') {
       this.loadIncentives();
     }
@@ -727,7 +727,7 @@ export class FinanceComponent implements OnInit {
       this.loadPettyCash();
       this.loadClosingHistory();
     }
-    if (tab === 'multi') this.loadMultiSalonData();
+    if (tab === 'multi') this.runMultiSalon();
     if (tab === 'incentives') {
       this.resetIncentiveDates();
       this.loadIncentives();
@@ -1149,7 +1149,9 @@ export class FinanceComponent implements OnInit {
   
   loadMultiBalances() {
     this.isLoading = true;
-    const url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/balances/`;
+    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/balances/`;
+      const cid = this.getCenterId();
+      if (cid) url += (url.includes('?') ? '&' : '?') + 'center_id=' + cid;
     const token = localStorage.getItem('token');
     if (token) {
       fetch(url, { headers: { 'Authorization': `Token ${token}` } })
@@ -1203,7 +1205,9 @@ export class FinanceComponent implements OnInit {
 
   loadMultiCategories() {
     this.isLoading = true;
-    const url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/categories/?start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
+    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/categories/\?start_date=\$\{this\.multiStartDate\}&end_date=\$\{this\.multiEndDate\}`;
+      const cid = this.getCenterId();
+      if (cid) url += (url.includes('?') ? '&' : '?') + 'center_id=' + cid;
     const token = localStorage.getItem('token');
     if (token) {
       fetch(url, { headers: { 'Authorization': `Token ${token}` } })
@@ -1229,7 +1233,9 @@ export class FinanceComponent implements OnInit {
 
   loadMultiServiceDrilldown() {
     this.isLoading = true;
-    const url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/drilldown/services/?search=${this.serviceSearchTerm}&start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
+    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/drilldown/services/\?search=\$\{this\.serviceSearchTerm\}&start_date=\$\{this\.multiStartDate\}&end_date=\$\{this\.multiEndDate\}`;
+      const cid = this.getCenterId();
+      if (cid) url += (url.includes('?') ? '&' : '?') + 'center_id=' + cid;
     const token = localStorage.getItem('token');
     if (token) {
       fetch(url, { headers: { 'Authorization': `Token ${token}` } })
@@ -1249,7 +1255,9 @@ export class FinanceComponent implements OnInit {
 
   loadMultiProductDrilldown() {
     this.isLoading = true;
-    const url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/drilldown/products/?search=${this.productSearchTerm}&start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
+    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/drilldown/products/\?search=\$\{this\.productSearchTerm\}&start_date=\$\{this\.multiStartDate\}&end_date=\$\{this\.multiEndDate\}`;
+      const cid = this.getCenterId();
+      if (cid) url += (url.includes('?') ? '&' : '?') + 'center_id=' + cid;
     const token = localStorage.getItem('token');
     if (token) {
       fetch(url, { headers: { 'Authorization': `Token ${token}` } })
@@ -1347,7 +1355,9 @@ export class FinanceComponent implements OnInit {
 
   loadMultiClients() {
     this.isLoading = true;
-    const url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/clients/?start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
+    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/clients/\?start_date=\$\{this\.multiStartDate\}&end_date=\$\{this\.multiEndDate\}`;
+      const cid = this.getCenterId();
+      if (cid) url += (url.includes('?') ? '&' : '?') + 'center_id=' + cid;
     const token = localStorage.getItem('token');
     if (token) {
       fetch(url, { headers: { 'Authorization': `Token ${token}` } })
@@ -1397,7 +1407,9 @@ export class FinanceComponent implements OnInit {
 
   loadMultiStaff() {
     this.isLoading = true;
-    const url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/staff/?start_date=${this.multiStartDate}&end_date=${this.multiEndDate}`;
+    let url = `${this.apiService.baseUrl}/finance/api/reports/multi_salon/staff/\?start_date=\$\{this\.multiStartDate\}&end_date=\$\{this\.multiEndDate\}`;
+      const cid = this.getCenterId();
+      if (cid) url += (url.includes('?') ? '&' : '?') + 'center_id=' + cid;
     const token = localStorage.getItem('token');
     if (token) {
       fetch(url, { headers: { 'Authorization': `Token ${token}` } })
@@ -1438,7 +1450,14 @@ export class FinanceComponent implements OnInit {
   }
 
   runMultiSalon() {
-    this.loadMultiSalonData();
+    if (this.activeMultiTab === 'register') this.loadMultiSalonData();
+    else if (this.activeMultiTab === 'balances') this.loadMultiBalances();
+    else if (this.activeMultiTab === 'categories') this.loadMultiCategories();
+    else if (this.activeMultiTab === 'service_drilldown') this.loadMultiServiceDrilldown();
+    else if (this.activeMultiTab === 'product_drilldown') this.loadMultiProductDrilldown();
+    else if (this.activeMultiTab === 'petty_cash') this.loadMultiPettyCash();
+    else if (this.activeMultiTab === 'clients') this.loadMultiClients();
+    else if (this.activeMultiTab === 'staff') this.loadMultiStaff();
   }
 
   // ---- Petty Cash ----

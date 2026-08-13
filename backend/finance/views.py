@@ -2179,6 +2179,10 @@ class MultiSalonBalancesView(views.APIView):
                 centers_qs = centers_qs.filter(id__in=user.centers.all())
             elif hasattr(user, 'center') and user.center:
                 centers_qs = centers_qs.filter(id=user.center.id)
+                
+        center_id = request.query_params.get('center_id')
+        if center_id:
+            centers_qs = centers_qs.filter(id=center_id)
 
         center_ids = list(centers_qs.values_list('id', flat=True))
         center_dict = {c.id: (c.display_name or c.center_name) for c in centers_qs}
@@ -2258,7 +2262,8 @@ class MultiSalonSalesExportView(views.APIView):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        invoices = _get_filtered_invoices(request, None, start_date, end_date)
+        center_id = request.query_params.get('center_id')
+        invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
 
         wb = openpyxl.Workbook(write_only=True)
         ws = wb.create_sheet(title=f"{item_type.capitalize()} Sales")
@@ -2329,7 +2334,8 @@ class MultiSalonCategoriesView(views.APIView):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        invoices = _get_filtered_invoices(request, None, start_date, end_date)
+        center_id = request.query_params.get('center_id')
+        invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
 
         from services.models import ServiceMaster
         from inventory.models import Product
@@ -2455,7 +2461,8 @@ class MultiSalonServiceDrilldownView(views.APIView):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        invoices = _get_filtered_invoices(request, None, start_date, end_date)
+        center_id = request.query_params.get('center_id')
+        invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
 
         try:
             service_ct = ContentType.objects.get_for_model(ServiceMaster)
@@ -2498,7 +2505,8 @@ class MultiSalonProductDrilldownView(views.APIView):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        invoices = _get_filtered_invoices(request, None, start_date, end_date)
+        center_id = request.query_params.get('center_id')
+        invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
 
         try:
             product_ct = ContentType.objects.get_for_model(Product)
@@ -2541,7 +2549,8 @@ class MultiSalonClientsView(views.APIView):
 
         # To avoid massive queries, we will get clients who had an invoice in this period
         # or we get all clients if no period is specified. But let's follow the standard pattern:
-        invoices = _get_filtered_invoices(request, None, start_date, end_date)
+        center_id = request.query_params.get('center_id')
+        invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
         client_ids_with_invoices = invoices.values_list('client_id', flat=True).distinct()
 
         # Optimize by getting only active clients, and prefetching related data
@@ -2649,7 +2658,8 @@ class MultiSalonStaffView(views.APIView):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        invoices = _get_filtered_invoices(request, None, start_date, end_date)
+        center_id = request.query_params.get('center_id')
+        invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
 
         try:
             ct_map = ContentType.objects.get_for_models(ServiceMaster, Product, Membership, Package, ValueCard)
