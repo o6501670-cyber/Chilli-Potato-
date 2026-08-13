@@ -3,7 +3,7 @@
   <div class="top-bar">
     <div class="top-bar-left" style="display: flex; align-items: center; gap: 16px;">
       <!-- Center Filter on left most side -->
-      <app-location-selector *ngIf="activeMainTab !== 'multi'"
+      <app-location-selector
         [centers]="centers"
         [hasGlobalAccess]="hasGlobalAccess"
         [(selectedCenterId)]="selectedFilterLocation"
