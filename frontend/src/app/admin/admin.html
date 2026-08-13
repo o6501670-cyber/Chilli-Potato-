@@ -224,9 +224,9 @@
     </header>
 
     <!-- Admin Sub-navigation (only on admin pages) -->
-    <div *ngIf="isAdminPage" style="position: relative; z-index: 10; padding: 12px 24px 0 24px; border-bottom: 1px solid #e2e8f0;">
-      <div class="admin-subnav" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; overflow-x: auto; padding-bottom: 8px;">
-        <div class="tabs-container" style="display: flex; gap: 8px;">
+    <div *ngIf="isAdminPage" style="position: relative; z-index: 50; padding: 12px 24px 0 24px; border-bottom: 1px solid #e2e8f0;">
+      <div class="admin-subnav" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; overflow: visible; padding-bottom: 8px;">
+        <div class="tabs-container" style="display: flex; gap: 8px; overflow-x: auto; flex: 1;">
 
       <a routerLink="/admin/bills" routerLinkActive="active" class="subnav-tab"
         *ngIf="isOwner || permissions.admin?.bills?.read">Bills</a>
