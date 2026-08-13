@@ -13,7 +13,7 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = InvoiceItem
-        fields = ('id', 'content_type', 'object_id', 'description', 'unit_price', 'discount', 'quantity',
+        fields = ('id', 'content_type', 'object_id', 'description', 'unit_price', 'discount', 'manager_discount', 'quantity',
                   'tax_percentage', 'tax_amount', 'total_price', 'staff', 'staff_members')
 
     def to_internal_value(self, data):

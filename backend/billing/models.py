@@ -100,6 +100,7 @@ class InvoiceItem(models.Model):
     description = models.CharField(max_length=255, blank=True)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    manager_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     quantity = models.PositiveIntegerField(default=1)
     tax_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)  # From service/product master
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)   # Pre-tax amount × tax_percentage / 100

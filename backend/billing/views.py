@@ -101,7 +101,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         manager_discount = self.request.query_params.get('manager_discount')
         if manager_discount and manager_discount.lower() == 'true':
             from django.db.models import Q
-            qs = qs.filter(Q(discount__gt=0) | Q(items__discount__gt=0)).distinct()
+            qs = qs.filter(items__manager_discount__gt=0).distinct()
 
         # Default: if no date range or client filter provided, limit to last 30 days
         # to prevent unbounded full-table scans on the billing list endpoint

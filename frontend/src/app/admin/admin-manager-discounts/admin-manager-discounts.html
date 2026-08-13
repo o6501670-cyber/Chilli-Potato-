@@ -23,23 +23,10 @@
           </tr>
         </thead>
         <tbody *ngFor="let inv of invoices; trackBy: trackById">
-          <!-- Invoice Level Discount -->
-          <tr *ngIf="inv.discount > 0">
-            <td class="font-bold"><span class="invoice-tag" style="background:#e0e7ff; color:#4f46e5; padding:4px 8px; border-radius:6px;">#{{ inv.id }}</span></td>
-            <td class="text-secondary">{{ inv.created_at | date:'dd-MM-yyyy, HH:mm' }}</td>
-            <td class="font-semibold">{{ getClientName(inv) }}</td>
-            <td class="text-secondary">{{ getClientPhone(inv) }}</td>
-            <td><span class="status-badge badge-cancelled">Overall Bill</span></td>
-            <td>Full Invoice</td>
-            <td class="font-semibold">{{ inv.staff || 'Admin' }}</td>
-            <td>₹{{ inv.subtotal | number:'1.0-0' }}</td>
-            <td class="font-bold amount-pop" style="color: #ef4444;">₹{{ inv.discount | number:'1.0-0' }}</td>
-            <td><span class="status-badge badge-refunded">{{ (inv.subtotal ? (inv.discount / inv.subtotal * 100) : 0) | number:'1.0-0' }}%</span></td>
-            <td class="font-bold amount-pop">₹{{ inv.total_amount | number:'1.0-0' }}</td>
-          </tr>
+          
           <!-- Item Level Discounts -->
           <ng-container *ngFor="let item of inv.items; trackBy: trackByIndex">
-            <tr *ngIf="item.discount > 0">
+            <tr *ngIf="item.manager_discount > 0">
               <td class="font-bold"><span class="invoice-tag" style="background:#e0e7ff; color:#4f46e5; padding:4px 8px; border-radius:6px;">#{{ inv.id }}</span></td>
               <td class="text-secondary">{{ inv.created_at | date:'dd-MM-yyyy, HH:mm' }}</td>
               <td class="font-semibold">{{ getClientName(inv) }}</td>
@@ -48,8 +35,8 @@
               <td>{{ item.description || 'Item' }}</td>
               <td class="font-semibold">{{ inv.staff || 'Admin' }}</td>
               <td>₹{{ item.unit_price | number:'1.0-0' }}</td>
-              <td class="font-bold amount-pop" style="color: #ef4444;">₹{{ item.discount | number:'1.0-0' }}</td>
-              <td><span class="status-badge badge-refunded">{{ (item.unit_price ? (item.discount / item.unit_price * 100) : 0) | number:'1.0-0' }}%</span></td>
+              <td class="font-bold amount-pop" style="color: #ef4444;">₹{{ item.manager_discount | number:'1.0-0' }}</td>
+              <td><span class="status-badge badge-refunded">{{ (item.unit_price ? (item.manager_discount / item.unit_price * 100) : 0) | number:'1.0-0' }}%</span></td>
               <td class="font-bold amount-pop">₹{{ item.total_price | number:'1.0-0' }}</td>
             </tr>
           </ng-container>

@@ -176,10 +176,9 @@ export class AdminManagerDiscountsComponent implements OnInit {
   getTotalDiscountValue(): number {
     let sum = 0;
     this.invoices.forEach(inv => {
-      if (inv.discount > 0) sum += parseFloat(inv.discount) || 0;
       if (inv.items && inv.items.length) {
         inv.items.forEach((item: any) => {
-          if (item.discount > 0) sum += parseFloat(item.discount) || 0;
+          if (item.manager_discount > 0) sum += parseFloat(item.manager_discount) || 0;
         });
       }
     });
