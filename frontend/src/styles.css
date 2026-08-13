@@ -212,11 +212,7 @@
   box-sizing: border-box;
 }
 
-html {
-  zoom: 0.9;
-  width: 111.111111%;
-  height: 111.111111%;
-}
+
 body {
   width: 100%;
   height: 100%;
