@@ -136,6 +136,15 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             # Lock the row to prevent race condition
             invoice = Invoice.objects.select_for_update().get(pk=pk)
 
+            remaining_balance = max(Decimal('0'), invoice.total_amount - invoice.paid_amount)
+            if remaining_balance <= 0:
+                return Response({'detail': 'Invoice is already fully paid.'}, status=status.HTTP_400_BAD_REQUEST)
+            if amt > remaining_balance:
+                return Response(
+                    {'detail': f'Payment amount ({amt}) exceeds remaining balance ({remaining_balance}).'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             # Advance balance check INSIDE the lock to prevent over-drawing under concurrent requests
             if payment_method and ('advance' in payment_method.lower() or 'wallet' in payment_method.lower()):
                 if invoice.client:
@@ -172,24 +181,25 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             invoice.refresh_from_db()
 
             # Handle advance deduction / value card deduction for this payment
-            try:
-                pm = payment_method.lower()
-                if 'advance' in pm or 'wallet' in pm:
-                    AdvancePayment.objects.create(
-                        client=invoice.client,
-                        invoice=invoice,
-                        amount=-amt,
-                        notes=f"Used for Invoice #{invoice.id}"
-                    )
-                if 'value card' in pm and value_card_id:
-                    from clients.models import ClientValueCard
-                    client_vc = ClientValueCard.objects.select_for_update().get(id=value_card_id)
-                    client_vc.balance = max(Decimal('0'), client_vc.balance - amt)
-                    if client_vc.balance <= 0:
-                        client_vc.is_active = False
-                    client_vc.save()
-            except Exception as ex:
-                logger.error(f"[Billing pay] Error handling deduction: {ex}", exc_info=True)
+            pm = payment_method.lower()
+            if 'advance' in pm or 'wallet' in pm:
+                AdvancePayment.objects.create(
+                    client=invoice.client,
+                    invoice=invoice,
+                    amount=-amt,
+                    notes=f"Used for Invoice #{invoice.id}"
+                )
+            if 'value card' in pm and value_card_id:
+                from clients.models import ClientValueCard
+                client_vc = ClientValueCard.objects.select_for_update().get(id=value_card_id)
+                if invoice.client and client_vc.client_id != invoice.client.id:
+                    raise ValueError("This value card does not belong to the invoice client.")
+                if client_vc.balance < amt:
+                    raise ValueError(f"Insufficient value card balance. Available: {client_vc.balance}")
+                client_vc.balance = max(Decimal('0'), client_vc.balance - amt)
+                if client_vc.balance <= 0:
+                    client_vc.is_active = False
+                client_vc.save()
 
             # If this is the first payment that pushes a draft invoice to paid/partial,
             # run finalize_invoice with skip_payment_deductions=True since we just handled
@@ -206,10 +216,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         from staff.models import PayrollRecord
         staff_ids = invoice.service_logs.values_list('staff_id', flat=True)
         if staff_ids:
+            invoice_date = invoice.created_at.date() if invoice.created_at else __import__('datetime').date.today()
             locked = PayrollRecord.objects.filter(
                 staff_id__in=staff_ids,
-                month=invoice.date.month,
-                year=invoice.date.year,
+                month=invoice_date.month,
+                year=invoice_date.year,
                 status__in=['Locked', 'Paid']
             ).exists()
             if locked:
@@ -244,22 +255,24 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                     reason='Invoice cancelled/refunded'
                 )
 
-            # Revert inventory stock — batch by content_type to avoid N+1 on content_object
-            inventory_items = [
-                item for item in invoice.items.select_related('content_type').all()
-                if item.content_type and item.content_type.app_label == 'inventory'
-            ]
-            if inventory_items:
-                from inventory.models import Product, StockTransaction
-                product_ids = [item.object_id for item in inventory_items]
-                products_map = {p.pk: p for p in Product.objects.filter(pk__in=product_ids)}
+            # Revert inventory stock ONLY if it wasn't a draft
+            if old_status != 'draft':
+                inventory_items = [
+                    item for item in invoice.items.select_related('content_type').all()
+                    if item.content_type and item.content_type.app_label == 'inventory'
+                ]
                 for item in inventory_items:
-                    product = products_map.get(item.object_id)
-                    if product and hasattr(product, 'current_stock'):
-                        try:
-                            type(product).objects.filter(pk=product.pk).update(
-                                current_stock=F('current_stock') + int(item.quantity)
-                            )
+                    try:
+                        # Safely fetch the product via GenericForeignKey
+                        product = item.content_object
+                        if product:
+                            # Lock the product row
+                            product = product.__class__.objects.select_for_update().get(pk=product.pk)
+                            product.current_stock += int(item.quantity)
+                            product.save(update_fields=['current_stock'])
+                            
+                            # Log the refund in StockTransaction
+                            from inventory.models import StockTransaction
                             StockTransaction.objects.create(
                                 product=product,
                                 center=invoice.center or (invoice.client.center if invoice.client else None),
@@ -267,8 +280,8 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                                 quantity_change=int(item.quantity),
                                 notes=f"Refunded from Invoice #{invoice.id}",
                             )
-                        except Exception as e:
-                            logger.error(f"[Billing Cancel] Error reverting stock: {e}", exc_info=True)
+                    except Exception as e:
+                        logger.error(f"[Billing Cancel] Error reverting stock for item {item.id}: {e}", exc_info=True)
 
             # FIXED: Do not delete ServiceLogs — they are business/payroll records.
             # Mark them as cancelled instead by updating the invoice status (already done above).
@@ -388,6 +401,19 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
+        # Prevent Double-POST (Idempotency check)
+        from django.core.cache import cache
+        import hashlib
+        import json
+        
+        # Create a hash of the request data and user to act as an idempotency key
+        req_hash = hashlib.md5(f"{request.user.pk}:{json.dumps(request.data, sort_keys=True)}".encode('utf-8')).hexdigest()
+        cache_key = f"billing_create_lock_{req_hash}"
+        if cache.get(cache_key):
+            return Response({'error': 'Duplicate checkout request detected.'}, status=status.HTTP_409_CONFLICT)
+        # Lock for 10 seconds
+        cache.set(cache_key, True, timeout=10)
+
         # Make a mutable copy safely, handling both QueryDict and dict
         if hasattr(request.data, 'dict'):
             sanitized = request.data.dict()

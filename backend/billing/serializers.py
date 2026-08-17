@@ -318,7 +318,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             staff_members = item_data.pop('staff_members', [])
             item_data['invoice'] = invoice
 
-            # Resolve content_type label → ContentType object (same as InvoiceItemSerializer.create)
+            # Resolve content_type label -> ContentType object
             ct_label = item_data.pop('content_type', None)
             if ct_label and isinstance(ct_label, str):
                 try:
@@ -327,6 +327,59 @@ class InvoiceSerializer(serializers.ModelSerializer):
                     item_data['content_type'] = CT.objects.get(app_label=app_label, model=model)
                 except Exception:
                     item_data['content_type'] = None
+
+            # [SECURITY FIX] Enforce price and tax from database to prevent manipulation
+            ct = item_data.get('content_type')
+            obj_id = item_data.get('object_id')
+            if ct and obj_id:
+                try:
+                    ModelClass = ct.model_class()
+                    obj = ModelClass.objects.get(pk=obj_id)
+                    
+                    db_price = Decimal('0')
+                    db_tax = Decimal('0')
+                    
+                    # 1. Resolve base price
+                    if hasattr(obj, 'default_price') and ct.model == 'service':
+                        db_price = Decimal(str(obj.default_price))
+                    elif hasattr(obj, 'pre_tax_price'):
+                        db_price = Decimal(str(obj.pre_tax_price))
+                    elif hasattr(obj, 'price'):
+                        db_price = Decimal(str(obj.price))
+                        
+                    # Center override for service price
+                    if ct.model == 'service':
+                        # Check if center has a specific price
+                        center = invoice.center
+                        if center:
+                            from services.models import CenterService
+                            cs = CenterService.objects.filter(center=center, service=obj, is_active=True).first()
+                            if cs and cs.price is not None:
+                                db_price = Decimal(str(cs.price))
+                    
+                    # 2. Resolve tax percentage
+                    if hasattr(obj, 'tax_percentage'):
+                        db_tax = Decimal(str(obj.tax_percentage))
+                    elif hasattr(obj, 'gst_percent'):
+                        db_tax = Decimal(str(obj.gst_percent))
+                        
+                    # 3. Override payload
+                    item_data['unit_price'] = db_price
+                    item_data['tax_percentage'] = db_tax
+                    
+                    # 4. Recalculate totals
+                    qty = Decimal(str(item_data.get('quantity', 1)))
+                    disc = Decimal(str(item_data.get('discount', 0)))
+                    mgr_disc = Decimal(str(item_data.get('manager_discount', 0)))
+                    
+                    base_total = max(Decimal('0'), (db_price * qty) - disc - mgr_disc)
+                    tax_amt = base_total * (db_tax / Decimal('100'))
+                    
+                    item_data['tax_amount'] = tax_amt.quantize(Decimal('0.01'))
+                    item_data['total_price'] = (base_total + tax_amt).quantize(Decimal('0.01'))
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"[Billing] Could not enforce DB price for {ct} {obj_id}: {e}")
 
             item_instances.append(InvoiceItem(**item_data))
             if staff_members:
