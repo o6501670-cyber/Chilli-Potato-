@@ -23,6 +23,9 @@ Chart.defaults.elements.bar.borderSkipped = false;
 Chart.defaults.elements.line.tension = 0.4;
 Chart.defaults.elements.line.borderWidth = 3;
 Chart.defaults.layout = { padding: { left: 20, right: 20, top: 25, bottom: 10 } };
+(Chart.defaults as any).datasets = (Chart.defaults as any).datasets || {};
+(Chart.defaults as any).datasets.bar = (Chart.defaults as any).datasets.bar || {};
+(Chart.defaults as any).datasets.bar.minBarLength = 6;
 
 const dataLabelsPlugin = {
   id: 'dataLabelsPlugin',
