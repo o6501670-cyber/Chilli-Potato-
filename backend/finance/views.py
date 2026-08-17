@@ -2698,18 +2698,9 @@ class MultiSalonStaffView(views.APIView):
 
         items = InvoiceItem.objects.filter(invoice__in=invoices).exclude(staff__isnull=True)
         
-        # We need to group by Staff and Center
-        grouped = items.values(
-            'staff__first_name', 'staff__last_name', 'invoice__center__center_name'
-        ).annotate(
-            revenue=Sum('total_price'),
-            # For counts and redemptions, we might need conditional aggregation or just fetch all and aggregate in python.
-            # Python aggregation is safer for these conditional fields to avoid massive joins/annotations
-        )
-        
         # But wait, conditional aggregation is faster:
         grouped = items.values(
-            'staff__first_name', 'staff__last_name', 'invoice__center__center_name'
+            'staff__id', 'staff__first_name', 'staff__last_name'
         ).annotate(
             revenue=Sum('total_price'),
             services=Sum('total_price', filter=Q(content_type=service_ct)),
@@ -2719,22 +2710,26 @@ class MultiSalonStaffView(views.APIView):
             cards=Sum('total_price', filter=Q(content_type=valuecard_ct))
         )
 
+        staff_centers = items.values('staff__id', 'invoice__center__center_name', 'invoice__center__display_name').distinct()
+        sc_map = {}
+        for sc in staff_centers:
+            sid = sc['staff__id']
+            c_name = sc['invoice__center__display_name'] or sc['invoice__center__center_name'] or 'Unknown'
+            if sid not in sc_map:
+                sc_map[sid] = set()
+            sc_map[sid].add(c_name)
+
         results = []
         for g in grouped:
+            sid = g['staff__id']
             staff_name = f"{g['staff__first_name'] or ''} {g['staff__last_name'] or ''}".strip()
-            # Wait, the screenshot shows total amounts or counts for "Services"?
-            # Ah, the screenshot shows "Services: 29,210", which is clearly an amount.
-            # "Products: 35,958", clearly an amount.
-            # So they are total amounts per category!
             
-            # Service Red. and Value Card Red. 
-            # In POS, usually Service Red = paid via package.
-            # Let's just set them to 0 for now as they might require deep inspection of Payment lines
-            # and the user did not specify.
+            centers_list = sorted(list(sc_map.get(sid, set())))
+            salon_names = ", ".join(centers_list) if centers_list else 'Unknown'
             
             results.append({
                 'staff_name': staff_name,
-                'salon': g['invoice__center__center_name'] or 'Unknown',
+                'salon': salon_names,
                 'revenue': float(g['revenue'] or 0),
                 'services': float(g['services'] or 0),
                 'service_red': 0,
