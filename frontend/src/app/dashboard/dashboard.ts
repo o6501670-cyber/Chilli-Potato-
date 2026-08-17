@@ -1191,7 +1191,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         // We can't just stringify the config because it loses functions/plugins.
         // We will create a new config with the same data and options.
         const config: any = {
-          type: originalChart.config.type,
+          type: (originalChart.config as any).type,
           data: originalChart.config.data,
           options: Object.assign({}, originalChart.config.options),
           plugins: originalChart.config.plugins
