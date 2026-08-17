@@ -121,7 +121,7 @@
       <div class="card bento-span-4 chart-card-tall"
         style="height: 400px; display: flex; flex-direction: column; margin-bottom: 0;">
         <div class="card-head">
-          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Invoices over weekdays</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('summaryLineChart', 'Invoices over weekdays')" title="Expand Chart"></i></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Invoices over weekdays</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('summaryLineChart', 'Invoices over weekdays')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div>
           
         </div>
         <div class="chart-wrap" style="flex: 1; min-height: 0; padding-bottom: 20px; position: relative;"><canvas
@@ -131,7 +131,7 @@
       <div class="card bento-span-2 chart-card-tall"
         style="height: 350px; display: flex; flex-direction: column; margin-bottom: 0;">
         <div class="card-head">
-          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Revenue Breakdown</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('revenuePieChart', 'Revenue Breakdown')" title="Expand Chart"></i></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Revenue Breakdown</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('revenuePieChart', 'Revenue Breakdown')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div>
           
         </div>
         <div class="chart-wrap" style="flex: 1; padding-bottom: 20px; position: relative;"><canvas
@@ -301,7 +301,7 @@
       </div>
       <div class="card chart-card" style="margin-bottom: 14px;">
         <div class="card-head">
-          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Monthly Revenue Trend</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('revMonthlyChart', 'Monthly Revenue Trend')" title="Expand Chart"></i></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Monthly Revenue Trend</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('revMonthlyChart', 'Monthly Revenue Trend')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div>
           <span style="font-size:10px;color:#9ca3af;margin-left:6px">💡 Click a month to drill down</span>
           <span class="card-badge">Selected Period</span>
         </div>
@@ -309,11 +309,11 @@
       </div>
       <div class="card chart-card" style="margin-bottom: 14px;">
         <div class="card-head">
-          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">{{ selectedDrillDownMonth ? 'Daily Revenue — ' + selectedDrillDownMonth : (currentRange === 'past6Months' || currentRange === 'past12Months' ? 'Weekly Revenue' : 'Daily Revenue') }}</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('revDailyChart', selectedDrillDownMonth ? 'Daily Revenue — ' + selectedDrillDownMonth : (currentRange === 'past6Months' || currentRange === 'past12Months' ? 'Weekly Revenue' : 'Daily Revenue'))" title="Expand Chart"></i></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">{{ selectedDrillDownMonth ? 'Daily Revenue — ' + selectedDrillDownMonth : (currentRange === 'past6Months' || currentRange === 'past12Months' ? 'Weekly Revenue' : 'Daily Revenue') }}</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('revDailyChart', selectedDrillDownMonth ? 'Daily Revenue — ' + selectedDrillDownMonth : (currentRange === 'past6Months' || currentRange === 'past12Months' ? 'Weekly Revenue' : 'Daily Revenue'))" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <span *ngIf="selectedDrillDownMonth" class="drill-pill"><i class="fa-solid fa-arrow-pointer"></i> {{ selectedDrillDownMonth }}</span>
             <button *ngIf="selectedDrillDownMonth" (click)="resetDrillDownMonth()" style="background: #f3f4f6; color: #4b5563; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-              <i class="fa-solid fa-xmark"></i> Clear
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Clear
             </button>
             <span *ngIf="!selectedDrillDownMonth" style="font-size:10px;color:#9ca3af">💡 Click a day to see hourly</span>
             <span class="card-badge">This period</span>
@@ -323,11 +323,11 @@
       </div>
       <div class="card chart-card" style="margin-top:14px">
         <div class="card-head">
-          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">{{ selectedDrillDownDay ? 'Hourly Revenue — ' + selectedDrillDownDay : 'Hourly Revenue (All Day)' }}</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('revHourlyChart', selectedDrillDownDay ? 'Hourly Revenue — ' + selectedDrillDownDay : 'Hourly Revenue (All Day)')" title="Expand Chart"></i></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">{{ selectedDrillDownDay ? 'Hourly Revenue — ' + selectedDrillDownDay : 'Hourly Revenue (All Day)' }}</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('revHourlyChart', selectedDrillDownDay ? 'Hourly Revenue — ' + selectedDrillDownDay : 'Hourly Revenue (All Day)')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <span *ngIf="selectedDrillDownDay" class="drill-pill"><i class="fa-solid fa-clock"></i> {{ selectedDrillDownDay }}</span>
             <button *ngIf="selectedDrillDownDay" (click)="resetDrillDownDay()" style="background: #f3f4f6; color: #4b5563; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-              <i class="fa-solid fa-xmark"></i> Clear
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Clear
             </button>
             <span class="card-badge">24h view</span>
           </div>
@@ -386,24 +386,24 @@
           </table>
         </div>
         <div class="card chart-card">
-          <div class="card-head"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Client Types & Memberships</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('clientBreakdownChart', 'Client Types & Memberships')" title="Expand Chart"></i></div>
+          <div class="card-head"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Client Types & Memberships</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('clientBreakdownChart', 'Client Types & Memberships')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div>
         </div>
           <div class="chart-wrap"><canvas id="clientBreakdownChart"></canvas></div>
         </div>
       </div>
       <div class="two-col-grid" style="margin-top:14px">
         <div class="card chart-card" style="height: 360px">
-          <div class="card-head"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Female Clients Trend</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('femaleTrendChart', 'Female Clients Trend')" title="Expand Chart"></i></div><span class="legend-dot pink"
+          <div class="card-head"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Female Clients Trend</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('femaleTrendChart', 'Female Clients Trend')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div><span class="legend-dot pink"
               style="margin-left:auto"></span></div>
           <div class="chart-wrap"><canvas id="femaleTrendChart"></canvas></div>
         </div>
         <div class="card chart-card" style="height: 360px">
-          <div class="card-head"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Male Clients Trend</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('maleTrendChart', 'Male Clients Trend')" title="Expand Chart"></i></div><span class="legend-dot blue"
+          <div class="card-head"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Male Clients Trend</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('maleTrendChart', 'Male Clients Trend')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div><span class="legend-dot blue"
               style="margin-left:auto"></span></div>
           <div class="chart-wrap"><canvas id="maleTrendChart"></canvas></div>
         </div>
         <div class="card chart-card" style="height: 360px; grid-column: span 2;">
-          <div class="card-head"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Unknown Client Trend</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('unknownTrendChart', 'Unknown Client Trend')" title="Expand Chart"></i></div><span class="legend-dot purple"
+          <div class="card-head"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Unknown Client Trend</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('unknownTrendChart', 'Unknown Client Trend')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div><span class="legend-dot purple"
               style="margin-left:auto"></span></div>
           <div class="chart-wrap"><canvas id="unknownTrendChart"></canvas></div>
         </div>
@@ -411,9 +411,9 @@
       <div style="margin-top:14px">
         <div class="card chart-card" style="height: 300px">
           <div class="card-head" style="display: flex; justify-content: space-between; align-items: center;">
-            <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Daily Client Footfall</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('clientDailyChart', 'Daily Client Footfall')" title="Expand Chart"></i></div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Daily Client Footfall</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('clientDailyChart', 'Daily Client Footfall')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div>
             <button *ngIf="selectedClientDrillDownMonth" (click)="resetClientDrillDownMonth()" style="background: #f3f4f6; color: #4b5563; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-              <i class="fa-solid fa-xmark"></i> Clear Month
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Clear Month
             </button>
           </div>
           <div class="chart-wrap"><canvas id="clientDailyChart"></canvas></div>
@@ -433,27 +433,27 @@
     <div *ngIf="financeData && financeDataKeys.length > 0; else noFinData">
       <div class="bento-grid">
         <div class="card chart-card bento-span-2">
-          <div class="card-head" style="justify-content: center;"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Services</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('finServicesChart', 'Services')" title="Expand Chart"></i></div></div>
+          <div class="card-head" style="justify-content: center;"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Services</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('finServicesChart', 'Services')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div></div>
           <div class="chart-wrap"><canvas id="finServicesChart"></canvas></div>
         </div>
         <div class="card chart-card bento-span-2">
-          <div class="card-head" style="justify-content: center;"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Memberships</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('finMembershipsChart', 'Memberships')" title="Expand Chart"></i></div></div>
+          <div class="card-head" style="justify-content: center;"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Memberships</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('finMembershipsChart', 'Memberships')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div></div>
           <div class="chart-wrap"><canvas id="finMembershipsChart"></canvas></div>
         </div>
         <div class="card chart-card bento-span-2">
-          <div class="card-head" style="justify-content: center;"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Products</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('finProductsChart', 'Products')" title="Expand Chart"></i></div></div>
+          <div class="card-head" style="justify-content: center;"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Products</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('finProductsChart', 'Products')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div></div>
           <div class="chart-wrap"><canvas id="finProductsChart"></canvas></div>
         </div>
         <div class="card chart-card bento-span-2">
-          <div class="card-head" style="justify-content: center;"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Packages</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('finPackagesChart', 'Packages')" title="Expand Chart"></i></div></div>
+          <div class="card-head" style="justify-content: center;"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Packages</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('finPackagesChart', 'Packages')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div></div>
           <div class="chart-wrap"><canvas id="finPackagesChart"></canvas></div>
         </div>
         <div class="card chart-card bento-span-2">
-          <div class="card-head" style="justify-content: center;"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Value Cards</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('finValueCardsChart', 'Value Cards')" title="Expand Chart"></i></div></div>
+          <div class="card-head" style="justify-content: center;"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Value Cards</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('finValueCardsChart', 'Value Cards')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div></div>
           <div class="chart-wrap"><canvas id="finValueCardsChart"></canvas></div>
         </div>
         <div class="card chart-card bento-span-2">
-          <div class="card-head" style="justify-content: center;"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Advances</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('finAdvancesChart', 'Advances')" title="Expand Chart"></i></div></div>
+          <div class="card-head" style="justify-content: center;"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Advances</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('finAdvancesChart', 'Advances')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div></div>
           <div class="chart-wrap"><canvas id="finAdvancesChart"></canvas></div>
         </div>
       </div>
@@ -559,7 +559,7 @@
       <div class="two-col-grid">
         <div class="card chart-card">
           <div class="card-head">
-            <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Staff Revenue — This Period</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('staffThisMonthChart', 'Staff Revenue — This Period')" title="Expand Chart"></i></div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Staff Revenue — This Period</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('staffThisMonthChart', 'Staff Revenue — This Period')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div>
             <span class="card-badge">Top 10 performers</span>
           </div>
           <div *ngIf="staffData.table?.length; else noStaffChart">
@@ -570,7 +570,7 @@
           </ng-template>
         </div>
         <div class="card chart-card">
-          <div class="card-head"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Revenue Trend — Last 6 Months</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('staffSixMonthsChart', 'Revenue Trend — Last 6 Months')" title="Expand Chart"></i></div></div>
+          <div class="card-head"><div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">Revenue Trend — Last 6 Months</span><svg style="cursor: pointer; color: #6b7280; margin-left: 10px; flex-shrink: 0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" (click)="expandChart('staffSixMonthsChart', 'Revenue Trend — Last 6 Months')" title="Expand Chart"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg></div></div>
           <div *ngIf="staffData.trends?.length; else noTrend">
             <div class="chart-wrap"><canvas id="staffSixMonthsChart"></canvas></div>
           </div>
@@ -619,7 +619,7 @@
            Download
         </button>
         <button class="btn-cancel" (click)="closeExpandedChart()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px;">
-          <i class="fa-solid fa-xmark"></i> Close
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Close
         </button>
       </div>
     </div>
