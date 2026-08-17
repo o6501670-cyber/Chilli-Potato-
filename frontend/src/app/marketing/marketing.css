@@ -128,7 +128,7 @@
 /* WhatsApp Messages */
 .filter-card {
   background: var(--surface);
-  padding: 12px 16px;
+  padding: 8px 10px;
   border-radius: 12px;
   margin-bottom: 12px;
   box-shadow: var(--shadow-sm);

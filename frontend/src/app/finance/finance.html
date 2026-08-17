@@ -1008,7 +1008,7 @@
                   <td class="num">{{ client.visits }}</td>
                   <td class="num">{{ formatCurrency(client.avg_spend) }}</td>
                   <td class="num">{{ formatCurrency(client.total_spend) }}</td>
-                  <td>{{ client.last_visit ? (client.last_visit | date:'dd-MMM-yyyy, HH:mm') : '-' }}</td>
+                  <td style="white-space: nowrap;">{{ client.last_visit ? (client.last_visit | date:'dd-MMM-yyyy, HH:mm') : '-' }}</td>
                   <td class="num">{{ client.serv_balance !== 0 ? formatCurrency(client.serv_balance) : '-' }}</td>
                   <td class="num">{{ client.card_balance !== 0 ? formatCurrency(client.card_balance) : '-' }}</td>
                   <td class="num">{{ client.advance !== 0 ? formatCurrency(client.advance) : '-' }}</td>

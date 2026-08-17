@@ -2575,10 +2575,15 @@ class MultiSalonClientsView(views.APIView):
 
         # Optimize by getting only active clients, and prefetching related data
         clients = Client.objects.filter(id__in=client_ids_with_invoices, is_active=True).prefetch_related(
-            Prefetch('memberships', queryset=ClientMembership.objects.filter(is_active=True)),
-            Prefetch('value_cards', queryset=ClientValueCard.objects.filter(is_active=True)),
-            Prefetch('packages', queryset=ClientPackage.objects.filter(is_active=True))
+            Prefetch('memberships', queryset=ClientMembership.objects.filter(is_active=True).select_related('membership')),
+            Prefetch('value_cards', queryset=ClientValueCard.objects.filter(is_active=True).select_related('value_card')),
+            Prefetch('packages', queryset=ClientPackage.objects.filter(is_active=True).select_related('service'))
         )
+        
+        # Precompute advance balances to avoid N+1 queries
+        from billing.models import AdvancePayment
+        adv_balances_qs = AdvancePayment.objects.filter(client_id__in=client_ids_with_invoices).values('client_id').annotate(total=Sum('amount'))
+        adv_balances = {row['client_id']: row['total'] for row in adv_balances_qs}
 
         results = []
         
@@ -2617,7 +2622,7 @@ class MultiSalonClientsView(views.APIView):
             card_balance = sum(vc.remaining_amount for vc in client.value_cards.all())
 
             # Advance
-            advance = client.advance_balance
+            advance = adv_balances.get(client.id, 0)
 
             # We also need to send the detailed arrays for the side panel
             memberships_data = []

@@ -1033,7 +1033,7 @@
 
 .data-table th,
 .data-table td {
-  padding: 12px 16px;
+  padding: 8px 10px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
 }
@@ -1228,7 +1228,7 @@
 
 /* Petty Cash Module specific sizing */
 .petty-cash-module .form-card {
-  padding: 12px 16px;
+  padding: 8px 10px;
 }
 .petty-cash-module h4, .petty-cash-module h3 {
   font-size: 0.95rem;
