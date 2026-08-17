@@ -1455,8 +1455,17 @@
 
 .table-scroll-container {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 65vh;
   width: 100%;
   -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll-container thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #f8fafc;
 }
 
 .inc-table th {

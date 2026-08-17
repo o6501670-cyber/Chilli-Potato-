@@ -1351,6 +1351,7 @@ export class FinanceComponent implements OnInit {
 
   
   multiClientsData: any[] = [];
+  visibleClientsCount: number = 100;
   selectedMultiClient: any = null;
 
   loadMultiClients() {
@@ -1364,6 +1365,7 @@ export class FinanceComponent implements OnInit {
         .then(res => res.json())
         .then(data => {
           this.multiClientsData = data || [];
+          this.visibleClientsCount = 100;
           this.selectedMultiClient = null;
           this.isLoading = false;
           this.cdr.detectChanges();

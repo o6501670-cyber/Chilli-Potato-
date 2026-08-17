@@ -1000,7 +1000,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let client of multiClientsData" (click)="selectMultiClient(client)" [style.background-color]="selectedMultiClient?.id === client.id ? '#e2e8f0' : 'transparent'" style="cursor: pointer;">
+                <tr *ngFor="let client of multiClientsData | slice:0:visibleClientsCount" (click)="selectMultiClient(client)" [style.background-color]="selectedMultiClient?.id === client.id ? '#e2e8f0' : 'transparent'" style="cursor: pointer;">
                   <td>{{ client.name }}</td>
                   <td>{{ client.phone }}</td>
                   <td>{{ client.is_member }}</td>
@@ -1015,6 +1015,9 @@
                 </tr>
               </tbody>
             </table>
+          <div *ngIf="multiClientsData.length > visibleClientsCount" style="text-align: center; padding: 15px; background: white; border-top: 1px solid #e2e8f0;">
+            <button (click)="visibleClientsCount = visibleClientsCount + 100" style="padding: 6px 16px; background: #0891b2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Load More (Showing {{visibleClientsCount}} of {{multiClientsData.length}})</button>
+          </div>
             <div *ngIf="multiClientsData.length === 0" class="empty-state">No records found.</div>
           </div>
         </div>
