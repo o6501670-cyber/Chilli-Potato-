@@ -693,11 +693,14 @@ export class BillingComponent implements OnInit {
       this.applyPromotion();
     }
 
+    if (this.client && this.client.active_memberships) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      this.client.active_memberships = this.client.active_memberships.filter((am: any) => !am.expiry_date || am.expiry_date >= todayStr);
+    }
+
     if (this.client.active_memberships && this.client.active_memberships.length > 0) {
-
-      this.client.active_memberships.forEach((am: any) => {
-
-        if (am.membership_detail) {
+        this.client.active_memberships.forEach((am: any) => {
+          if (am.membership_detail) {
 
           const exists = this.promotions.find((p: any) => p.id === 'm_' + am.id);
 
@@ -1233,9 +1236,11 @@ export class BillingComponent implements OnInit {
            discount = (targetSvc.unit_price - flatPrice) * (Number(targetSvc.quantity) || 1);
         }
       } else {
-        // Overall Bill Flat Price
+        // Overall Bill Flat Price (acts as a flat discount amount off the total)
         if (preTaxSubtotal > flatPrice) {
-          discount = preTaxSubtotal - flatPrice;
+          discount = flatPrice;
+        } else {
+          discount = preTaxSubtotal; // don't discount more than the bill itself
         }
       }
     }
