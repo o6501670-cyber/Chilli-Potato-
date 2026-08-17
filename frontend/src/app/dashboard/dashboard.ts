@@ -27,76 +27,93 @@ Chart.defaults.layout = { padding: { left: 20, right: 20, top: 25, bottom: 10 } 
 const dataLabelsPlugin = {
   id: 'dataLabelsPlugin',
   afterDatasetsDraw(chart: any) {
-    return; // Disabled to prevent overlapping labels, relying on tooltips instead
-    const { ctx } = chart;
-    const drawnBoxes: { x: number, y: number, w: number, h: number }[] = [];
+    const { ctx, chartArea } = chart;
+    if (!chartArea) return;
     
-    // Process datasets in reverse so later datasets (often lower values) yield to earlier ones, or whatever order
+    const pointsByX = new Map<number, any[]>();
+    
     chart.data.datasets.forEach((dataset: any, i: number) => {
       const meta = chart.getDatasetMeta(i);
-      if (meta.type !== 'bar' && meta.type !== 'line') return;
-
+      if (meta.hidden || (meta.type !== 'bar' && meta.type !== 'line')) return;
+      
       meta.data.forEach((element: any, index: number) => {
         const rawVal = dataset.data[index];
         const labelText = chart.data.labels ? chart.data.labels[index] : 'x';
-        if (rawVal == null || rawVal === 0 || labelText === '') return; // Skip 0, null, or ghost points
-
-        const valStr = String(rawVal);
-        ctx.font = 'bold 10px Inter, sans-serif';
-        const textWidth = ctx.measureText(valStr).width;
+        if (rawVal == null || rawVal === 0 || labelText === '') return;
         
-        const padX = 6;
-        const padY = 4;
-        const w = textWidth + padX * 2;
-        const h = 10 + padY * 2; // 10px font height approx
-        
-        let lx = element.x - w / 2;
-        let ly = element.y - h - 6; // start above point
-        
-        // Simple collision detection
-        let maxTries = 5;
-        let shift = 16; // shift up by 16px if collision
-        while (maxTries > 0) {
-          let collides = drawnBoxes.some(b => {
-            return lx < b.x + b.w + 2 && lx + w + 2 > b.x &&
-                   ly < b.y + b.h + 2 && ly + h + 2 > b.y;
-          });
-          if (collides) {
-            ly -= shift; // push up
-            maxTries--;
-          } else {
-            break;
-          }
-        }
-        
-        // If it goes above canvas, push it below the point instead
-        if (ly < 0) {
-          ly = element.y + 6;
-          // check collision below
-          let colBelow = drawnBoxes.some(b => lx < b.x + b.w && lx + w > b.x && ly < b.y + b.h && ly + h > b.y);
-          if (colBelow) ly += shift;
+        let valStr = String(rawVal);
+        // Format large numbers for better readability (e.g. 14894.22 -> 14,894)
+        if (typeof rawVal === 'number') {
+          valStr = rawVal % 1 !== 0 ? rawVal.toFixed(2) : rawVal.toString();
+          // Optional: add commas
+          valStr = valStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
 
-        drawnBoxes.push({ x: lx, y: ly, w, h });
+        const x = Math.round(element.x);
+        if (!pointsByX.has(x)) pointsByX.set(x, []);
+        
+        let color = dataset.borderColor || dataset.backgroundColor || '#64748b';
+        if (Array.isArray(color)) color = color[0] || '#64748b';
 
-        ctx.save();
-        // Draw pill background
-        ctx.fillStyle = '#ffffff';
-        ctx.strokeStyle = dataset.borderColor || dataset.backgroundColor || '#64748b';
-        ctx.lineWidth = 1;
+        pointsByX.get(x)!.push({
+          valStr: valStr,
+          y: element.y,
+          color: color
+        });
+      });
+    });
+
+    ctx.save();
+    ctx.font = 'bold 10px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const padX = 6;
+    const padY = 3;
+    const h = 10 + padY * 2;
+    const spacing = 2; 
+
+    pointsByX.forEach((points, x) => {
+      // Sort top to bottom
+      points.sort((a, b) => a.y - b.y);
+      
+      let currentY = -9999;
+      
+      points.forEach(p => {
+        let desiredY = p.y - h - 5; 
+        
+        if (desiredY < chartArea.top) desiredY = p.y + 6;
+        
+        if (desiredY < currentY + h + spacing) {
+          desiredY = currentY + h + spacing;
+        }
+        
+        // Constrain to bottom of chart Area just in case
+        if (desiredY + h > chartArea.bottom) {
+           desiredY = chartArea.bottom - h;
+           // We can't perfectly avoid overlap if squeezed at the bottom, but it's rare
+        }
+
+        const w = ctx.measureText(p.valStr).width + padX * 2;
+        let lx = x - w / 2;
+        let ly = desiredY;
+        
+        // Draw soft background pill
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.roundRect(lx, ly, w, h, 4);
         ctx.fill();
-        ctx.stroke();
-
+        
         // Draw text
-        ctx.fillStyle = '#334155';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(valStr, lx + w / 2, ly + h / 2 + 1); // +1 for visual vertical center
-        ctx.restore();
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = p.color;
+        ctx.fillText(p.valStr, lx + w / 2, ly + h / 2 + 1);
+        
+        currentY = ly;
       });
     });
+    ctx.restore();
   }
 };
 
