@@ -22,6 +22,7 @@ Chart.defaults.elements.bar.borderRadius = 4;
 Chart.defaults.elements.bar.borderSkipped = false;
 Chart.defaults.elements.line.tension = 0.4;
 Chart.defaults.elements.line.borderWidth = 3;
+Chart.defaults.interaction = { mode: 'index', intersect: false };
 Chart.defaults.layout = { padding: { left: 20, right: 20, top: 25, bottom: 10 } };
 (Chart.defaults as any).datasets = (Chart.defaults as any).datasets || {};
 (Chart.defaults as any).datasets.bar = (Chart.defaults as any).datasets.bar || {};
@@ -812,8 +813,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           layout: { padding: { top: 30 } },
           scales: {
             x: { offset: this.chartType === 'bar' || paddedLabels.length <= 1 },
-            y: { type: 'linear', position: 'left', title: { display: true, text: 'Clients', color: '#0ea5e9' } },
-            y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Average Spend', color: '#10b981' } }
+            y: { type: 'linear', position: 'left' },
+            y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } }
           }
         },
         plugins: [dataLabelsPlugin]
