@@ -27,6 +27,7 @@ Chart.defaults.layout = { padding: { left: 20, right: 20, top: 25, bottom: 10 } 
 const dataLabelsPlugin = {
   id: 'dataLabelsPlugin',
   afterDatasetsDraw(chart: any) {
+    return; // Disabled to prevent overlapping labels, relying on tooltips instead
     const { ctx } = chart;
     const drawnBoxes: { x: number, y: number, w: number, h: number }[] = [];
     
