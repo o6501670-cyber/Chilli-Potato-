@@ -1167,4 +1167,58 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     return index;
   }
 
+
+  expandedChartId: string | null = null;
+  expandedChartTitle: string = '';
+  expandedChartInstance: any = null;
+
+  expandChart(chartId: string, title: string) {
+    this.expandedChartId = chartId;
+    this.expandedChartTitle = title;
+    this.cdr.detectChanges(); // force render modal
+
+    setTimeout(() => {
+      const originalCanvas = document.getElementById(chartId) as HTMLCanvasElement;
+      if (!originalCanvas) return;
+      const originalChart = Chart.getChart(originalCanvas);
+      const expandedCanvas = document.getElementById('expandedChartCanvas') as HTMLCanvasElement;
+      
+      if (originalChart && expandedCanvas) {
+        if (this.expandedChartInstance) {
+          this.expandedChartInstance.destroy();
+        }
+        
+        // We can't just stringify the config because it loses functions/plugins.
+        // We will create a new config with the same data and options.
+        const config: any = {
+          type: originalChart.config.type,
+          data: originalChart.config.data,
+          options: Object.assign({}, originalChart.config.options),
+          plugins: originalChart.config.plugins
+        };
+        
+        // Improve styling for big screen
+        if (config.options) {
+          config.options.maintainAspectRatio = false;
+          config.options.animation = { duration: 0 }; // fast render
+        }
+        
+        this.expandedChartInstance = new Chart(expandedCanvas, config);
+      }
+    }, 50);
+  }
+
+  closeExpandedChart() {
+    if (this.expandedChartInstance) {
+      this.expandedChartInstance.destroy();
+      this.expandedChartInstance = null;
+    }
+    this.expandedChartId = null;
+  }
+
+  downloadExpandedChart() {
+    if (this.expandedChartId) {
+      this.downloadChart('expandedChartCanvas', this.expandedChartTitle + '_export');
+    }
+  }
 }
