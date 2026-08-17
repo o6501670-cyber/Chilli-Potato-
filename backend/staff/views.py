@@ -770,7 +770,7 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = StaffConsumptionLog.objects.all().select_related('staff', 'center', 'product').order_by('-date', '-time')
+        queryset = StaffConsumptionLog.objects.all().select_related('staff', 'center').order_by('-date', '-time')
         role = getattr(user, 'role', None)
         is_owner = IsOwner.check_is_owner(user)
         perms = getattr(role, 'permissions', {}) or {}
