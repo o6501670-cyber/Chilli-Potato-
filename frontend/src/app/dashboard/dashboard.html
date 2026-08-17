@@ -309,7 +309,7 @@
       </div>
       <div class="card chart-card" style="margin-bottom: 14px;">
         <div class="card-head">
-          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">{{ selectedDrillDownMonth ? 'Daily Revenue — ' + selectedDrillDownMonth : (currentRange === 'past6Months' || currentRange === 'past12Months' ? 'Weekly Revenue' : 'Daily Revenue') }}</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('revDailyChart', '{{ selectedDrillDownMonth ? 'Daily Revenue — ' + selectedDrillDownMonth : (currentRange === 'past6Months' || currentRange === 'past12Months' ? 'Weekly Revenue' : 'Daily Revenue') }}')" title="Expand Chart"></i></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">{{ selectedDrillDownMonth ? 'Daily Revenue — ' + selectedDrillDownMonth : (currentRange === 'past6Months' || currentRange === 'past12Months' ? 'Weekly Revenue' : 'Daily Revenue') }}</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('revDailyChart', selectedDrillDownMonth ? 'Daily Revenue — ' + selectedDrillDownMonth : (currentRange === 'past6Months' || currentRange === 'past12Months' ? 'Weekly Revenue' : 'Daily Revenue'))" title="Expand Chart"></i></div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <span *ngIf="selectedDrillDownMonth" class="drill-pill"><i class="fa-solid fa-arrow-pointer"></i> {{ selectedDrillDownMonth }}</span>
             <button *ngIf="selectedDrillDownMonth" (click)="resetDrillDownMonth()" style="background: #f3f4f6; color: #4b5563; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
@@ -323,7 +323,7 @@
       </div>
       <div class="card chart-card" style="margin-top:14px">
         <div class="card-head">
-          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">{{ selectedDrillDownDay ? 'Hourly Revenue — ' + selectedDrillDownDay : 'Hourly Revenue (All Day)' }}</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('revHourlyChart', '{{ selectedDrillDownDay ? 'Hourly Revenue — ' + selectedDrillDownDay : 'Hourly Revenue (All Day)' }}')" title="Expand Chart"></i></div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span class="card-title" style="margin:0;">{{ selectedDrillDownDay ? 'Hourly Revenue — ' + selectedDrillDownDay : 'Hourly Revenue (All Day)' }}</span><i class="fa-solid fa-expand" style="cursor: pointer; color: #6b7280; margin-left: 10px; font-size: 14px;" (click)="expandChart('revHourlyChart', selectedDrillDownDay ? 'Hourly Revenue — ' + selectedDrillDownDay : 'Hourly Revenue (All Day)')" title="Expand Chart"></i></div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <span *ngIf="selectedDrillDownDay" class="drill-pill"><i class="fa-solid fa-clock"></i> {{ selectedDrillDownDay }}</span>
             <button *ngIf="selectedDrillDownDay" (click)="resetDrillDownDay()" style="background: #f3f4f6; color: #4b5563; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
