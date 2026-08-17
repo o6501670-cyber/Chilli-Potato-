@@ -202,9 +202,23 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
         return Response(InvoiceSerializer(invoice).data)
 
+    def _check_payroll_lock(self, invoice):
+        from staff.models import PayrollRecord
+        staff_ids = invoice.service_logs.values_list('staff_id', flat=True)
+        if staff_ids:
+            locked = PayrollRecord.objects.filter(
+                staff_id__in=staff_ids,
+                month=invoice.date.month,
+                year=invoice.date.year,
+                status__in=['Locked', 'Paid']
+            ).exists()
+            if locked:
+                raise serializers.ValidationError("Cannot alter invoice. Staff payroll for this period is already Locked or Paid.")
+
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None, new_status='cancelled'):
         invoice = self.get_object()
+        self._check_payroll_lock(invoice)
         if invoice.status in ('cancelled', 'refunded'):
             return Response({'detail': f'Already {invoice.status}'}, status=400)
 
@@ -479,6 +493,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         Invoice.objects.select_for_update().get(pk=invoice_id)
 
         invoice = self.get_object()
+        self._check_payroll_lock(invoice)
         old_status = invoice.status
         super().update(request, *args, **kwargs)
         invoice.refresh_from_db()

@@ -47,6 +47,11 @@ class StaffMember(models.Model):
             models.Index(fields=['created_at'], name='staff_created_idx'),
         ]
 
+    def delete(self, *args, **kwargs):
+        """Soft delete: disable the staff member instead of cascading deletions."""
+        self.is_active = False
+        self.save(update_fields=['is_active'])
+
 class Designation(models.Model):
     name = models.CharField(max_length=255, unique=True)
     salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)

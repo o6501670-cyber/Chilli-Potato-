@@ -137,6 +137,11 @@ class Client(models.Model):
             models.Index(fields=['gender'], name='client_gender_idx'),
         ]
 
+    def delete(self, *args, **kwargs):
+        """Soft delete: disable the client instead of cascading deletions."""
+        self.is_active = False
+        self.save(update_fields=['is_active'])
+
 
 class ClientMembership(models.Model):
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='memberships')

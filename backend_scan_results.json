@@ -1,0 +1,187 @@
+{
+    "accounts": {
+        "models": [
+            "CustomUserManager",
+            "CustomUser",
+            "ChatRoom",
+            "Message"
+        ],
+        "views": [
+            "UserViewSet",
+            "CustomAuthToken",
+            "ChatUserListView",
+            "UnreadMessageCountView",
+            "MessageViewSet"
+        ],
+        "urls": true
+    },
+    "appointments": {
+        "models": [
+            "Appointment",
+            "AppointmentService"
+        ],
+        "views": [
+            "AppointmentViewSet"
+        ],
+        "urls": true
+    },
+    "audit_logs": {
+        "models": [
+            "SystemLog"
+        ],
+        "views": [
+            "StandardResultsSetPagination",
+            "SystemLogViewSet"
+        ],
+        "urls": true
+    },
+    "billing": {
+        "models": [
+            "Invoice",
+            "Payment",
+            "InvoiceItem",
+            "AdvancePayment",
+            "BillChangeLog",
+            "CashbackTransaction",
+            "InvoiceRefund"
+        ],
+        "views": [
+            "InvoiceViewSet",
+            "AdvancePaymentViewSet",
+            "BillChangeLogViewSet"
+        ],
+        "urls": true
+    },
+    "clients": {
+        "models": [
+            "Client",
+            "ClientMembership",
+            "ClientPackage",
+            "ClientValueCard"
+        ],
+        "views": [
+            "ClientViewSet"
+        ],
+        "urls": true
+    },
+    "finance": {
+        "models": [
+            "PettyCashEntry",
+            "DailyClosing",
+            "IncentiveConfig",
+            "IncentiveTier",
+            "Shift",
+            "IncentiveRule"
+        ],
+        "views": [
+            "PettyCashEntryViewSet",
+            "DailyClosingViewSet",
+            "ShiftViewSet",
+            "IncentiveRuleViewSet",
+            "IncentiveConfigViewSet",
+            "RegisterSummaryView",
+            "MonthlySalesView",
+            "DetailedRevenuesView",
+            "ExportFinanceView",
+            "RefundsView",
+            "ProcurementReportView",
+            "TaxReportView",
+            "ServiceDrilldownView",
+            "StaffPerformanceReportView",
+            "ManagerDiscountsAuditView",
+            "StaffIncentiveCalculationView",
+            "MultiSalonExportView",
+            "MultiSalonBalancesView",
+            "MultiSalonSalesExportView",
+            "MultiSalonCategoriesView",
+            "MultiSalonServiceDrilldownView",
+            "MultiSalonProductDrilldownView",
+            "MultiSalonClientsView",
+            "MultiSalonStaffView"
+        ],
+        "urls": true
+    },
+    "inventory": {
+        "models": [
+            "Vendor",
+            "Product",
+            "ProductLot",
+            "PurchaseOrder",
+            "PurchaseOrderItem",
+            "StockTransaction"
+        ],
+        "views": [
+            "InventoryBaseViewSet",
+            "VendorViewSet",
+            "ProductViewSet",
+            "ProductLotViewSet",
+            "PurchaseOrderViewSet",
+            "StockTransactionViewSet",
+            "LowStockAlertView"
+        ],
+        "urls": true
+    },
+    "marketing": {
+        "models": [
+            "WhatsAppMessage",
+            "Promotion",
+            "PromotionUsage",
+            "ValueCard",
+            "Membership",
+            "Package"
+        ],
+        "views": [
+            "MarketingBaseViewSet",
+            "WhatsAppMessageViewSet",
+            "PromotionViewSet",
+            "ValueCardViewSet",
+            "MembershipViewSet",
+            "PackageViewSet"
+        ],
+        "urls": true
+    },
+    "salon_admin": {
+        "models": [
+            "Center",
+            "Role"
+        ],
+        "views": [
+            "CenterViewSet",
+            "RoleViewSet"
+        ],
+        "urls": true
+    },
+    "services": {
+        "models": [
+            "ServiceMaster",
+            "CenterService"
+        ],
+        "views": [
+            "ServiceMasterViewSet",
+            "CenterServiceViewSet"
+        ],
+        "urls": true
+    },
+    "staff": {
+        "models": [
+            "StaffMember",
+            "Designation",
+            "SafeServiceLogManager",
+            "ServiceLog",
+            "StaffConsumptionLog",
+            "StaffTransfer",
+            "PayrollRecord",
+            "StaffToolTracker"
+        ],
+        "views": [
+            "DesignationViewSet",
+            "StaffMemberViewSet",
+            "ServiceLogViewSet",
+            "StaffConsumptionLogViewSet",
+            "StaffTransferViewSet",
+            "StaffToolTrackerViewSet",
+            "PayrollRecordViewSet"
+        ],
+        "urls": true
+    }
+}

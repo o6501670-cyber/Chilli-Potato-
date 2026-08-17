@@ -53,6 +53,11 @@ class Center(models.Model):
     def __str__(self):
         return self.display_name or self.center_name
 
+    def delete(self, *args, **kwargs):
+        """Soft delete: disable the center instead of cascading deletions."""
+        self.is_active = False
+        self.save(update_fields=['is_active'])
+
     class Meta:
         indexes = [
             models.Index(fields=['created_at'], name='center_created_idx'),
