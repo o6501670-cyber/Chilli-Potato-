@@ -6,15 +6,12 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.db import transaction
 from django.db.models import Q
-from django.conf import settings
-import logging
-import os
+import json
 
 from .models import CustomUser, Message
 from .serializers import UserSerializer, MessageSerializer, UserChatSerializer
-
-logger = logging.getLogger(__name__)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -74,11 +71,18 @@ from pos_backend.permissions import IsOwner
 
 class CustomAuthToken(ObtainAuthToken):
     throttle_classes = [LoginRateThrottle]
+
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
-        token, created = Token.objects.get_or_create(user=user)
+
+        # Rotate the token at login. Returning an existing expired token made a
+        # successful login unusable and keeping the same token indefinitely
+        # increased the impact of a leaked credential.
+        Token.objects.filter(user=user).delete()
+        token = Token.objects.create(user=user)
         return Response({
             'token': token.key,
             'user_id': user.pk,
@@ -100,8 +104,9 @@ class ChatUserListView(APIView):
         from .serializers import ChatRoomSerializer
         from django.db.models import Subquery, OuterRef
         
-        # Now fetch all rooms for the user
-        rooms = request.user.chat_rooms.all()
+        # Fetch rooms and participants in two queries rather than one query per
+        # room during serializer display-name generation.
+        rooms = request.user.chat_rooms.prefetch_related('participants').all()
         
         last_message_subquery = Message.objects.filter(
             room_id=OuterRef('pk')
@@ -163,38 +168,54 @@ class MessageViewSet(viewsets.ModelViewSet):
 
         return Message.objects.none()
 
+    def _get_member_room(self, room_id):
+        from .models import ChatRoom
+        try:
+            return ChatRoom.objects.get(id=room_id, participants=self.request.user)
+        except (ChatRoom.DoesNotExist, TypeError, ValueError):
+            raise PermissionDenied("You are not a participant in this chat room.")
+
     @action(detail=False, methods=['post'])
     def mark_read(self, request):
-        user = self.request.user
-        room_id = self.request.data.get('room_id')
-        if room_id:
-            Message.objects.filter(
-                room_id=room_id, is_read=False
-            ).exclude(sender=user).update(is_read=True)
-            return Response({'status': 'ok'})
-        return Response({'error': 'room_id required'}, status=400)
+        room_id = request.data.get('room_id')
+        if not room_id:
+            return Response({'error': 'room_id required'}, status=400)
+        room = self._get_member_room(room_id)
+        Message.objects.filter(
+            room=room, is_read=False
+        ).exclude(sender=request.user).update(is_read=True)
+        return Response({'status': 'ok'})
 
+    @transaction.atomic
     def perform_create(self, serializer):
-        room_id = self.request.data.get('room_id') or self.request.query_params.get('user_id') or self.request.data.get('receiver') # Fallback if frontend sends it wrong
-        room = None
-        if room_id:
-            from .models import ChatRoom
-            room = ChatRoom.objects.get(id=room_id)
-            serializer.save(sender=self.request.user, room=room, receiver=None)
-        else:
-            serializer.save(sender=self.request.user)
-            
-        # Process mentions and add them to the room
+        room_id = (
+            self.request.data.get('room_id')
+            or self.request.query_params.get('user_id')  # legacy frontend name
+        )
+        if not room_id:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({'room_id': 'A chat room is required.'})
+
+        room = self._get_member_room(room_id)
+        serializer.save(sender=self.request.user, room=room, receiver=None)
+
+        # Mentions can add valid users to the current room, but malformed input
+        # must fail the request instead of being silently ignored.
         mentions_data = self.request.data.get('mentions')
-        if mentions_data and room:
-            import json
+        if mentions_data:
+            from rest_framework.exceptions import ValidationError
             try:
-                mention_ids = json.loads(mentions_data)
-                for mid in mention_ids:
-                    room.participants.add(mid)
-                if room.participants.count() > 2:
-                    room.is_group = True
-                    room.save()
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f"Failed to process mentions: {e}")
+                mention_ids = json.loads(mentions_data) if isinstance(mentions_data, str) else mentions_data
+                if not isinstance(mention_ids, list):
+                    raise ValueError
+                mention_ids = {int(mid) for mid in mention_ids}
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                raise ValidationError({'mentions': 'Expected a JSON list of user IDs.'}) from exc
+
+            valid_ids = set(CustomUser.objects.filter(id__in=mention_ids, is_active=True).values_list('id', flat=True))
+            if valid_ids != mention_ids:
+                raise ValidationError({'mentions': 'One or more mentioned users do not exist or are inactive.'})
+            room.participants.add(*valid_ids)
+            if room.participants.count() > 2 and not room.is_group:
+                room.is_group = True
+                room.save(update_fields=['is_group', 'updated_at'])

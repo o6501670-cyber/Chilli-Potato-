@@ -2,8 +2,9 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 from django.db import models
-from django.db.models import Sum, DecimalField
+from django.db.models import DecimalField, OuterRef, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
 from .models import Client, ClientMembership, ClientPackage, ClientValueCard
 from .serializers import ClientSerializer
@@ -47,8 +48,28 @@ class ClientViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass
 
-        # Removed Cartesian product annotations causing balance inflation
-        return qs.order_by('-id')
+        # Correlated aggregate subqueries avoid both cartesian-product inflation
+        # and the previous two balance queries per serialized client.
+        from billing.models import AdvancePayment, CashbackTransaction
+        money_field = DecimalField(max_digits=12, decimal_places=2)
+        advance_total = (
+            AdvancePayment.objects.filter(client_id=OuterRef('pk'))
+            .values('client_id').annotate(total=Sum('amount')).values('total')[:1]
+        )
+        cashback_total = (
+            CashbackTransaction.objects.filter(client_id=OuterRef('pk'))
+            .values('client_id').annotate(total=Sum('amount')).values('total')[:1]
+        )
+        return qs.annotate(
+            advance_balance_annotated=Coalesce(
+                Subquery(advance_total, output_field=money_field),
+                Value(0, output_field=money_field),
+            ),
+            cashback_balance_annotated=Coalesce(
+                Subquery(cashback_total, output_field=money_field),
+                Value(0, output_field=money_field),
+            ),
+        ).order_by('-id')
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -207,6 +228,8 @@ class ClientViewSet(viewsets.ModelViewSet):
         file_obj = request.FILES.get('file')
         if not file_obj:
             return Response({'error': 'No file uploaded'}, status=400)
+        if file_obj.size > 10 * 1024 * 1024:
+            return Response({'error': 'Files cannot exceed 10 MB.'}, status=400)
         try:
             import pandas as pd
             if file_obj.name.endswith('.csv'):
@@ -219,16 +242,30 @@ class ClientViewSet(viewsets.ModelViewSet):
             records = df.to_dict('records')
             created_count = 0
             user = request.user
-            center = None
-            if hasattr(user, 'center') and user.center:
+            center_id = request.data.get('center_id') or request.query_params.get('center_id')
+            is_owner = IsOwner.check_is_owner(user)
+            has_all_centers = is_owner or (getattr(user.role, 'permissions', {}) or {}).get('all_centers', False)
+            if center_id:
+                from salon_admin.models import Center
+                try:
+                    center = Center.objects.get(pk=int(center_id), is_active=True)
+                except (Center.DoesNotExist, TypeError, ValueError) as exc:
+                    raise ValidationError({'center_id': 'Select a valid active center.'}) from exc
+                if not has_all_centers and not (
+                    user.center_id == center.id or user.centers.filter(pk=center.id).exists()
+                ):
+                    raise PermissionDenied('You are not assigned to this center.')
+            elif user.center_id:
                 center = user.center
-            elif user.centers.exists():
-                center = user.centers.first()
+            elif user.centers.filter(is_active=True).count() == 1:
+                center = user.centers.filter(is_active=True).first()
+            else:
+                raise ValidationError({'center_id': 'Center is required.'})
             
-            # Load existing phones/emails into sets for O(1) duplicate checks
-            # instead of per-row exists() queries (was N+1)
-            existing_phones = set(Client.objects.values_list('phone', flat=True))
-            existing_emails = set(Client.objects.exclude(email='').values_list('email', flat=True))
+            # Duplicate rules are center-scoped, matching perform_create.
+            center_clients = Client.objects.filter(center=center)
+            existing_phones = set(center_clients.values_list('phone', flat=True))
+            existing_emails = set(center_clients.exclude(email='').values_list('email', flat=True))
             
             to_create = []
             for row in records:
@@ -267,5 +304,7 @@ class ClientViewSet(viewsets.ModelViewSet):
                     created = Client.objects.bulk_create(chunk, ignore_conflicts=True)
                     created_count += len(created)
             return Response({'message': f'Successfully imported {created_count} clients.'})
-        except Exception as e:
-            return Response({'error': str(e)}, status=400)
+        except APIException:
+            raise
+        except Exception:
+            return Response({'error': 'The uploaded file could not be processed. Check its format and values.'}, status=400)

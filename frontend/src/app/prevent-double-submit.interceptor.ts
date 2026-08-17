@@ -1,34 +1,54 @@
-import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpEvent } from '@angular/common/http';
+import { HttpEvent, HttpHandlerFn, HttpInterceptorFn, HttpRequest } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { finalize, shareReplay } from 'rxjs/operators';
 
 const inFlightRequests = new Map<string, Observable<HttpEvent<unknown>>>();
 
+function serialiseBody(body: unknown): string | null {
+  try {
+    if (body instanceof FormData) {
+      const entries: string[] = [];
+      body.forEach((value, key) => {
+        const encoded = value instanceof File
+          ? `file:${value.name}:${value.size}:${value.lastModified}:${value.type}`
+          : `text:${value}`;
+        entries.push(`${key}=${encoded}`);
+      });
+      return entries.sort().join('&');
+    }
+    if (body instanceof Blob) {
+      return `blob:${body.size}:${body.type}`;
+    }
+    return JSON.stringify(body ?? null);
+  } catch {
+    // A circular/custom body is unusual, but it must not break the request.
+    return null;
+  }
+}
+
 export const preventDoubleSubmitInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,
   next: HttpHandlerFn
 ): Observable<HttpEvent<unknown>> => {
-  // Only apply to POST requests (creations).
   if (req.method !== 'POST') {
     return next(req);
   }
 
-  // Create a unique key for the request based on URL and body content
-  const requestKey = `${req.method}_${req.url}_${JSON.stringify(req.body || {})}`;
-
-  if (inFlightRequests.has(requestKey)) {
-    console.warn(`Double-click duplicate request shared: ${req.url}`);
-    return inFlightRequests.get(requestKey)!;
+  const bodyKey = serialiseBody(req.body);
+  if (bodyKey === null) {
+    return next(req);
+  }
+  const requestKey = `${req.method}_${req.urlWithParams}_${bodyKey}`;
+  const existing = inFlightRequests.get(requestKey);
+  if (existing) {
+    return existing;
   }
 
   const shared$ = next(req).pipe(
-    finalize(() => {
-      // Remove it from the in-flight list after a delay to prevent spam clicks right after completion
-      setTimeout(() => {
-        inFlightRequests.delete(requestKey);
-      }, 1000);
-    }),
-    shareReplay(1)
+    // Only concurrent duplicates are coalesced. Keeping a completed response in
+    // the map caused legitimate repeated operations to receive stale data.
+    finalize(() => inFlightRequests.delete(requestKey)),
+    shareReplay({ bufferSize: 1, refCount: false }),
   );
 
   inFlightRequests.set(requestKey, shared$);

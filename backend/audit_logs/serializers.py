@@ -18,5 +18,5 @@ class SystemLogSerializer(serializers.ModelSerializer):
             # Geo
             'ip_address', 'geo_city', 'geo_region', 'geo_country', 'geo_country_code',
             # Technical
-            'path', 'description', 'device_info',
+            'path', 'description', 'device_info', 'response_status', 'success',
         ]

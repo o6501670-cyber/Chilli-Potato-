@@ -3,6 +3,7 @@ from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
+from decimal import Decimal, InvalidOperation
 
 
 class Invoice(models.Model):
@@ -36,8 +37,13 @@ class Invoice(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
-        if self.total_amount < 0:
+        try:
+            total = Decimal(str(self.total_amount))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise ValidationError({'total_amount': 'Enter a valid invoice total amount.'}) from exc
+        if total < 0:
             raise ValidationError({'total_amount': 'Invoice total amount cannot be negative.'})
+        self.total_amount = total
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -111,12 +117,23 @@ class InvoiceItem(models.Model):
     staff_members = models.ManyToManyField('staff.StaffMember', related_name='invoice_items_multi', blank=True)
 
     def save(self, *args, **kwargs):
+        try:
+            unit_price = Decimal(str(self.unit_price or 0))
+            quantity = int(self.quantity or 1)
+            discount = Decimal(str(self.discount or 0))
+            total_price = Decimal(str(self.total_price or 0))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise ValidationError('Invoice item contains an invalid numeric value.') from exc
+        if quantity <= 0:
+            raise ValidationError({'quantity': 'Quantity must be positive.'})
+        if unit_price < 0 or discount < 0:
+            raise ValidationError('Price and discount cannot be negative.')
         if not self.is_complimentary:
-            calculated = ((self.unit_price or 0) * (self.quantity or 1)) - (self.discount or 0)
-            if self.total_price == 0 and calculated != 0:
-                self.total_price = calculated
-        if self.total_price < 0:
-            self.total_price = 0
+            calculated = (unit_price * quantity) - discount
+            if total_price == 0 and calculated != 0:
+                total_price = calculated
+        self.total_price = max(Decimal('0'), total_price)
+        self.quantity = quantity
         super().save(*args, **kwargs)
 
     def __str__(self):

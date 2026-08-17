@@ -4,6 +4,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api';
 import { ToastService } from '../services/toast.service';
+import { CsvService } from '../services/csv.service';
 import { LocationSelectorComponent } from '../components/location-selector/location-selector';
 import { forkJoin } from 'rxjs';
 
@@ -18,6 +19,7 @@ export class FinanceComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   apiService = inject(ApiService);
+  private csvService = inject(CsvService);
   cdr = inject(ChangeDetectorRef);
 
   isOwner = false;
@@ -1128,7 +1130,7 @@ export class FinanceComponent implements OnInit {
 
     forkJoin(observables).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(results => {
       let mapped = results.map((res: any, index) => ({
-        center_name: this.centers[index].display_name || this.centers[index].center_name,
+        center_name: centersToLoad[index].display_name || centersToLoad[index].center_name,
         ...res
       }));
       
@@ -1329,24 +1331,23 @@ export class FinanceComponent implements OnInit {
   }
 
   exportMultiPettyCash() {
-    import('xlsx').then(xlsx => {
-      const data = this.multiPettyCashLogs.map(log => {
-        const isIn = (log.type === 'in' || (log.amount > 0 && log.type !== 'out'));
-        const isOut = (log.type === 'out' || log.amount < 0);
-        return {
-          Date: new Date(log.created_at).toLocaleString(),
-          'Recorded by': log.user_name || 'Unknown',
-          Category: log.description || log.category,
-          In: isIn ? log.amount : '-',
-          Out: isOut ? (log.amount < 0 ? -log.amount : log.amount) : '-',
-          Voucher: log.voucher_number || '-'
-        };
-      });
-      const ws = xlsx.utils.json_to_sheet(data);
-      const wb = xlsx.utils.book_new();
-      xlsx.utils.book_append_sheet(wb, ws, 'Petty Cash');
-      xlsx.writeFile(wb, `PettyCash_${this.multiPettyCashCenterId}_${this.multiStartDate}_${this.multiEndDate}.xlsx`);
+    const rows = this.multiPettyCashLogs.map(log => {
+      const isIn = (log.type === 'in' || (log.amount > 0 && log.type !== 'out'));
+      const isOut = (log.type === 'out' || log.amount < 0);
+      return [
+        new Date(log.created_at).toLocaleString(),
+        log.user_name || 'Unknown',
+        log.description || log.category,
+        isIn ? log.amount : '-',
+        isOut ? (log.amount < 0 ? -log.amount : log.amount) : '-',
+        log.voucher_number || '-'
+      ];
     });
+    this.csvService.exportToCsv(
+      `PettyCash_${this.multiPettyCashCenterId}_${this.multiStartDate}_${this.multiEndDate}.csv`,
+      ['Date', 'Recorded by', 'Category', 'In', 'Out', 'Voucher'],
+      rows,
+    );
   }
 
   
@@ -1379,25 +1380,17 @@ export class FinanceComponent implements OnInit {
   }
 
   exportMultiClients() {
-    import('xlsx').then(xlsx => {
-      const data = this.multiClientsData.map(c => ({
-        'Client Name': c.name,
-        'Phone': c.phone,
-        'Member?': c.is_member,
-        'Gender': c.gender,
-        'Visits': c.visits,
-        'Average Spend': c.avg_spend,
-        'Total Spend': c.total_spend,
-        'Last Visit': c.last_visit ? new Date(c.last_visit).toLocaleString() : '-',
-        'Serv. Balance': c.serv_balance || '-',
-        'Card Balance': c.card_balance || '-',
-        'Advance': c.advance || '-'
-      }));
-      const ws = xlsx.utils.json_to_sheet(data);
-      const wb = xlsx.utils.book_new();
-      xlsx.utils.book_append_sheet(wb, ws, 'Clients');
-      xlsx.writeFile(wb, `Clients_${this.multiStartDate}_${this.multiEndDate}.xlsx`);
-    });
+    const rows = this.multiClientsData.map(c => [
+      c.name, c.phone, c.is_member, c.gender, c.visits, c.avg_spend,
+      c.total_spend, c.last_visit ? new Date(c.last_visit).toLocaleString() : '-',
+      c.serv_balance || '-', c.card_balance || '-', c.advance || '-'
+    ]);
+    this.csvService.exportToCsv(
+      `Clients_${this.multiStartDate}_${this.multiEndDate}.csv`,
+      ['Client Name', 'Phone', 'Member?', 'Gender', 'Visits', 'Average Spend',
+        'Total Spend', 'Last Visit', 'Serv. Balance', 'Card Balance', 'Advance'],
+      rows,
+    );
   }
 
   selectMultiClient(client: any) {
@@ -1430,25 +1423,16 @@ export class FinanceComponent implements OnInit {
   }
 
   exportMultiStaff() {
-    import('xlsx').then(xlsx => {
-      const data = this.multiStaffData.map(s => ({
-        'Staff': s.staff_name,
-        'Salon': s.salon,
-        'Revenue': s.revenue,
-        'Services': s.services,
-        'Service Red.': s.service_red,
-        'Value Card Red.': s.value_card_red,
-        'Products': s.products,
-        'Packages': s.packages,
-        'Memberships': s.memberships,
-        'Gift Cards': s.gift_cards,
-        'Cards': s.cards
-      }));
-      const ws = xlsx.utils.json_to_sheet(data);
-      const wb = xlsx.utils.book_new();
-      xlsx.utils.book_append_sheet(wb, ws, 'Staff Performance');
-      xlsx.writeFile(wb, `Staff_Performance_${this.multiStartDate}_${this.multiEndDate}.xlsx`);
-    });
+    const rows = this.multiStaffData.map(s => [
+      s.staff_name, s.salon, s.revenue, s.services, s.service_red,
+      s.value_card_red, s.products, s.packages, s.memberships, s.gift_cards, s.cards
+    ]);
+    this.csvService.exportToCsv(
+      `Staff_Performance_${this.multiStartDate}_${this.multiEndDate}.csv`,
+      ['Staff', 'Salon', 'Revenue', 'Services', 'Service Red.', 'Value Card Red.',
+        'Products', 'Packages', 'Memberships', 'Gift Cards', 'Cards'],
+      rows,
+    );
   }
 
   runMultiSalon() {

@@ -29,6 +29,8 @@ class SystemLog(models.Model):
     # Technical details
     path = models.CharField(max_length=255)
     description = models.TextField(blank=True)         # sanitised JSON payload
+    response_status = models.PositiveSmallIntegerField(default=200)
+    success = models.BooleanField(default=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     device_info = models.TextField(blank=True)   # raw User-Agent
     device_type = models.CharField(max_length=30, blank=True)   # Desktop / Laptop / Mobile / Tablet

@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -118,87 +118,98 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def pay(self, request, pk=None):
-        """Record a payment against an invoice atomically."""
-        invoice = self.get_object()
-        old_status_for_pay = invoice.status
+        """Record one validated payment and all related debits atomically."""
+        scoped_invoice = self.get_object()  # applies center/object access first
         amount = request.data.get('amount')
-        payment_method = request.data.get('payment_method', 'Cash')
-        value_card_id = request.data.get('value_card_id')  # optional
+        payment_method = str(request.data.get('payment_method', 'Cash'))
+        value_card_id = request.data.get('value_card_id')
 
         try:
-            amt = Decimal(str(amount))
-            if amt <= 0:
-                raise ValueError('Must be positive')
-        except Exception:
-            return Response({'detail': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
+            amount = Decimal(str(amount))
+            if amount <= 0:
+                raise ValueError
+        except (TypeError, ValueError, ArithmeticError):
+            raise serializers.ValidationError({'amount': 'Enter a positive payment amount.'})
+
+        valid_methods = {choice[0] for choice in Payment.PAYMENT_METHOD_CHOICES}
+        if payment_method not in valid_methods:
+            raise serializers.ValidationError({'payment_method': 'Unsupported payment method.'})
 
         with transaction.atomic():
-            # Lock the row to prevent race condition
-            invoice = Invoice.objects.select_for_update().get(pk=pk)
+            invoice = Invoice.objects.select_for_update().select_related('client').get(pk=scoped_invoice.pk)
+            old_status = invoice.status
+            if invoice.status in ('cancelled', 'refunded'):
+                raise serializers.ValidationError({'detail': f'Cannot pay a {invoice.status} invoice.'})
 
-            # Advance balance check INSIDE the lock to prevent over-drawing under concurrent requests
-            if payment_method and ('advance' in payment_method.lower() or 'wallet' in payment_method.lower()):
-                if invoice.client:
-                    # advance_balance is a @property (not a DB field) — refresh_from_db() with
-                    # no args reloads the actual row so we read the live balance inside the lock.
-                    invoice.client.refresh_from_db()
-                    advance_balance = invoice.client.advance_balance
-                    if advance_balance < Decimal(str(amt)):
-                        amt = Decimal(str(min(Decimal(str(amt)), max(0, advance_balance))))
-                        if amt <= 0:
-                            return Response(
-                                {'detail': f'Insufficient advance balance. Available: ₹{advance_balance:.2f}'},
-                                status=status.HTTP_400_BAD_REQUEST
-                            )
+            outstanding = max(Decimal('0'), invoice.total_amount - invoice.paid_amount)
+            if outstanding <= Decimal('0.01'):
+                raise serializers.ValidationError({'detail': 'This invoice is already fully paid.'})
+            if amount > outstanding + Decimal('0.01'):
+                raise serializers.ValidationError({
+                    'amount': f'Payment exceeds the outstanding amount of ₹{outstanding:.2f}.'
+                })
 
-            # Create Payment record
+            method_lower = payment_method.lower()
+            locked_client = None
+            if 'advance' in method_lower or 'wallet' in method_lower or 'value card' in method_lower:
+                if not invoice.client_id:
+                    raise serializers.ValidationError({'payment_method': 'This payment method requires a client.'})
+                from clients.models import Client
+                locked_client = Client.objects.select_for_update().get(pk=invoice.client_id)
+
+            client_vc = None
+            if method_lower == 'cashback wallet':
+                if locked_client.cashback_balance < amount:
+                    raise serializers.ValidationError({'amount': 'Insufficient cashback wallet balance.'})
+            elif 'advance' in method_lower or ('wallet' in method_lower and method_lower != 'cashback wallet'):
+                if locked_client.advance_balance < amount:
+                    raise serializers.ValidationError({'amount': 'Insufficient advance balance.'})
+            elif 'value card' in method_lower:
+                if not value_card_id:
+                    raise serializers.ValidationError({'value_card_id': 'A value card is required.'})
+                from clients.models import ClientValueCard
+                try:
+                    client_vc = ClientValueCard.objects.select_for_update().get(
+                        id=value_card_id, client=locked_client, is_active=True,
+                    )
+                except ClientValueCard.DoesNotExist as exc:
+                    raise serializers.ValidationError({'value_card_id': 'Active value card not found for this client.'}) from exc
+                if client_vc.balance < amount:
+                    raise serializers.ValidationError({'amount': 'Insufficient value card balance.'})
+
             Payment.objects.create(
                 invoice=invoice,
-                amount=amt,
+                amount=amount,
                 payment_method=payment_method,
-                value_card_id=value_card_id
+                value_card_id=value_card_id,
             )
+            invoice.paid_amount += amount
+            invoice.status = (
+                'paid' if invoice.paid_amount >= invoice.total_amount - Decimal('0.01') else 'partial'
+            )
+            invoice.save(update_fields=['paid_amount', 'status', 'updated_at'])
 
-            # Atomic increment — use F() to avoid read-modify-write race
-            Invoice.objects.filter(pk=invoice.pk).update(paid_amount=F('paid_amount') + amt)
-            invoice.refresh_from_db()
+            if method_lower == 'cashback wallet':
+                from .models import CashbackTransaction
+                CashbackTransaction.objects.create(
+                    client=locked_client, invoice=invoice, amount=-amount,
+                    notes=f"Used for Invoice #{invoice.id}",
+                )
+            elif 'advance' in method_lower or ('wallet' in method_lower and method_lower != 'cashback wallet'):
+                AdvancePayment.objects.create(
+                    client=locked_client, invoice=invoice, amount=-amount,
+                    notes=f"Used for Invoice #{invoice.id}",
+                )
+            elif client_vc is not None:
+                client_vc.balance -= amount
+                if client_vc.balance <= 0:
+                    client_vc.is_active = False
+                client_vc.save(update_fields=['balance', 'is_active'])
 
-            # Determine new status — total_amount already includes rounding
-            if invoice.paid_amount >= invoice.total_amount - Decimal('0.01'):
-                Invoice.objects.filter(pk=invoice.pk).update(status='paid')
-            else:
-                Invoice.objects.filter(pk=invoice.pk).update(status='partial')
-
-            invoice.refresh_from_db()
-
-            # Handle advance deduction / value card deduction for this payment
-            try:
-                pm = payment_method.lower()
-                if 'advance' in pm or 'wallet' in pm:
-                    AdvancePayment.objects.create(
-                        client=invoice.client,
-                        invoice=invoice,
-                        amount=-amt,
-                        notes=f"Used for Invoice #{invoice.id}"
-                    )
-                if 'value card' in pm and value_card_id:
-                    from clients.models import ClientValueCard
-                    client_vc = ClientValueCard.objects.select_for_update().get(id=value_card_id)
-                    client_vc.balance = max(Decimal('0'), client_vc.balance - amt)
-                    if client_vc.balance <= 0:
-                        client_vc.is_active = False
-                    client_vc.save()
-            except Exception as ex:
-                logger.error(f"[Billing pay] Error handling deduction: {ex}", exc_info=True)
-
-            # If this is the first payment that pushes a draft invoice to paid/partial,
-            # run finalize_invoice with skip_payment_deductions=True since we just handled
-            # the deductions above. This triggers stock, perks, and service logs.
-            if old_status_for_pay == 'draft' and invoice.status in ('paid', 'partial'):
-                try:
-                    finalize_invoice(invoice, None, {}, skip_payment_deductions=True)
-                except Exception as fe:
-                    logger.error(f"[Billing pay] finalize_invoice error: {fe}", exc_info=True)
+            # Any finalization failure must roll back the payment and wallet/card
+            # debit together; swallowing it left financially inconsistent rows.
+            if old_status == 'draft' and invoice.status in ('paid', 'partial'):
+                finalize_invoice(invoice, None, {}, skip_payment_deductions=True)
 
         return Response(InvoiceSerializer(invoice).data)
 
@@ -208,8 +219,8 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         if staff_ids:
             locked = PayrollRecord.objects.filter(
                 staff_id__in=staff_ids,
-                month=invoice.date.month,
-                year=invoice.date.year,
+                month=invoice.created_at.month,
+                year=invoice.created_at.year,
                 status__in=['Locked', 'Paid']
             ).exists()
             if locked:
@@ -217,12 +228,14 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None, new_status='cancelled'):
-        invoice = self.get_object()
-        self._check_payroll_lock(invoice)
-        if invoice.status in ('cancelled', 'refunded'):
-            return Response({'detail': f'Already {invoice.status}'}, status=400)
+        scoped_invoice = self.get_object()
 
         with transaction.atomic():
+            invoice = Invoice.objects.select_for_update().get(pk=scoped_invoice.pk)
+            self._check_payroll_lock(invoice)
+            if invoice.status in ('cancelled', 'refunded'):
+                return Response({'detail': f'Already {invoice.status}'}, status=400)
+
             old_status = invoice.status
             invoice.status = new_status
             invoice.save()
@@ -240,9 +253,14 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 from billing.models import InvoiceRefund
                 InvoiceRefund.objects.create(
                     invoice=invoice,
-                    amount=invoice.total_amount,
+                    amount=min(invoice.paid_amount, invoice.total_amount),
                     reason='Invoice cancelled/refunded'
                 )
+
+            # Draft invoices were never finalized, so they have no stock/perk/
+            # wallet side effects to reverse.
+            if old_status not in ('paid', 'partial'):
+                return Response(InvoiceSerializer(invoice).data)
 
             # Revert inventory stock — batch by content_type to avoid N+1 on content_object
             inventory_items = [
@@ -256,19 +274,16 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 for item in inventory_items:
                     product = products_map.get(item.object_id)
                     if product and hasattr(product, 'current_stock'):
-                        try:
-                            type(product).objects.filter(pk=product.pk).update(
-                                current_stock=F('current_stock') + int(item.quantity)
-                            )
-                            StockTransaction.objects.create(
-                                product=product,
-                                center=invoice.center or (invoice.client.center if invoice.client else None),
-                                transaction_type='REFUND',
-                                quantity_change=int(item.quantity),
-                                notes=f"Refunded from Invoice #{invoice.id}",
-                            )
-                        except Exception as e:
-                            logger.error(f"[Billing Cancel] Error reverting stock: {e}", exc_info=True)
+                        type(product).objects.filter(pk=product.pk).update(
+                            current_stock=F('current_stock') + int(item.quantity)
+                        )
+                        StockTransaction.objects.create(
+                            product=product,
+                            center=invoice.center or (invoice.client.center if invoice.client else None),
+                            transaction_type='REFUND',
+                            quantity_change=int(item.quantity),
+                            notes=f"Refunded from Invoice #{invoice.id}",
+                        )
 
             # FIXED: Do not delete ServiceLogs — they are business/payroll records.
             # Mark them as cancelled instead by updating the invoice status (already done above).
@@ -302,35 +317,32 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                     
                     # 2. De-provision Purchased Perks
                     if item.content_type and item.content_type.app_label == 'marketing':
-                        try:
-                            m_model = item.content_type.model
-                            if m_model == 'membership' and item.content_object:
-                                ClientMembership.objects.filter(
-                                    source_invoice=invoice, membership_id=item.content_object.id
-                                ).delete()
-                            elif m_model == 'package':
-                                ClientPackage.objects.filter(
-                                    source_invoice=invoice, package_id=item.content_object.id if item.content_object else None
-                                ).delete()
-                            elif m_model == 'valuecard' and item.content_object:
-                                ClientValueCard.objects.filter(
-                                    source_invoice=invoice, value_card_id=item.content_object.id
-                                ).delete()
-                        except Exception as ex:
-                            logger.error(f"[Billing Cancel] Error de-provisioning perk: {ex}", exc_info=True)
+                        m_model = item.content_type.model
+                        if m_model == 'membership' and item.content_object:
+                            ClientMembership.objects.filter(
+                                source_invoice=invoice, membership_id=item.content_object.id
+                            ).delete()
+                        elif m_model == 'package':
+                            ClientPackage.objects.filter(
+                                source_invoice=invoice,
+                                package_id=item.content_object.id if item.content_object else None,
+                            ).delete()
+                        elif m_model == 'valuecard' and item.content_object:
+                            ClientValueCard.objects.filter(
+                                source_invoice=invoice, value_card_id=item.content_object.id
+                            ).delete()
 
             # Reverse Value Card deductions
             for payment in invoice.payments.all():
                 pm = payment.payment_method.lower()
                 if 'value card' in pm and payment.value_card_id:
-                    try:
-                        from clients.models import ClientValueCard
-                        client_vc = ClientValueCard.objects.select_for_update().get(id=payment.value_card_id)
-                        client_vc.balance += payment.amount
-                        client_vc.is_active = True
-                        client_vc.save()
-                    except Exception as e:
-                        logger.error(f"[Billing Cancel] Error reverting Value Card: {e}", exc_info=True)
+                    from clients.models import ClientValueCard
+                    client_vc = ClientValueCard.objects.select_for_update().get(
+                        id=payment.value_card_id, client=invoice.client,
+                    )
+                    client_vc.balance += payment.amount
+                    client_vc.is_active = True
+                    client_vc.save(update_fields=['balance', 'is_active'])
 
         return Response(InvoiceSerializer(invoice).data)
 
@@ -345,19 +357,34 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         new_method = request.data.get('payment_method')
         payment_id = request.data.get('payment_id')
         
-        if not new_method:
-            return Response({'detail': 'payment_method required'}, status=400)
-            
+        valid_methods = {choice[0] for choice in Payment.PAYMENT_METHOD_CHOICES}
+        if new_method not in valid_methods:
+            return Response({'detail': 'A valid payment_method is required.'}, status=400)
+
+        payments = invoice.payments.all()
+        payment = None
         if payment_id:
-            payment = invoice.payments.filter(id=payment_id).first()
+            payment = payments.filter(id=payment_id).first()
             if not payment:
                 return Response({'detail': 'payment_id not found for this invoice'}, status=404)
-            payment.payment_method = new_method
-            payment.save(update_fields=['payment_method'])
+        elif payments.count() > 1:
+            return Response({'detail': 'Multiple payments exist. Provide a payment_id.'}, status=400)
         else:
-            if invoice.payments.count() > 1:
-                return Response({'detail': 'Multiple payments exist. Provide a payment_id.'}, status=400)
-            invoice.payments.all().update(payment_method=new_method)
+            payment = payments.first()
+
+        if not payment:
+            return Response({'detail': 'No payment exists for this invoice.'}, status=400)
+
+        protected_terms = ('advance', 'wallet', 'value card')
+        if any(term in payment.payment_method.lower() for term in protected_terms) or any(
+            term in new_method.lower() for term in protected_terms
+        ):
+            return Response({
+                'detail': 'Wallet, advance, and value-card payments cannot be relabelled. Refund and record a new payment.'
+            }, status=400)
+
+        payment.payment_method = new_method
+        payment.save(update_fields=['payment_method'])
 
         user = request.user if request.user and request.user.is_authenticated else None
         BillChangeLog.objects.create(

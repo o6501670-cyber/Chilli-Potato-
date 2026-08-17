@@ -125,13 +125,13 @@ class InvoiceSerializer(serializers.ModelSerializer):
             if ct_label and isinstance(ct_label, str) and ct_label.startswith('inventory'):
                 obj_id = item.get('object_id')
                 if obj_id:
+                    from inventory.models import Product
                     try:
-                        from inventory.models import Product
                         prod = Product.objects.get(pk=obj_id)
-                        if prod.center != center:
-                            raise serializers.ValidationError("Product does not belong to this center.")
-                    except Exception:
-                        import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
+                    except Product.DoesNotExist as exc:
+                        raise serializers.ValidationError("Product does not exist.") from exc
+                    if prod.center != center:
+                        raise serializers.ValidationError("Product does not belong to this center.")
         
         # Validate advance and value card payments against actual balances
         payments = data.get('payments', [])

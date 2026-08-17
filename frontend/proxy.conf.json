@@ -1,0 +1,14 @@
+{
+  "/accounts": { "target": "http://127.0.0.1:8000", "secure": false },
+  "/salon_admin": { "target": "http://127.0.0.1:8000", "secure": false },
+  "/inventory": { "target": "http://127.0.0.1:8000", "secure": false },
+  "/marketing": { "target": "http://127.0.0.1:8000", "secure": false },
+  "/staff": { "target": "http://127.0.0.1:8000", "secure": false },
+  "/appointments": { "target": "http://127.0.0.1:8000", "secure": false },
+  "/clients": { "target": "http://127.0.0.1:8000", "secure": false },
+  "/services": { "target": "http://127.0.0.1:8000", "secure": false },
+  "/billing": { "target": "http://127.0.0.1:8000", "secure": false },
+  "/finance": { "target": "http://127.0.0.1:8000", "secure": false },
+  "/audit_logs": { "target": "http://127.0.0.1:8000", "secure": false },
+  "/media": { "target": "http://127.0.0.1:8000", "secure": false }
+}

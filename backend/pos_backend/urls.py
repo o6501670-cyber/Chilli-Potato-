@@ -3,8 +3,7 @@ URL configuration for pos_backend project.
 """
 
 from django.contrib import admin
-from django.urls import path, include, re_path
-from django.views.static import serve
+from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -23,7 +22,7 @@ urlpatterns = [
     path('audit_logs/', include('audit_logs.urls')),
 ]
 
-# Serve media files in development only
-urlpatterns += [
-    re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
-]
+# Never use Django's development file server in production. Configure the
+# reverse proxy or object storage to serve MEDIA_ROOT when DEBUG is false.
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

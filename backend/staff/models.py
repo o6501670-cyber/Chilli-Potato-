@@ -24,7 +24,7 @@ class StaffMember(models.Model):
     city = models.CharField(max_length=100, blank=True, null=True)
     state = models.CharField(max_length=100, blank=True, null=True)
     pin_code = models.CharField(max_length=20, blank=True, null=True)
-    app_password = models.CharField(max_length=50, blank=True, null=True)
+    app_password = models.CharField(max_length=128, blank=True, null=True)
     image = models.ImageField(upload_to='staff_images/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
     salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)

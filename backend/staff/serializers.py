@@ -1,3 +1,4 @@
+from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from .models import StaffMember, ServiceLog, StaffConsumptionLog, StaffTransfer, StaffToolTracker, PayrollRecord, Designation
 
@@ -13,6 +14,27 @@ class StaffMemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = StaffMember
         fields = '__all__'
+        extra_kwargs = {
+            'app_password': {'write_only': True, 'required': False, 'allow_blank': False},
+        }
+
+    def validate_app_password(self, value):
+        value = str(value)
+        if not value.isdigit() or not 4 <= len(value) <= 8:
+            raise serializers.ValidationError('App PIN must contain 4 to 8 digits.')
+        return value
+
+    def create(self, validated_data):
+        password = validated_data.pop('app_password', None)
+        if password:
+            validated_data['app_password'] = make_password(password)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('app_password', None)
+        if password:
+            validated_data['app_password'] = make_password(password)
+        return super().update(instance, validated_data)
 
     def get_center_name(self, obj):
         if not obj.center:

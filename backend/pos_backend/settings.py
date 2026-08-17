@@ -19,7 +19,7 @@ _INSECURE_KEY = 'django-insecure-9k^bakokugv8=6u^h4&e0br9#aj2yf^oo3#anie*o6v(v_!
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', _INSECURE_KEY)
 
-DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').strip().lower() == 'true'
 
 # Guard: refuse to start in production with the insecure fallback key
 if not DEBUG and SECRET_KEY == _INSECURE_KEY:
@@ -28,10 +28,14 @@ if not DEBUG and SECRET_KEY == _INSECURE_KEY:
         "when DEBUG=False. Do not use the default insecure key in production."
     )
 
-ALLOWED_HOSTS = os.environ.get(
-    'DJANGO_ALLOWED_HOSTS',
-    '38.45.94.56,localhost,127.0.0.1,testserver'
-).split(',')
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        'DJANGO_ALLOWED_HOSTS',
+        '38.45.94.56,localhost,127.0.0.1,testserver',
+    ).split(',')
+    if host.strip()
+]
 
 # ─── Installed Apps ────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
@@ -64,7 +68,7 @@ INSTALLED_APPS = [
 # ─── REST Framework ────────────────────────────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'accounts.authentication.ExpiringTokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -156,10 +160,14 @@ CORS_ALLOW_HEADERS = [
     'x-background-request',
 ]
 
-CSRF_TRUSTED_ORIGINS = os.environ.get(
-    'CSRF_TRUSTED_ORIGINS',
-    'http://38.45.94.56:4092,http://38.45.94.56:8092,http://38.45.94.56:3093,http://38.45.94.56:4093,http://localhost:4200,http://localhost:8000'
-).split(',')
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        'CSRF_TRUSTED_ORIGINS',
+        'http://38.45.94.56:4092,http://38.45.94.56:8092,http://38.45.94.56:3093,http://38.45.94.56:4093,http://localhost:4200,http://localhost:8000',
+    ).split(',')
+    if origin.strip()
+]
 
 # ─── Security Headers (only enforce in production) ────────────────────────────
 if not DEBUG:
@@ -174,7 +182,21 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
-API_TOKEN_MAX_AGE_DAYS = int(os.environ.get('API_TOKEN_MAX_AGE_DAYS', 7))
+API_TOKEN_MAX_AGE_DAYS = int(os.environ.get('API_TOKEN_MAX_AGE_DAYS', '7'))
+APP_TOKEN_MAX_AGE_DAYS = int(os.environ.get('APP_TOKEN_MAX_AGE_DAYS', '30'))
+
+# Bound parser memory use; individual bulk-upload endpoints also reject files
+# above this limit before pandas/openpyxl processes them.
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('DATA_UPLOAD_MAX_MEMORY_SIZE', str(10 * 1024 * 1024)))
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('FILE_UPLOAD_MAX_MEMORY_SIZE', str(5 * 1024 * 1024)))
+
+# Forwarded client IPs are trusted only when deployment explicitly guarantees
+# that its reverse proxy strips client-supplied X-Forwarded-For headers.
+AUDIT_LOG_ENABLED = os.environ.get('AUDIT_LOG_ENABLED', 'True').lower() == 'true'
+AUDIT_TRUST_X_FORWARDED_FOR = os.environ.get('AUDIT_TRUST_X_FORWARDED_FOR', 'False').lower() == 'true'
+# External IP geolocation is opt-in to avoid request metadata leakage and an
+# outbound network dependency under load.
+AUDIT_GEO_LOOKUP_ENABLED = os.environ.get('AUDIT_GEO_LOOKUP_ENABLED', 'False').lower() == 'true'
 
 # ─── URL / Templates / WSGI ───────────────────────────────────────────────────
 ROOT_URLCONF = 'pos_backend.urls'
@@ -197,21 +219,38 @@ TEMPLATES = [
 WSGI_APPLICATION = 'pos_backend.wsgi.application'
 
 # ─── Database ─────────────────────────────────────────────────────────────────
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DB_NAME', 'pos'),
-        'USER': os.environ.get('DB_USER', 'root'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'root'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '3306'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
-        'CONN_MAX_AGE': 60,  # Persistent connections — faster queries
+# DATABASE_URL makes local/CI SQLite testing possible without changing the
+# production MySQL default. Examples:
+#   sqlite:////tmp/pos.sqlite3
+#   mysql://user:password@db:3306/pos
+_database_url = os.environ.get('DATABASE_URL', '').strip()
+if _database_url:
+    import dj_database_url
+
+    DATABASES = {
+        'default': dj_database_url.parse(
+            _database_url,
+            conn_max_age=int(os.environ.get('DB_CONN_MAX_AGE', '60')),
+            conn_health_checks=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('DB_NAME', 'pos'),
+            'USER': os.environ.get('DB_USER', 'root'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', 'root'),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('DB_PORT', '3306'),
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+            'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '60')),
+            'CONN_HEALTH_CHECKS': True,
+        }
+    }
 
 # ─── Password Validation ──────────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [

@@ -2,24 +2,35 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 from django.db.models import Q
 from .models import ServiceMaster, CenterService
 from .serializers import ServiceMasterSerializer, CenterServiceSerializer
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
-from django.views.decorators.vary import vary_on_headers
 from pos_backend.permissions import IsOwner
+
+
+def _has_all_center_access(user):
+    permissions = getattr(getattr(user, 'role', None), 'permissions', {}) or {}
+    return IsOwner.check_is_owner(user) or permissions.get('all_centers', False)
+
+
+def _accessible_center(user, center_id):
+    from salon_admin.models import Center
+    try:
+        center = Center.objects.get(pk=int(center_id), is_active=True)
+    except (Center.DoesNotExist, TypeError, ValueError) as exc:
+        raise ValidationError({'center_id': 'Select a valid active center.'}) from exc
+    if _has_all_center_access(user):
+        return center
+    if user.centers.filter(pk=center.pk).exists() or user.center_id == center.pk:
+        return center
+    raise PermissionDenied("You are not assigned to this center.")
+
 
 class ServiceMasterViewSet(viewsets.ModelViewSet):
     queryset = ServiceMaster.objects.all().prefetch_related('center_overrides', 'centers')
     serializer_class = ServiceMasterSerializer
     permission_classes = [IsAuthenticated]
-
-    @method_decorator(cache_page(60 * 15))
-    @method_decorator(vary_on_headers('Authorization'))
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
 
     def get_queryset(self):
         user = self.request.user
@@ -44,25 +55,30 @@ class ServiceMasterViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = IsOwner.check_is_owner(user)
-        is_all_centers = is_owner or perms.get('all_centers', False)
-        
-        if self.request.data.get('level') == 'Organisation':
-            if not is_all_centers:
-                raise PermissionDenied("Only owners or users with all-center access can create organisation level services.")
+        has_global_access = _has_all_center_access(user)
+        level = serializer.validated_data.get('level', 'Organisation')
+        centers = serializer.validated_data.get('centers', [])
+
+        if level == 'Organisation':
+            if not has_global_access:
+                raise PermissionDenied("Only owners or all-center users can create organisation services.")
             serializer.save()
             return
-            
-        if not is_all_centers:
-            if not user.centers.exists() and not getattr(user, 'center', None):
-                raise PermissionDenied("User is not assigned to any center.")
-        
-        serializer.save()
+
+        if not centers:
+            center_id = self.request.query_params.get('center_id') or self.request.data.get('center_id')
+            if not center_id:
+                raise ValidationError({'centers': 'At least one center is required.'})
+            centers = [_accessible_center(user, center_id)]
+        elif not has_global_access:
+            for center in centers:
+                _accessible_center(user, center.pk)
+        serializer.save(level='Center', centers=centers)
 
     def perform_update(self, serializer):
         center_id = self.request.query_params.get('center_id')
         if center_id:
+            center = _accessible_center(self.request.user, center_id)
             from .models import CenterService
             # When editing with a center_id, route center-specific fields to CenterService override
             # instead of mutating the global ServiceMaster record.
@@ -79,11 +95,13 @@ class ServiceMasterViewSet(viewsets.ModelViewSet):
 
             if center_override_fields:
                 CenterService.objects.update_or_create(
-                    center_id=center_id,
+                    center_id=center.id,
                     service_id=instance.id,
                     defaults=center_override_fields
                 )
         else:
+            if not _has_all_center_access(self.request.user):
+                raise PermissionDenied("A center_id is required when editing a center service.")
             serializer.save()
 
     @action(detail=False, methods=['post'])
@@ -95,6 +113,8 @@ class ServiceMasterViewSet(viewsets.ModelViewSet):
         file_obj = request.FILES.get('file')
         if not file_obj:
             return Response({'error': 'No file uploaded'}, status=400)
+        if file_obj.size > 10 * 1024 * 1024:
+            return Response({'error': 'Files cannot exceed 10 MB.'}, status=400)
         try:
             import pandas as pd
             if file_obj.name.endswith('.csv'):
@@ -115,16 +135,15 @@ class ServiceMasterViewSet(viewsets.ModelViewSet):
             center = None
             center_id_param = request.data.get('center_id') or request.query_params.get('center_id')
             if center_id_param:
-                from salon_admin.models import Center as SalonCenter
-                try:
-                    center = SalonCenter.objects.get(id=int(center_id_param))
-                except SalonCenter.DoesNotExist:
-                    pass
-            if not center:
-                if hasattr(user, 'center') and user.center:
-                    center = user.center
-                elif user.centers.exists():
-                    center = user.centers.first()
+                center = _accessible_center(user, center_id_param)
+            elif not _has_all_center_access(user):
+                assigned = user.centers.filter(is_active=True)
+                if user.center_id:
+                    center = _accessible_center(user, user.center_id)
+                elif assigned.count() == 1:
+                    center = assigned.first()
+                else:
+                    raise ValidationError({'center_id': 'Center is required when multiple centers are assigned.'})
 
             def safe_float(val, default=0.0):
                 try:
@@ -255,9 +274,10 @@ class ServiceMasterViewSet(viewsets.ModelViewSet):
                 result['warnings'] = errors[:20]
             return Response(result)
 
-        except Exception as e:
-            import traceback
-            return Response({'error': str(e), 'detail': traceback.format_exc()}, status=400)
+        except APIException:
+            raise
+        except Exception:
+            return Response({'error': 'The uploaded file could not be processed. Check its format and values.'}, status=400)
 
 
 class CenterServiceViewSet(viewsets.ModelViewSet):
@@ -284,6 +304,16 @@ class CenterServiceViewSet(viewsets.ModelViewSet):
             return queryset.filter(center=user.center)
             
         return queryset.none()
+
+    def perform_create(self, serializer):
+        center = serializer.validated_data.get('center')
+        _accessible_center(self.request.user, center.pk)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        center = serializer.validated_data.get('center', serializer.instance.center)
+        _accessible_center(self.request.user, center.pk)
+        serializer.save()
     
     @action(detail=False, methods=['post'])
     def override(self, request):
@@ -296,6 +326,7 @@ class CenterServiceViewSet(viewsets.ModelViewSet):
         
         if not center_id or not service_id:
             return Response({"error": "Missing center_id or service_id"}, status=status.HTTP_400_BAD_REQUEST)
+        center = _accessible_center(user, center_id)
             
         is_owner = IsOwner.check_is_owner(user)
         perms = getattr(user.role, 'permissions', {}) or {}
@@ -316,7 +347,7 @@ class CenterServiceViewSet(viewsets.ModelViewSet):
                 return Response({"error": "Invalid center_id"}, status=status.HTTP_400_BAD_REQUEST)
             
         obj, created = CenterService.objects.update_or_create(
-            center_id=center_id,
+            center_id=center.id,
             service_id=service_id,
             defaults={'price': price, 'is_active': is_active}
         )

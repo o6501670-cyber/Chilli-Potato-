@@ -57,27 +57,20 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        services_data = self.initial_data.get('services', [])
-        validated_data.pop('services', None)
+        services_data = validated_data.pop('services', [])
         appointment = Appointment.objects.create(**validated_data)
 
-        from staff.models import StaffMember
         for service_data in services_data:
             service_data = _clean_service_data(dict(service_data))
-            staff_val = service_data.pop('staff', None)
-            staff_id = _extract_service_staff_id(staff_val)
-            if staff_id:
-                staff_member = StaffMember.objects.filter(id=staff_id).first()
-                if staff_member and staff_member.center != appointment.center:
-                    raise serializers.ValidationError("Staff member does not belong to this center.")
-                service_data['staff_id'] = staff_id
+            staff_member = service_data.get('staff')
+            if staff_member and staff_member.center_id != appointment.center_id:
+                raise serializers.ValidationError("Staff member does not belong to this center.")
             AppointmentService.objects.create(appointment=appointment, **service_data)
         return appointment
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        services_data = self.initial_data.get('services')
-        validated_data.pop('services', None)
+        services_data = validated_data.pop('services', None)
 
         # Update Appointment fields
         for attr, value in validated_data.items():
@@ -86,18 +79,12 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
         # Update services if provided
         if services_data is not None:
-            # Delete existing and recreate
             instance.services.all().delete()
-            from staff.models import StaffMember
             for service_data in services_data:
                 service_data = _clean_service_data(dict(service_data))
-                staff_val = service_data.pop('staff', None)
-                staff_id = _extract_service_staff_id(staff_val)
-                if staff_id:
-                    staff_member = StaffMember.objects.filter(id=staff_id).first()
-                    if staff_member and staff_member.center != instance.center:
-                        raise serializers.ValidationError("Staff member does not belong to this center.")
-                    service_data['staff_id'] = staff_id
+                staff_member = service_data.get('staff')
+                if staff_member and staff_member.center_id != instance.center_id:
+                    raise serializers.ValidationError("Staff member does not belong to this center.")
                 AppointmentService.objects.create(appointment=instance, **service_data)
 
         return instance

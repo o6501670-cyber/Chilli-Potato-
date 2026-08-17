@@ -1,4 +1,7 @@
 from django.contrib.auth.hashers import make_password, check_password
+from django.conf import settings
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError as DjangoValidationError
 """
 Client App Views — Token-Secured API endpoints for the client mobile PWA.
 
@@ -27,8 +30,9 @@ def _generate_client_token(client):
 def _verify_client_token(token):
     """Validate a client token. Returns Client or None."""
     try:
-        data = _signing.loads(token, salt='client-app-token', max_age=86400 * 30)
-        client = Client.objects.get(id=data['client_id'])
+        max_age = 86400 * getattr(settings, 'APP_TOKEN_MAX_AGE_DAYS', 30)
+        data = _signing.loads(token, salt='client-app-token', max_age=max_age)
+        client = Client.objects.get(id=data['client_id'], is_active=True)
         if data.get('pin_hash') != str(client.app_pin)[-10:]:
             return None # Token invalid due to PIN change
         return client
@@ -37,7 +41,9 @@ def _verify_client_token(token):
 
 def _get_authenticated_client(request):
     """Extract and validate X-Client-Token header. Returns client or None."""
-    token = request.headers.get('X-Client-Token') or request.query_params.get('_token')
+    # Never accept credentials in the query string; URLs leak through history,
+    # reverse-proxy logs, analytics, and Referer headers.
+    token = request.headers.get('X-Client-Token')
     if not token:
         return None
     return _verify_client_token(token)
@@ -54,24 +60,35 @@ from rest_framework.decorators import throttle_classes
 @throttle_classes([LoginRateThrottle])
 def client_app_login(request):
     """Client login. Returns client data + auth_token for subsequent requests."""
-    phone = request.data.get('phone')
-    pin = request.data.get('pin')
+    phone = str(request.data.get('phone') or '').strip()
+    pin = str(request.data.get('pin') or '')
+    center_id = request.data.get('center_id')
 
-    if not phone:
-        return Response({'error': 'Phone is required'}, status=status.HTTP_400_BAD_REQUEST)
+    if not phone or not pin:
+        return Response({'error': 'Phone and PIN are required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    try:
-        client = Client.objects.get(phone=phone)
-    except Client.DoesNotExist:
+    candidates = Client.objects.filter(phone=phone, is_active=True)
+    if center_id not in (None, ''):
+        try:
+            candidates = candidates.filter(center_id=int(center_id))
+        except (TypeError, ValueError):
+            return Response({'error': 'Invalid center_id'}, status=status.HTTP_400_BAD_REQUEST)
+    if candidates.count() > 1:
+        return Response(
+            {'error': 'This phone exists at multiple centers; center_id is required.'},
+            status=status.HTTP_409_CONFLICT,
+        )
+    client = candidates.first()
+    if not client:
         return Response({'error': 'Invalid phone number or PIN'}, status=status.HTTP_401_UNAUTHORIZED)
 
     if not client.app_pin:
         return Response({'error': 'PIN has not been set yet. Please ask the front desk to set your PIN.'}, status=status.HTTP_400_BAD_REQUEST)
-    elif client.app_pin == str(pin):
-        from django.contrib.auth.hashers import make_password
-        client.app_pin = make_password(str(pin))
+    elif client.app_pin == pin:
+        # One-time migration for legacy plaintext values.
+        client.app_pin = make_password(pin)
         client.save(update_fields=['app_pin'])
-    elif not check_password(str(pin), client.app_pin):
+    elif not check_password(pin, client.app_pin):
         return Response({'error': 'Invalid phone number or PIN'}, status=status.HTTP_401_UNAUTHORIZED)
 
     return Response({
@@ -205,13 +222,23 @@ def client_app_update_profile(request):
     pin = request.data.get('pin')
 
     if email is not None:
-        client.email = email
+        email = str(email).strip()
+        try:
+            if email:
+                validate_email(email)
+        except DjangoValidationError:
+            return Response({'error': 'Enter a valid email address.'}, status=status.HTTP_400_BAD_REQUEST)
+        client.email = email or None
         updated_fields.append('email')
     if dnd_status is not None:
+        dnd_status = str(dnd_status).strip()[:50]
         client.dnd_status = dnd_status
         updated_fields.append('dnd_status')
     if pin is not None:
-        client.app_pin = pin
+        pin = str(pin)
+        if not pin.isdigit() or not 4 <= len(pin) <= 8:
+            return Response({'error': 'PIN must contain 4 to 8 digits.'}, status=status.HTTP_400_BAD_REQUEST)
+        client.app_pin = make_password(pin)
         updated_fields.append('app_pin')
 
     if updated_fields:

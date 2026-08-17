@@ -1,4 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://127.0.0.1:8000'
+  // Keep browser requests same-origin. The Angular dev server proxies /api-style
+  // backend paths; production should route them through the reverse proxy.
+  apiUrl: ''
 };

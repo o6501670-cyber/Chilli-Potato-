@@ -262,6 +262,8 @@ def bulk_import_centers(request):
     uploaded_file = request.FILES.get('file')
     if not uploaded_file:
         return Response({'error': 'No file uploaded. Send the Excel as multipart key "file".'}, status=400)
+    if uploaded_file.size > 10 * 1024 * 1024:
+        return Response({'error': 'Files cannot exceed 10 MB.'}, status=400)
 
     COLUMN_MAP = {
         'center name': 'center_name', 'centre name': 'center_name',

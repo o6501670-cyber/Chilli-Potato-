@@ -110,33 +110,36 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         return False, None
 
+    def _validate_center_access(self, center):
+        user = self.request.user
+        perms = getattr(getattr(user, 'role', None), 'permissions', {}) or {}
+        if IsOwner.check_is_owner(user) or perms.get('all_centers', False):
+            return
+        if user.centers.exists():
+            allowed = user.centers.filter(pk=center.pk).exists()
+        else:
+            allowed = bool(user.center_id and user.center_id == center.pk)
+        if not allowed:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You cannot manage appointments for this center.")
+
     @transaction.atomic
     def perform_create(self, serializer):
-        user = self.request.user
-        perms = getattr(user.role, 'permissions', {}) or {}
-        is_owner = IsOwner.check_is_owner(user)
-
-        if not is_owner and not perms.get('all_centers', False):
-            center = serializer.validated_data.get('center')
-            if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create appointments for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create appointments for this center.")
+        center = serializer.validated_data.get('center')
+        self._validate_center_access(center)
 
         client_phone = serializer.validated_data.get('client_phone')
         if client_phone:
             from clients.models import Client
-            client = Client.objects.filter(phone=client_phone).first()
+            client = Client.objects.filter(phone=client_phone, center=center).first()
             if client and client.is_blacklisted:
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError("Client is blacklisted and cannot book appointments.")
 
-        # Double-booking prevention
-        # Read from initial_data because the serializer pops 'services' from validated_data
-        services_data = serializer.initial_data.get('services', [])
+        # Use DRF-validated nested data so times are datetime.time objects and
+        # staff values are StaffMember objects. Raw JSON strings silently
+        # bypassed conflict detection.
+        services_data = serializer.validated_data.get('services', [])
         appt_date = serializer.validated_data.get('date')
         if services_data and appt_date:
             is_conflict, error_msg = self._check_double_booking(services_data, appt_date)
@@ -150,10 +153,12 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def perform_update(self, serializer):
         instance = serializer.instance
-        services_data = serializer.initial_data.get('services', [])
+        center = serializer.validated_data.get('center', instance.center)
+        self._validate_center_access(center)
+        services_data = serializer.validated_data.get('services')
         appt_date = serializer.validated_data.get('date', instance.date)
 
-        if services_data and appt_date:
+        if services_data is not None and appt_date:
             is_conflict, error_msg = self._check_double_booking(
                 services_data, appt_date, exclude_appt_id=instance.id
             )
@@ -167,7 +172,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     def _link_client(self, appt):
         if not appt.client and appt.client_phone:
             from clients.models import Client
-            client = Client.objects.filter(phone=appt.client_phone).first()
+            client = Client.objects.filter(phone=appt.client_phone, center=appt.center).first()
             if client:
                 appt.client = client
                 appt.save(update_fields=['client'])

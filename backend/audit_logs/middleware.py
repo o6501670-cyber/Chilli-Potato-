@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import logging
 import threading
@@ -6,6 +7,7 @@ import ipaddress
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 
+from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
 from .models import SystemLog
 
@@ -32,7 +34,11 @@ class BoundedExecutor:
                 
         return self.executor.submit(_wrapper, *args, **kwargs)
 
-_executor = BoundedExecutor(max_workers=4, max_queue_size=10000)
+_executor = BoundedExecutor(
+    max_workers=max(1, int(os.environ.get('AUDIT_LOG_WORKERS', '8'))),
+    # A 15k-request burst must fit without silently losing compliance records.
+    max_queue_size=max(1000, int(os.environ.get('AUDIT_LOG_MAX_QUEUE', '50000'))),
+)
 
 SENSITIVE_KEYS = {
     'password', 'pin', 'token', 'auth_token',
@@ -137,6 +143,8 @@ def _cached_geo(ip: str) -> dict:
     """Lookup city/country from IP using freeipapi.com (free, HTTPS)."""
     if not ip or _is_private_ip(ip):
         return {'city': 'Local Network', 'region': '', 'country': 'Local', 'country_code': ''}
+    if not getattr(settings, 'AUDIT_GEO_LOOKUP_ENABLED', False):
+        return {'city': '', 'region': '', 'country': '', 'country_code': ''}
     try:
         import requests as req
         resp = req.get(
@@ -157,9 +165,8 @@ def _cached_geo(ip: str) -> dict:
 
 
 # ─── Token & Centre lookups (LRU-cached) ──────────────────────────────────────
-@lru_cache(maxsize=256)
-def _cached_user_from_token(token_key: str):
-    """Returns tuple of user info or None. Cached per token key."""
+def _user_from_token(token_key: str):
+    """Resolve current token ownership (intentionally uncached for audit accuracy)."""
     try:
         from rest_framework.authtoken.models import Token
         t = Token.objects.select_related('user', 'user__role', 'user__center').get(key=token_key)
@@ -223,15 +230,37 @@ def _extract_entity_id(path: str) -> str:
     return ''
 
 
+def _redact(value, key='', depth=0):
+    """Recursively redact secrets and bound the amount stored in an audit row."""
+    if str(key).lower() in SENSITIVE_KEYS:
+        return '***'
+    if depth >= 8:
+        return '[maximum depth reached]'
+    if isinstance(value, dict):
+        items = list(value.items())
+        result = {str(k): _redact(v, k, depth + 1) for k, v in items[:100]}
+        if len(items) > 100:
+            result['_truncated_fields'] = len(items) - 100
+        return result
+    if isinstance(value, list):
+        result = [_redact(item, depth=depth + 1) for item in value[:100]]
+        if len(value) > 100:
+            result.append(f'[truncated {len(value) - 100} items]')
+        return result
+    if isinstance(value, str) and len(value) > 2000:
+        return value[:2000] + '…[truncated]'
+    return value
+
+
 def _sanitise(body_bytes: bytes) -> dict:
     if not body_bytes:
         return {}
+    if len(body_bytes) > 1024 * 1024:
+        return {'_audit_note': f'JSON body omitted because it was {len(body_bytes)} bytes'}
     try:
         data = json.loads(body_bytes)
-        if isinstance(data, dict):
-            return {k: ('***' if k in SENSITIVE_KEYS else v) for k, v in data.items()}
-        return {}
-    except Exception:
+        return _redact(data) if isinstance(data, dict) else {}
+    except (TypeError, ValueError, UnicodeDecodeError):
         return {}
 
 
@@ -272,14 +301,15 @@ def _human_description(action, entity, entity_id, who, body, centre_name):
 
 
 # ─── Background log writer ────────────────────────────────────────────────────
-def _write_log(token_key, session_user_pk, path, method, body_bytes, ip, ua_string, staff_token=None, client_token=None):
+def _write_log(token_key, session_user_pk, path, method, body_bytes, ip, ua_string, response_status,
+               staff_token=None, client_token=None):
     try:
         # ── User resolution ───────────────────────────────────────────────────
         user_obj = user_pk = user_name = user_email = user_role = None
         center_id = center_name = ''
 
         if token_key:
-            cached = _cached_user_from_token(token_key)
+            cached = _user_from_token(token_key)
             if cached:
                 user_pk, user_name, user_email, user_role, center_id, center_name = cached
                 # Get a fresh DB ref for the FK (never store ORM objects in lru_cache)
@@ -371,7 +401,9 @@ def _write_log(token_key, session_user_pk, path, method, body_bytes, ip, ua_stri
             entity_id=entity_id,
             human_description=human,
             path=path,
-            description=json.dumps(body) if body else '',
+            description=json.dumps(body, ensure_ascii=False) if body else '',
+            response_status=response_status,
+            success=200 <= response_status < 400,
             ip_address=ip or None,
             device_info=ua_string,
             device_type=device_info.get('device_type', ''),
@@ -397,6 +429,8 @@ class AuditLogMiddleware(MiddlewareMixin):
                 import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
 
     def process_response(self, request, response):
+        if not getattr(settings, 'AUDIT_LOG_ENABLED', True):
+            return response
         method = request.method
         if method not in ('POST', 'PUT', 'PATCH', 'DELETE'):
             return response
@@ -433,13 +467,24 @@ class AuditLogMiddleware(MiddlewareMixin):
 
             body_bytes = bytes(getattr(request, '_body', None) or b'')
 
+            remote_ip = request.META.get('REMOTE_ADDR', '')
             xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
-            ip  = xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR', '')
-            ua  = request.META.get('HTTP_USER_AGENT', '')[:600]
+            if getattr(settings, 'AUDIT_TRUST_X_FORWARDED_FOR', False) and xff:
+                ip = xff.split(',')[0].strip()
+            else:
+                ip = remote_ip
+            try:
+                ipaddress.ip_address(ip)
+            except ValueError:
+                ip = ''
+            ua = request.META.get('HTTP_USER_AGENT', '')[:600]
 
-            # Fire and forget — response returns IMMEDIATELY, logging happens in background
-            _executor.submit(_write_log, token_key, session_user_pk,
-                             path, method, body_bytes, ip, ua, staff_token, client_token)
+            # Fire and forget — response returns immediately; bounded background
+            # workers handle audit I/O without spawning a thread per request.
+            _executor.submit(
+                _write_log, token_key, session_user_pk, path, method, body_bytes,
+                ip, ua, int(getattr(response, 'status_code', 500)), staff_token, client_token,
+            )
 
         except Exception as e:
             logger.error(f'AuditLogMiddleware submit error: {e}')

@@ -1,5 +1,38 @@
+from django.db import transaction
 from rest_framework import serializers
 from .models import Vendor, Product, PurchaseOrder, PurchaseOrderItem, ProductLot, StockTransaction
+
+
+class StockCheckoutItemSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField(min_value=1)
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class StockAuditItemSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField(min_value=1)
+    quantity = serializers.IntegerField(min_value=0)
+
+
+class StockCheckoutSerializer(serializers.Serializer):
+    center_id = serializers.IntegerField(min_value=1, required=False)
+    items = StockCheckoutItemSerializer(many=True, allow_empty=False)
+
+    def validate_items(self, items):
+        product_ids = [item['product_id'] for item in items]
+        if len(product_ids) != len(set(product_ids)):
+            raise serializers.ValidationError('Each product may appear only once per checkout.')
+        return items
+
+
+class StockAuditSerializer(serializers.Serializer):
+    center_id = serializers.IntegerField(min_value=1, required=False)
+    items = StockAuditItemSerializer(many=True, allow_empty=False)
+
+    def validate_items(self, items):
+        product_ids = [item['product_id'] for item in items]
+        if len(product_ids) != len(set(product_ids)):
+            raise serializers.ValidationError('Each product may appear only once per audit.')
+        return items
 
 class VendorSerializer(serializers.ModelSerializer):
     class Meta:
@@ -44,7 +77,18 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseOrder
         fields = '__all__'
+        read_only_fields = ('total_amount',)
 
+    def validate(self, attrs):
+        center = attrs.get('center', getattr(self.instance, 'center', None))
+        vendor = attrs.get('vendor', getattr(self.instance, 'vendor', None))
+        if center and vendor and vendor.center_id != center.id:
+            raise serializers.ValidationError({'vendor': 'Vendor does not belong to the purchase order center.'})
+        if self.instance and 'center' in attrs and attrs['center'].pk != self.instance.center_id:
+            raise serializers.ValidationError({'center': 'A purchase order cannot be moved to another center.'})
+        return attrs
+
+    @transaction.atomic
     def create(self, validated_data):
         items_data = validated_data.pop('items', [])
         purchase_order = PurchaseOrder.objects.create(**validated_data)
@@ -60,10 +104,12 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             discount = item_data.get('discount_percent', 0)
             tax = item_data.get('tax_percent', 0)
             
+            if qty <= 0 or rate < 0 or not (0 <= discount <= 100) or tax < 0:
+                raise serializers.ValidationError({'items': 'Quantity must be positive; rate, discount, and tax must be valid non-negative values.'})
             base = qty * rate
             discount_amount = base * (discount / 100)
             subtotal = base - discount_amount
-            tax_amount = base * (tax / 100)
+            tax_amount = subtotal * (tax / 100)
             total_price = subtotal + tax_amount
             
             item_data['total_price'] = total_price
@@ -74,7 +120,8 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
         purchase_order.save()
             
         return purchase_order
-        
+
+    @transaction.atomic
     def update(self, instance, validated_data):
         items_data = validated_data.pop('items', None)
         old_status = instance.status
@@ -111,6 +158,8 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
                 discount = item_data.get('discount_percent', 0)
                 tax = item_data.get('tax_percent', 0)
                 
+                if qty <= 0 or rate < 0 or not (0 <= discount <= 100) or tax < 0:
+                    raise serializers.ValidationError({'items': 'Quantity must be positive; rate, discount, and tax must be valid non-negative values.'})
                 base = qty * rate
                 discount_amount = base * (discount / 100)
                 subtotal = base - discount_amount

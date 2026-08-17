@@ -1,3 +1,4 @@
+from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from .models import Client, ClientMembership, ClientPackage, ClientValueCard
 from salon_admin.models import Center
@@ -52,6 +53,29 @@ class ClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = '__all__'
+        extra_kwargs = {
+            'app_pin': {'write_only': True, 'required': False, 'allow_blank': False, 'allow_null': True},
+        }
+
+    def validate_app_pin(self, value):
+        if value is None:
+            return value
+        value = str(value)
+        if not value.isdigit() or not 4 <= len(value) <= 8:
+            raise serializers.ValidationError('App PIN must contain 4 to 8 digits.')
+        return value
+
+    def create(self, validated_data):
+        pin = validated_data.pop('app_pin', None)
+        if pin:
+            validated_data['app_pin'] = make_password(pin)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        pin = validated_data.pop('app_pin', None)
+        if pin:
+            validated_data['app_pin'] = make_password(pin)
+        return super().update(instance, validated_data)
 
     def to_internal_value(self, data):
         # Convert frontend empty strings to Python None to prevent DRF validation crashes

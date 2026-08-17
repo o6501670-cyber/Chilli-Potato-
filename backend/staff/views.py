@@ -1,3 +1,6 @@
+import logging
+
+from django.conf import settings
 from django.contrib.auth.hashers import check_password
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import action
@@ -16,6 +19,9 @@ from .serializers import (
 )
 import datetime
 from .utils import sync_staff_transfers_and_tools
+
+logger = logging.getLogger(__name__)
+
 
 class DesignationViewSet(viewsets.ModelViewSet):
     queryset = Designation.objects.all().order_by('name')
@@ -68,8 +74,9 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
         try:
             sync_staff_transfers_and_tools()
             return Response({'status': 'sync complete'})
-        except Exception as e:
-            return Response({'error': str(e)}, status=500)
+        except Exception:
+            logger.exception('Staff transfer/tool sync failed')
+            return Response({'error': 'Sync failed. Please try again.'}, status=500)
 
 
     @action(detail=False, methods=['get'])
@@ -134,6 +141,8 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'No file provided'}, status=400)
             
         excel_file = request.FILES['file']
+        if excel_file.size > 10 * 1024 * 1024:
+            return Response({'detail': 'Files cannot exceed 10 MB.'}, status=400)
         
         filename = excel_file.name.lower()
         rows = []
@@ -1060,6 +1069,8 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
 
 from django.core import signing as _signing
 from pos_backend.permissions import IsOwner
+from pos_backend.throttles import LoginRateThrottle
+from rest_framework.decorators import throttle_classes
 
 def _generate_staff_token(staff):
     """Generate a signed token for the staff mobile app. Valid 30 days."""
@@ -1071,7 +1082,8 @@ def _generate_staff_token(staff):
 def _verify_staff_token(token):
     """Verify a staff app token. Returns StaffMember or None."""
     try:
-        data = _signing.loads(token, salt='staff-app-token', max_age=86400 * 30)
+        max_age = 86400 * getattr(settings, 'APP_TOKEN_MAX_AGE_DAYS', 30)
+        data = _signing.loads(token, salt='staff-app-token', max_age=max_age)
         staff = StaffMember.objects.get(
             id=data['staff_id'],
             is_active=True
@@ -1084,7 +1096,8 @@ def _verify_staff_token(token):
 
 def _get_authenticated_staff(request):
     """Extract and validate X-Staff-Token from request headers. Returns staff or None."""
-    token = request.headers.get('X-Staff-Token') or request.query_params.get('_token')
+    # Query-string tokens leak into logs/history/Referer headers.
+    token = request.headers.get('X-Staff-Token')
     if not token:
         return None
     return _verify_staff_token(token)
@@ -1092,6 +1105,7 @@ def _get_authenticated_staff(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([LoginRateThrottle])
 def staff_app_login(request):
     """Staff app login. Returns staff data + auth_token for subsequent requests."""
     identifier = request.data.get('identifier') or request.data.get('phone')
@@ -1102,14 +1116,20 @@ def staff_app_login(request):
     if not pin:
         return Response({'error': 'PIN is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    staff = None
-    try:
-        staff = StaffMember.objects.get(phone=identifier, is_active=True)
-    except StaffMember.DoesNotExist:
+    matches = StaffMember.objects.filter(is_active=True).filter(
+        Q(phone=identifier) | Q(staff_code=identifier)
+    ).distinct()
+    if not matches.exists():
         try:
-            staff = StaffMember.objects.get(id=int(identifier), is_active=True)
-        except (StaffMember.DoesNotExist, ValueError):
-            pass
+            matches = StaffMember.objects.filter(id=int(identifier), is_active=True)
+        except (TypeError, ValueError):
+            matches = StaffMember.objects.none()
+    if matches.count() > 1:
+        return Response(
+            {'error': 'Identifier matches multiple staff records; use the unique staff code.'},
+            status=status.HTTP_409_CONFLICT,
+        )
+    staff = matches.first()
 
     if staff and check_password(str(pin), str(staff.app_password or '')):
         data = StaffMemberSerializer(staff).data
@@ -1178,8 +1198,9 @@ def staff_app_appointments(request):
             .order_by('date', 'start_time')
         )
         return Response(AppointmentSerializer(appointments, many=True).data)
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception:
+        logger.exception('Unable to load staff app appointments')
+        return Response({'error': 'Unable to load appointments.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])

@@ -1,21 +1,26 @@
 import { Injectable } from '@angular/core';
 
+export function escapeCsvCell(cell: unknown): string {
+  if (cell === null || cell === undefined) return '""';
+  let value = String(cell);
+  if (typeof cell === 'string' && /^\s*[=+\-@]/.test(value)) {
+    value = `'${value}`;
+  }
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class CsvService {
-  exportToCsv(filename: string, headers: string[], rows: any[][]) {
+  exportToCsv(filename: string, headers: string[], rows: unknown[][]): void {
     // Create CSV content with UTF-8 BOM so Excel opens it correctly
-    let csvContent = "\uFEFF" + headers.map(h => `"${h}"`).join(",") + "\n";
+    let csvContent = "\uFEFF" + headers.map(escapeCsvCell).join(",") + "\n";
     
     if (rows && rows.length) {
     
     rows.forEach(row => {
-      const rowData = row.map(cell => {
-        if (cell === null || cell === undefined) return '""';
-        const str = String(cell).replace(/"/g, '""'); // escape double quotes
-        return `"${str}"`; // wrap in quotes
-      });
+      const rowData = row.map(escapeCsvCell);
       csvContent += rowData.join(",") + "\n";
     });
     }
