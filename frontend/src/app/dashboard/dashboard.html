@@ -29,10 +29,9 @@
 
       <div class="date-range-pill">
         <i class="fa-regular fa-calendar"></i>
-        <input type="date" [(ngModel)]="startDate" class="date-inp">
+        <input type="date" [(ngModel)]="startDate" (ngModelChange)="onFilterChange()" class="date-inp">
         <span>&mdash;</span>
-        <input type="date" [(ngModel)]="endDate" class="date-inp">
-        <button class="btn-go" (click)="onFilterChange()">Apply</button>
+        <input type="date" [(ngModel)]="endDate" (ngModelChange)="onFilterChange()" class="date-inp">
       </div>
 
       <div class="chart-controls" style="margin-left: 10px; display: flex; align-items: center; gap: 8px;">
@@ -87,20 +86,30 @@
         <span class="pill-sm pill-red"><i class="fa-solid fa-bullseye"></i> Target {{ summaryData.target | currency:'INR':'symbol':'1.0-0' }}</span>
       </div>
     </div>
-    <div class="kpi-tile">
-      <div class="kpi-tile-label">New Clients</div>
-      <div class="kpi-tile-val blue">{{ summaryData.new_clients }}</div>
-      <div class="kpi-tile-sub"><i class="fa-solid fa-user-plus" style="color:#3b82f6;font-size:11px"></i> Joined this period</div>
+    <div class="kpi-tile" style="background-color: #f0fdf4; border: 1px solid #bbf7d0;">
+      <div class="kpi-tile-label" style="color: #166534;">Projected This Month</div>
+      <div class="kpi-tile-amount" style="color: #15803d;">{{ summaryData.projected | currency:'INR':'symbol':'1.0-0' }}</div>
+      <div class="kpi-tile-sub" style="color: #166534;">
+        <i class="fa-solid fa-chart-line" style="color:#22c55e;font-size:11px"></i> Based on current run-rate
+      </div>
     </div>
     <div class="kpi-tile">
-      <div class="kpi-tile-label">Repeat Clients</div>
-      <div class="kpi-tile-val green">{{ summaryData.repeat_clients }}</div>
-      <div class="kpi-tile-sub"><i class="fa-solid fa-rotate-right" style="color:#10b981;font-size:11px"></i> Loyal regulars</div>
-    </div>
-    <div class="kpi-tile">
-      <div class="kpi-tile-label">Total Clients</div>
-      <div class="kpi-tile-val">{{ summaryData.total_clients }}</div>
-      <div class="kpi-tile-sub"><i class="fa-solid fa-users" style="color:#6b7280;font-size:11px"></i> Invoiced this period</div>
+      <div class="kpi-tile-label">Clients Summary</div>
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 8px; padding-bottom: 4px;">
+        <div style="text-align: center;">
+          <div style="font-size: 11px; color: #6b7280; margin-bottom: 2px;">New</div>
+          <div class="kpi-tile-val blue" style="font-size: 20px; line-height: 1;">{{ summaryData.new_clients }}</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 11px; color: #6b7280; margin-bottom: 2px;">Repeat</div>
+          <div class="kpi-tile-val green" style="font-size: 20px; line-height: 1;">{{ summaryData.repeat_clients }}</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 11px; color: #6b7280; margin-bottom: 2px;">Total</div>
+          <div class="kpi-tile-val" style="font-size: 20px; line-height: 1; color: #374151;">{{ summaryData.total_clients }}</div>
+        </div>
+      </div>
+      <div class="kpi-tile-sub" style="margin-top: 6px;"><i class="fa-solid fa-users" style="color:#6b7280;font-size:11px"></i> Invoiced this period</div>
     </div>
     <div class="kpi-tile">
       <div class="kpi-tile-label">Avg Spend / Client</div>
@@ -178,6 +187,34 @@
           <span style="color:#4b5563; font-weight:500">Memberships this month</span>
           <strong style="color:#10b981">{{ summaryData?.balances?.memberships || 0 }}</strong>
         </div>
+      </div>
+
+      <div class="card bento-span-1" style="height: 280px; margin-bottom: 0; display: flex; flex-direction: column;">
+        <div class="card-head"><span class="card-title">Inventory Breakdown</span></div>
+        <table style="width: 100%; text-align: left; font-size: 13px; margin-top: 10px; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <th style="padding: 10px 0; color: #6b7280; font-weight: 500;">Inventory</th>
+              <th style="padding: 10px 0; color: #6b7280; font-weight: 500; text-align: right;">Retail</th>
+              <th style="padding: 10px 0; color: #6b7280; font-weight: 500; text-align: right;">Technical</th>
+              <th style="padding: 10px 0; color: #6b7280; font-weight: 500; text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px dashed #e5e7eb;">
+              <td style="padding: 12px 0; font-weight: 500; color: #374151;">Amount</td>
+              <td style="padding: 12px 0; text-align: right;">{{ summaryData.inventory.amount | currency:'INR':'symbol':'1.0-0' }}</td>
+              <td style="padding: 12px 0; text-align: right; color: #9ca3af;">-</td>
+              <td style="padding: 12px 0; text-align: right; font-weight: 600;">{{ summaryData.inventory.amount | currency:'INR':'symbol':'1.0-0' }}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0; font-weight: 500; color: #374151;">Count</td>
+              <td style="padding: 12px 0; text-align: right;">{{ summaryData.inventory.count }}</td>
+              <td style="padding: 12px 0; text-align: right; color: #9ca3af;">-</td>
+              <td style="padding: 12px 0; text-align: right; font-weight: 600;">{{ summaryData.inventory.count }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <div class="card bento-span-1" style="height: 280px; margin-bottom: 0;">

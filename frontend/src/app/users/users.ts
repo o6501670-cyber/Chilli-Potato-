@@ -10,8 +10,7 @@ import { ToastService } from '../services/toast.service';
   selector: 'app-users',
   imports: [CommonModule, FormsModule],
   templateUrl: './users.html',
-  styleUrl: './users.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './users.css'
 })
 export class UsersComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];

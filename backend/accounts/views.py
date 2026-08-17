@@ -11,8 +11,8 @@ from django.conf import settings
 import logging
 import os
 
-from .models import CustomUser, Message
-from .serializers import UserSerializer, MessageSerializer, UserChatSerializer
+from .models import CustomUser, Message, ChatRoom, MessageReaction
+from .serializers import UserSerializer, MessageSerializer, UserChatSerializer, MessageReactionSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -149,17 +149,24 @@ class UnreadMessageCountView(APIView):
         count = Message.objects.filter(room__participants=request.user, is_read=False).exclude(sender=request.user).count()
         return Response({'count': count})
 
+from rest_framework.pagination import CursorPagination
+
+class MessageCursorPagination(CursorPagination):
+    ordering = '-timestamp'
+    page_size = 50
+
 class MessageViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = MessageSerializer
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+    pagination_class = MessageCursorPagination
 
     def get_queryset(self):
         user = self.request.user
-        room_id = self.request.query_params.get('user_id') # Note: frontend sends user_id, but it's actually room_id now
+        room_id = self.request.query_params.get('room_id') or self.request.query_params.get('user_id')
         
         if room_id:
-            return Message.objects.filter(room_id=room_id, room__participants=user).order_by('timestamp')
+            return Message.objects.filter(room_id=room_id, room__participants=user)
 
         return Message.objects.none()
 
@@ -169,32 +176,47 @@ class MessageViewSet(viewsets.ModelViewSet):
         room_id = self.request.data.get('room_id')
         if room_id:
             Message.objects.filter(
-                room_id=room_id, is_read=False
-            ).exclude(sender=user).update(is_read=True)
+                room_id=room_id, status__in=[Message.STATUS_SENT, Message.STATUS_DELIVERED]
+            ).exclude(sender=user).update(status=Message.STATUS_READ, is_read=True)
             return Response({'status': 'ok'})
         return Response({'error': 'room_id required'}, status=400)
 
     def perform_create(self, serializer):
-        room_id = self.request.data.get('room_id') or self.request.query_params.get('user_id') or self.request.data.get('receiver') # Fallback if frontend sends it wrong
-        room = None
-        if room_id:
-            from .models import ChatRoom
-            room = ChatRoom.objects.get(id=room_id)
-            serializer.save(sender=self.request.user, room=room, receiver=None)
-        else:
-            serializer.save(sender=self.request.user)
+        room_id = self.request.data.get('room_id') or self.request.query_params.get('user_id') or self.request.data.get('receiver')
+        
+        if not room_id:
+            raise PermissionDenied("room_id is required")
             
-        # Process mentions and add them to the room
-        mentions_data = self.request.data.get('mentions')
-        if mentions_data and room:
-            import json
-            try:
-                mention_ids = json.loads(mentions_data)
-                for mid in mention_ids:
-                    room.participants.add(mid)
-                if room.participants.count() > 2:
-                    room.is_group = True
-                    room.save()
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f"Failed to process mentions: {e}")
+        room = ChatRoom.objects.filter(id=room_id, participants=self.request.user).first()
+        if not room:
+            raise PermissionDenied("You are not a participant of this room")
+            
+        serializer.save(sender=self.request.user, room=room, receiver=None, status=Message.STATUS_SENT)
+        room.updated_at = __import__('django').utils.timezone.now()
+        room.save(update_fields=['updated_at'])
+
+class MessageReactionViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = MessageReactionSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return MessageReaction.objects.filter(message__room__participants=user)
+
+    def perform_create(self, serializer):
+        message = serializer.validated_data.get('message')
+        if not ChatRoom.objects.filter(id=message.room_id, participants=self.request.user).exists():
+            raise PermissionDenied("You are not a participant of this room")
+        
+        # Check if reaction already exists
+        existing = MessageReaction.objects.filter(message=message, user=self.request.user).first()
+        if existing:
+            if existing.emoji == serializer.validated_data.get('emoji'):
+                existing.delete()
+                raise serializers.ValidationError({"status": "removed"})
+            else:
+                existing.emoji = serializer.validated_data.get('emoji')
+                existing.save()
+                raise serializers.ValidationError({"status": "updated", "emoji": existing.emoji})
+        else:
+            serializer.save(user=self.request.user)

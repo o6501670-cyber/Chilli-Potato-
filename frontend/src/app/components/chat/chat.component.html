@@ -1,0 +1,135 @@
+<div class="wa-chat-container" *ngIf="isOpen">
+  <!-- Left Sidebar: Room List -->
+  <div class="wa-sidebar" [class.hide-on-mobile]="selectedRoom">
+    <div class="wa-header">
+      <div class="wa-header-title">Messages</div>
+      <button class="wa-close-btn" (click)="toggleChat()">&times;</button>
+    </div>
+    
+    <div class="wa-search-bar">
+      <input type="text" placeholder="Search or start new chat">
+    </div>
+    
+    <div class="wa-room-list">
+      <div class="wa-room-item" *ngFor="let room of rooms" (click)="selectRoom(room)"
+           [class.active]="selectedRoom?.id === room.id">
+        <img class="wa-avatar" [src]="getAvatarUrl(room.display_name || room.id)">
+        <div class="wa-room-info">
+          <div class="wa-room-top">
+            <span class="wa-room-name">{{ room.display_name }}</span>
+            <span class="wa-room-time" *ngIf="room.last_message_time">
+              {{ room.last_message_time | date:'shortTime' }}
+            </span>
+          </div>
+          <div class="wa-room-bottom">
+            <span class="wa-room-last-msg">{{ room.last_message || 'Start chatting' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Area: Chat Window -->
+  <div class="wa-main" [class.show-on-mobile]="selectedRoom">
+    <ng-container *ngIf="selectedRoom; else noRoomSelected">
+      <!-- Header -->
+      <div class="wa-header">
+        <button class="wa-back-btn" (click)="selectedRoom = null">&larr;</button>
+        <img class="wa-avatar" [src]="getAvatarUrl(selectedRoom.display_name || selectedRoom.id)">
+        <div class="wa-header-info">
+          <div class="wa-header-title">{{ selectedRoom.display_name }}</div>
+          <div class="wa-header-subtitle" *ngIf="typingUsers.size > 0">
+            <span class="typing-text">{{ typingUsersArray.join(', ') }} typing...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Messages Area -->
+      <div class="wa-messages-area" #chatScrollContainer (scroll)="onScroll($event)">
+        <div class="wa-loading-more" *ngIf="isLoadingMore">Loading older messages...</div>
+        
+        <div class="wa-message-row" *ngFor="let msg of messages"
+             [class.outgoing]="msg.sender_id === currentUserId"
+             [class.incoming]="msg.sender_id !== currentUserId">
+          
+          <div class="wa-bubble">
+            <!-- Reply Preview -->
+            <div class="wa-reply-preview" *ngIf="$any(msg).reply_to">
+              <div class="wa-reply-name">{{ $any(msg).reply_to.sender_name }}</div>
+              <div class="wa-reply-text">{{ $any(msg).reply_to.content }}</div>
+            </div>
+            
+            <!-- Message Content -->
+            <div class="wa-msg-content" *ngIf="!$any(msg).is_deleted">{{ msg.content }}</div>
+            <div class="wa-msg-deleted" *ngIf="$any(msg).is_deleted">🚫 This message was deleted</div>
+            <img class="wa-msg-img" *ngIf="$any(msg).image && !$any(msg).is_deleted" [src]="$any(msg).image">
+            
+            <!-- Metadata -->
+            <div class="wa-msg-meta">
+              <span class="wa-time">{{ msg.timestamp | date:'shortTime' }}</span>
+              <!-- Ticks -->
+              <span class="wa-ticks" *ngIf="msg.sender_id === currentUserId">
+                <i class="tick sent" *ngIf="msg.status === 'sent'">✓</i>
+                <i class="tick delivered" *ngIf="msg.status === 'delivered'">✓✓</i>
+                <i class="tick read" *ngIf="msg.status === 'read'" style="color: #53bdeb;">✓✓</i>
+              </span>
+            </div>
+            
+            <!-- Context Menu Trigger -->
+            <button class="wa-msg-menu-btn" (click)="toggleContextMenu(msg.id, $event)">▾</button>
+            
+            <!-- Context Menu -->
+            <div class="wa-context-menu" *ngIf="contextMenuMsg === msg.id">
+              <div class="wa-menu-item" (click)="replyToMessage(msg)">Reply</div>
+              <div class="wa-menu-item" *ngIf="msg.sender_id === currentUserId" (click)="deleteMessage(msg.id)">Delete for me</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="wa-input-area">
+        <!-- Reply Bar -->
+        <div class="wa-reply-bar" *ngIf="replyingTo">
+          <div class="wa-reply-preview">
+            <div class="wa-reply-name">{{ replyingTo.sender_name }}</div>
+            <div class="wa-reply-text">{{ replyingTo.content || 'Photo' }}</div>
+          </div>
+          <button class="wa-close-reply" (click)="replyingTo = null">&times;</button>
+        </div>
+        
+        <!-- Image Preview -->
+        <div class="wa-image-preview" *ngIf="imagePreview">
+          <img [src]="imagePreview">
+          <button class="wa-close-reply" (click)="selectedImage = null; imagePreview = null">&times;</button>
+        </div>
+
+        <div class="wa-input-row">
+          <input type="file" #chatFileInput style="display:none;" accept="image/*" (change)="onFileSelected($event)">
+          <button class="wa-icon-btn" (click)="chatFileInput.click()">📎</button>
+          
+          <input type="text" class="wa-text-input" 
+                 placeholder="Type a message" 
+                 [(ngModel)]="newMessage" 
+                 (input)="onTyping($event)"
+                 (keyup.enter)="sendMessage()">
+                 
+          <button class="wa-send-btn" (click)="sendMessage()" [disabled]="!newMessage.trim() && !selectedImage">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"></path></svg>
+          </button>
+        </div>
+      </div>
+    </ng-container>
+
+    <ng-template #noRoomSelected>
+      <div class="wa-empty-state">
+        <div class="wa-empty-circle">
+          <svg viewBox="0 0 24 24" width="60" height="60"><path fill="#ccd0d5" d="M12 2C6.486 2 2 6.486 2 12c0 2.052.628 3.961 1.706 5.541l-1.325 3.978 4.08-1.07A9.957 9.957 0 0012 22c5.514 0 10-4.486 10-10S17.514 2 12 2zm0 18c-1.637 0-3.18-.4-4.542-1.121l-.326-.172-2.482.651.813-2.418-.21-.34A7.953 7.953 0 014 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"></path></svg>
+        </div>
+        <h2>DChat for Web</h2>
+        <p>Select a chat to start messaging.</p>
+        <p class="wa-encrypted-notice"><small>🔒 End-to-end encryption is not enabled. Messages are secured on the server.</small></p>
+      </div>
+    </ng-template>
+  </div>
+</div>

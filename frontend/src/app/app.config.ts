@@ -1,4 +1,4 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, provideBrowserGlobalErrorListeners, isDevMode } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './auth.interceptor';
@@ -6,11 +6,15 @@ import { preventDoubleSubmitInterceptor } from './prevent-double-submit.intercep
 import { errorInterceptor } from './error.interceptor';
 import { loadingInterceptor } from './loading.interceptor';
 import { routes } from './app.routes';
+import { provideServiceWorker } from '@angular/service-worker';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([loadingInterceptor, authInterceptor, preventDoubleSubmitInterceptor, errorInterceptor]))
+    provideHttpClient(withInterceptors([loadingInterceptor, authInterceptor, preventDoubleSubmitInterceptor, errorInterceptor])), provideServiceWorker('ngsw-worker.js', {
+            enabled: !isDevMode(),
+            registrationStrategy: 'registerWhenStable:30000'
+          })
   ]
 };

@@ -1,5 +1,5 @@
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ElementRef, HostListener, OnInit, ViewChild, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, ElementRef, HostListener, OnInit, OnDestroy, ViewChild, inject } from '@angular/core';
 
 import { ActivatedRoute } from '@angular/router';
 
@@ -24,8 +24,6 @@ import { ApiService } from '../services/api';
   templateUrl: './billing.html',
 
   styleUrls: ['./billing.css']
-,
-  changeDetection: ChangeDetectionStrategy.OnPush
 })
 
 export class BillingComponent implements OnInit {

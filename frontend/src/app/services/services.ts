@@ -14,7 +14,6 @@ import { AdminFilterService } from '../admin/admin-filter.service';
   imports: [CommonModule, FormsModule],
   templateUrl: './services.html',
   styleUrls: ['./services.css'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ServicesComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];

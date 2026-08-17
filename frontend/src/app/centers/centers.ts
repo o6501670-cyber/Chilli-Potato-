@@ -9,8 +9,7 @@ import { ToastService } from '../services/toast.service';
   selector: 'app-centers',
   imports: [CommonModule, FormsModule],
   templateUrl: './centers.html',
-  styleUrl: './centers.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './centers.css'
 })
 export class CentersComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];

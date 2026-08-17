@@ -1,5 +1,5 @@
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, OnInit, OnDestroy, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -29,8 +29,7 @@ function extractErrorMessage(err: any): string {
   standalone: true,
   imports: [CommonModule, FormsModule, DragDropModule, LocationSelectorComponent],
   templateUrl: './appointments.html',
-  styleUrls: ['./appointments.css'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrls: ['./appointments.css']
 })
 export class AppointmentsComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];

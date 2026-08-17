@@ -1,6 +1,6 @@
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { AfterViewInit, ChangeDetectorRef, Component, DestroyRef, OnInit, OnDestroy, inject } from '@angular/core';
+import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api';
 import Chart from 'chart.js/auto';
@@ -124,7 +124,7 @@ const dataLabelsPlugin = {
   imports: [CommonModule, FormsModule, LocationSelectorComponent],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  providers: [CurrencyPipe, DatePipe]
 })
 
 export class DashboardComponent implements OnInit, AfterViewInit {
@@ -412,15 +412,15 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     // Donut
     const ctxDonut = document.getElementById('revenuePieChart') as HTMLCanvasElement;
     if (ctxDonut) {
-      const breakdown = this.summaryData.revenue_breakdown || { service: 0, product: 0, membership: 0, package: 0, card: 0 };
+      const breakdown = this.summaryData.revenue_breakdown || { service: 0, product: 0, membership: 0, package: 0, card: 0, advance: 0 };
 
       this.charts['donut'] = new Chart(ctxDonut, {
         type: 'doughnut',
         data: {
-          labels: ['Services', 'Products', 'Memberships', 'Packages', 'Value Cards'],
+          labels: ['Services', 'Products', 'Memberships', 'Packages', 'Value Cards', 'Advances'],
           datasets: [{ 
-            data: [breakdown.service, breakdown.product, breakdown.membership, breakdown.package, breakdown.card], 
-            backgroundColor: ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'] 
+            data: [breakdown.service, breakdown.product, breakdown.membership, breakdown.package, breakdown.card, breakdown.advance], 
+            backgroundColor: ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'] 
           }]
         },
         options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' } }, plugins: [dataLabelsPlugin]

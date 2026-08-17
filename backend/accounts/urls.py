@@ -1,10 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CustomAuthToken, UserViewSet, MessageViewSet, ChatUserListView, UnreadMessageCountView
+from .views import CustomAuthToken, UserViewSet, MessageViewSet, ChatUserListView, UnreadMessageCountView, MessageReactionViewSet
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='users')
 router.register(r'chat/messages', MessageViewSet, basename='chat-messages')
+router.register(r'chat/reactions', MessageReactionViewSet, basename='chat-reactions')
 
 urlpatterns = [
     path('api/login/', CustomAuthToken.as_view(), name='api_login'),

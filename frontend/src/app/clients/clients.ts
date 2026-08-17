@@ -11,8 +11,7 @@ import { CsvService } from '../services/csv.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './clients.html',
-  styleUrls: ['./clients.css'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrls: ['./clients.css']
 })
 export class ClientsComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];

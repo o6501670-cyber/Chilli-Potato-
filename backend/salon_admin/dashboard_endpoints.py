@@ -44,17 +44,30 @@ def _apply_security(request, queryset, model_type='invoice'):
 def _apply_dates(request, queryset, date_field='created_at', is_datetime=True):
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
-    if start_date_str and end_date_str:
+    
+    if start_date_str:
+        try:
+            if is_datetime:
+                # Convert string to datetime for robust filtering
+                dt = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                queryset = queryset.filter(**{f"{date_field}__gte": dt})
+            else:
+                queryset = queryset.filter(**{f"{date_field}__gte": start_date_str})
+        except ValueError:
+            pass
+
+    if end_date_str:
         try:
             if is_datetime:
                 # For DateTimeField: use exclusive upper bound (next day)
                 end_date_obj = datetime.strptime(end_date_str, '%Y-%m-%d').date() + timedelta(days=1)
-                queryset = queryset.filter(**{f"{date_field}__gte": start_date_str, f"{date_field}__lt": end_date_obj})
+                queryset = queryset.filter(**{f"{date_field}__lt": end_date_obj})
             else:
                 # For DateField: use inclusive upper bound
-                queryset = queryset.filter(**{f"{date_field}__gte": start_date_str, f"{date_field}__lte": end_date_str})
+                queryset = queryset.filter(**{f"{date_field}__lte": end_date_str})
         except ValueError:
             pass
+            
     return queryset
 
 @api_view(['GET'])
@@ -162,7 +175,7 @@ def dashboard_summary(request):
     # Revenue Breakdown
     items_period = InvoiceItem.objects.filter(invoice__in=invoices_period).select_related('content_type')
     breakdown_qs = items_period.values('content_type__model').annotate(revenue=Sum('total_price'))
-    revenue_breakdown = { 'service': 0, 'product': 0, 'membership': 0, 'package': 0, 'card': 0 }
+    revenue_breakdown = { 'service': 0, 'product': 0, 'membership': 0, 'package': 0, 'card': 0, 'advance': 0 }
     for b in breakdown_qs:
         model = b['content_type__model']
         if model == 'servicemaster': revenue_breakdown['service'] += Decimal(str(b['revenue'] or 0))
@@ -170,6 +183,20 @@ def dashboard_summary(request):
         elif model == 'membership': revenue_breakdown['membership'] += Decimal(str(b['revenue'] or 0))
         elif model == 'package': revenue_breakdown['package'] += Decimal(str(b['revenue'] or 0))
         elif model == 'valuecard': revenue_breakdown['card'] += Decimal(str(b['revenue'] or 0))
+        
+    from billing.models import AdvancePayment
+    advances_period = AdvancePayment.objects.all()
+    if center_id and center_id != 'null':
+        advances_period = advances_period.filter(Q(invoice__center_id=center_id) | Q(staff__center_id=center_id))
+    elif not is_owner and not perms.get('all_centers', False):
+        if user.centers.exists():
+            advances_period = advances_period.filter(Q(invoice__center__in=user.centers.all()) | Q(staff__center__in=user.centers.all()))
+        elif hasattr(user, 'center') and user.center:
+            advances_period = advances_period.filter(Q(invoice__center=user.center) | Q(staff__center=user.center))
+    
+    advances_period = _apply_dates(request, advances_period, 'created_at')
+    total_advances_period = advances_period.aggregate(total=Sum('amount'))['total'] or 0
+    revenue_breakdown['advance'] += Decimal(str(total_advances_period))
         
     # Balances and Memberships
     from clients.models import ClientValueCard, ClientPackage, ClientMembership
@@ -392,12 +419,23 @@ def dashboard_clients(request):
     clients = Client.objects.all()
     clients = _apply_security(request, clients)
     
-    # 6 Months Trend — use ExtractYear+ExtractMonth (safe with USE_TZ=False)
-    # 6 Months Trend - ignore start_date to always show full trend (like revenues)
-    now = timezone.now()
-    trend_start = now - timedelta(days=180)
-    trend_end = now
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    if start_date_str:
+        try:
+            trend_start = datetime.strptime(start_date_str, '%Y-%m-%d')
+        except:
+            trend_start = timezone.now() - timedelta(days=180)
+    else:
+        trend_start = timezone.now() - timedelta(days=180)
 
+    if end_date_str:
+        try:
+            trend_end = datetime.strptime(end_date_str, '%Y-%m-%d')
+        except:
+            trend_end = timezone.now()
+    else:
+        trend_end = timezone.now()
 
     six_months_ago = trend_start
 

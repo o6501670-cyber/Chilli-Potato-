@@ -14,7 +14,6 @@ import { ToastService } from '../../services/toast.service';
   imports: [CommonModule, FormsModule],
   templateUrl: './admin-bills.html',
   styleUrl: './admin-bills.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminBillsComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];

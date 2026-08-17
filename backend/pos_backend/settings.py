@@ -35,6 +35,8 @@ ALLOWED_HOSTS = os.environ.get(
 
 # ─── Installed Apps ────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
+    'daphne',
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -195,6 +197,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'pos_backend.wsgi.application'
+ASGI_APPLICATION = 'pos_backend.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    },
+}
 
 # ─── Database ─────────────────────────────────────────────────────────────────
 DATABASES = {

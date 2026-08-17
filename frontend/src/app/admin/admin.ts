@@ -1,21 +1,22 @@
 import { AdminFilterService } from './admin-filter.service';
 import { LocationSelectorComponent } from '../components/location-selector/location-selector';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AfterViewChecked, ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../services/auth';
 import { ApiService } from '../services/api';
 
+import { ChatComponent } from '../components/chat/chat.component';
+
 @Component({
   selector: 'app-admin',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, FormsModule, LocationSelectorComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, FormsModule, LocationSelectorComponent, ChatComponent],
   templateUrl: './admin.html',
   styleUrl: './admin.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
+export class AdminComponent implements OnInit, OnDestroy {
   todayDate: string = new Date().toISOString().split('T')[0];
   private destroyRef = inject(DestroyRef);
   authService = inject(AuthService);
@@ -49,7 +50,6 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (h < 17) return 'afternoon';
     return 'evening';
   }
-  @ViewChild('chatScrollContainer') chatScrollContainer!: ElementRef;
 
   ngOnInit() {
     const userStr = localStorage.getItem('user');
@@ -59,7 +59,6 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.permissions = user.permissions || {};
         this.isOwner = (user.role && user.role.toLowerCase() === 'owner') || user.is_superuser === true;
         this.hasGlobalAccess = this.isOwner || (user?.permissions?.all_centers === true) || (user?.role?.permissions?.all_centers === true);
-        this.currentUserId = user.user_id;
         this.displayName = user.full_name || user.email || 'User';
         this.displayRole = user.designation || user.role || (user.is_superuser ? 'Super Admin' : 'Staff');
         this.displayFirstName = this.displayName.trim().split(' ')[0];
@@ -165,17 +164,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
     return this.isInventoryPage || this.isMarketingPage || this.isStaffPage || this.isAppointmentsPage || this.isBillingPage || this.isDashboardPage || this.isHomePage || this.isFinancePage || this.isLogsPage;
   }
 
-  // --- Chat Logic ---
-  isChatOpen = false;
-  chatUsers: any[] = [];
-  chatError: string = '';
-  selectedChatUser: any = null;
-  chatMessages: any[] = [];
-  newMessage: string = '';
-  currentUserId: number | null = null;
-  selectedImage: File | null = null;
-  private chatPollingInterval: any;
-  
+  // --- Global State ---
   unreadChatCount = 0;
   lowStockCount = 0;
   private globalPollingInterval: any;
@@ -232,193 +221,7 @@ export class AdminComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  toggleChat() {
-    this.isChatOpen = !this.isChatOpen;
-    if (this.isChatOpen) {
-      this.fetchChatUsers();
-    } else {
-      this.selectedChatUser = null;
-      this.stopChatPolling();
-    }
-  }
-
-  fetchChatUsers() {
-    this.chatError = '';
-    this.apiService.get(`accounts/api/chat/users/?t=${new Date().getTime()}`).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (users: any) => {
-        // Handle potential DRF pagination wrapped object
-        this.chatUsers = Array.isArray(users) ? users : (users.data || users.results || []);
-        this.cdr.detectChanges(); // Force UI update
-      },
-      error: (err: any) => {
-        console.error('Failed to load chat users', err);
-        this.chatError = err.message || 'Unknown error occurred';
-        this.cdr.detectChanges();
-      }
-    });
-  }
-
-  selectChatUser(user: any) {
-    this.selectedChatUser = user;
-    this.newMessageMentions = [];
-    this.chatMessages = []; // Clear previous messages immediately
-    this.cdr.detectChanges(); // Update UI immediately
-    this.fetchChatMessages();
-    this.startChatPolling();
-  }
-
-  ngAfterViewChecked() {
-    this.scrollToBottom();
-  }
-
-  scrollToBottom(): void {
-    try {
-      if (this.chatScrollContainer) {
-        this.chatScrollContainer.nativeElement.scrollTop = this.chatScrollContainer.nativeElement.scrollHeight;
-      }
-    } catch(err) { }
-  }
-
-  consecutiveChatErrors = 0;
-
-  fetchChatMessages() {
-    if (!this.selectedChatUser) return;
-    this.apiService.get(`accounts/api/chat/messages/?user_id=${this.selectedChatUser.id}`, undefined, { headers: { "X-Background-Request": "true" } }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (msgs: any) => {
-        this.consecutiveChatErrors = 0;
-        // Handle potential DRF pagination wrapped object
-        let parsed = msgs;
-        if (typeof msgs === 'string') {
-           try { parsed = JSON.parse(msgs); } catch(e) {}
-        }
-        this.chatMessages = Array.isArray(parsed) ? parsed : (parsed.data || parsed.results || []);
-        this.cdr.detectChanges();
-        this.scrollToBottom();
-        
-        // Mark as read in the background
-        this.apiService.post('accounts/api/chat/messages/mark_read/', { room_id: this.selectedChatUser.id }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
-      },
-      error: (err: any) => {
-        this.consecutiveChatErrors++;
-        if (this.consecutiveChatErrors > 5) {
-          console.error('Failed to load messages repeatedly. Stopping chat polling.', err);
-          this.stopChatPolling();
-        } else {
-          console.warn('Failed to load messages', err);
-        }
-      }
-    });
-  }
-
-  startChatPolling() {
-    this.stopChatPolling();
-    this.consecutiveChatErrors = 0;
-    this.chatPollingInterval = setInterval(() => {
-      this.fetchChatMessages();
-    }, 10000); // poll messages every 10 seconds
-  }
-
-  stopChatPolling() {
-    if (this.chatPollingInterval) {
-      clearInterval(this.chatPollingInterval);
-      this.chatPollingInterval = null;
-    }
-  }
-
-  onChatFileSelected(event: any) {
-    if (event.target.files && event.target.files.length > 0) {
-      this.selectedImage = event.target.files[0];
-    }
-  }
-
-  mentionSearch = '';
-  showMentionDropdown = false;
-  allStaffUsers: any[] = [];
-  filteredMentionUsers: any[] = [];
-  mentionStartIndex = -1;
-
-  fetchStaffUsers() {
-    this.apiService.get('accounts/api/users/').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (res: any) => {
-        this.allStaffUsers = Array.isArray(res) ? res : (res.results || res.data || []);
-      },
-      error: (err) => console.error('Failed to load staff users', err)
-    });
-  }
-
-  onChatInput(event: any) {
-    const text = event.target.value || '';
-    const cursor = event.target.selectionStart || 0;
-    
-    // Check if we are typing a mention
-    const textBeforeCursor = text.substring(0, cursor);
-    const match = textBeforeCursor.match(/@(\w*)$/);
-    
-    if (match) {
-      this.showMentionDropdown = true;
-      this.mentionSearch = match[1].toLowerCase();
-      this.mentionStartIndex = cursor - match[1].length - 1;
-      
-      if (!this.allStaffUsers.length) {
-         this.fetchStaffUsers();
-      }
-      
-      this.filteredMentionUsers = this.allStaffUsers.filter(u => 
-        (u.full_name || '').toLowerCase().includes(this.mentionSearch) ||
-        (u.email || '').toLowerCase().includes(this.mentionSearch)
-      ).slice(0, 5); // show max 5
-    } else {
-      this.showMentionDropdown = false;
-    }
-  }
-
-  selectMention(user: any) {
-    const text = this.newMessage || '';
-    const before = text.substring(0, this.mentionStartIndex);
-    const after = text.substring(this.mentionSearch.length + this.mentionStartIndex + 1);
-    // Use a special tag or just the name
-    this.newMessage = before + '@' + user.full_name + ' ' + after;
-    this.showMentionDropdown = false;
-    
-    // We also need to send the mentioned user ID to the backend!
-    if (!this.newMessageMentions) this.newMessageMentions = [];
-    if (!this.newMessageMentions.includes(user.id)) {
-        this.newMessageMentions.push(user.id);
-    }
-  }
-
-  newMessageMentions: number[] = [];
-
-  sendMessage() {
-    if (!this.newMessage.trim() && !this.selectedImage) return;
-    if (!this.selectedChatUser) return;
-
-    const formData = new FormData();
-    // selectedChatUser is now a Room! We send room_id
-    formData.append('room_id', this.selectedChatUser.id);
-    if (this.newMessage.trim()) {
-      formData.append('content', this.newMessage.trim());
-    }
-    if (this.selectedImage) {
-      formData.append('image', this.selectedImage);
-    }
-    if (this.newMessageMentions && this.newMessageMentions.length > 0) {
-      formData.append('mentions', JSON.stringify(this.newMessageMentions));
-    }
-
-    this.apiService.post('accounts/api/chat/messages/', formData).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (res: any) => {
-        this.newMessage = '';
-        this.selectedImage = null;
-        this.newMessageMentions = [];
-        this.fetchChatMessages();
-      },
-      error: (err: any) => console.error('Failed to send message', err)
-    });
-  }
-
   ngOnDestroy() {
-    this.stopChatPolling();
     this.stopGlobalPolling();
   }
   trackById(index: number, item: any): any {

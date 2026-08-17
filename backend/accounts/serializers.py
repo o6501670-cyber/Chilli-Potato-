@@ -44,7 +44,7 @@ class UserChatSerializer(serializers.ModelSerializer):
             return c.display_name or c.center_name
         return "No Center"
 
-from .models import CustomUser, Message, ChatRoom
+from .models import CustomUser, Message, ChatRoom, MessageReaction
 
 class ChatRoomSerializer(serializers.ModelSerializer):
     participants = UserChatSerializer(many=True, read_only=True)
@@ -64,16 +64,54 @@ class ChatRoomSerializer(serializers.ModelSerializer):
                 return ", ".join([o.full_name or o.email for o in others])
         return "Chat Room"
 
+class MessageReactionSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source='user.full_name', read_only=True)
+
+    class Meta:
+        model = MessageReaction
+        fields = ('id', 'user', 'user_name', 'emoji', 'created_at')
+
 class MessageSerializer(serializers.ModelSerializer):
     sender = serializers.PrimaryKeyRelatedField(read_only=True)
     sender_name = serializers.CharField(source='sender.full_name', read_only=True)
     receiver_name = serializers.SerializerMethodField()
+    reactions_summary = serializers.SerializerMethodField()
+    reply_to_preview = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
-        fields = ('id', 'sender', 'sender_name', 'receiver', 'receiver_name', 'room', 'content', 'image', 'timestamp', 'is_read')
+        fields = (
+            'id', 'sender', 'sender_name', 'receiver', 'receiver_name', 'room',
+            'content', 'image', 'timestamp', 'is_read', 'status', 'reply_to',
+            'reply_to_preview', 'deleted_at', 'edited_at', 'reactions_summary'
+        )
 
     def get_receiver_name(self, obj):
         if obj.receiver:
             return obj.receiver.full_name
         return None
+
+    def get_reactions_summary(self, obj):
+        reactions = obj.reactions.all()
+        summary = {}
+        for r in reactions:
+            if r.emoji not in summary:
+                summary[r.emoji] = []
+            summary[r.emoji].append({'user_id': r.user_id, 'user_name': r.user.full_name})
+        return summary
+        
+    def get_reply_to_preview(self, obj):
+        if obj.reply_to:
+            return {
+                'id': obj.reply_to.id,
+                'sender_name': obj.reply_to.sender.full_name,
+                'content': obj.reply_to.content[:100] if obj.reply_to.content else '[Image]'
+            }
+        return None
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.is_deleted:
+            data['content'] = None
+            data['image'] = None
+        return data

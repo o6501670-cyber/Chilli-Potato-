@@ -13,7 +13,6 @@ import { CsvService } from '../../services/csv.service';
   imports: [CommonModule, FormsModule],
   templateUrl: './admin-manager-discounts.html',
   styleUrl: './admin-manager-discounts.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminManagerDiscountsComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];

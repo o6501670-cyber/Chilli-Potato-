@@ -10,8 +10,7 @@ import { LocationSelectorComponent } from '../components/location-selector/locat
   selector: 'app-marketing',
   imports: [CommonModule, FormsModule, LocationSelectorComponent],
   templateUrl: './marketing.html',
-  styleUrl: './marketing.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './marketing.css'
 })
 export class MarketingComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];

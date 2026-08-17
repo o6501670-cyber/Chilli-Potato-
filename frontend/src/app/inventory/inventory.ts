@@ -11,8 +11,7 @@ import { LocationSelectorComponent } from '../components/location-selector/locat
   selector: 'app-inventory',
   imports: [CommonModule, FormsModule, LocationSelectorComponent],
   templateUrl: './inventory.html',
-  styleUrl: './inventory.css',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrl: './inventory.css'
 })
 export class InventoryComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];

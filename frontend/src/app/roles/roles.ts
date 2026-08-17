@@ -10,8 +10,7 @@ import { ToastService } from '../services/toast.service';
   selector: 'app-roles',
   imports: [CommonModule, FormsModule],
   templateUrl: './roles.html',
-  styleUrl: './roles.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './roles.css'
 })
 export class RolesComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];

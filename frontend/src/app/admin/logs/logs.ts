@@ -27,7 +27,6 @@ const FLAG_FALLBACK = '🌐';
   imports: [CommonModule, FormsModule],
   templateUrl: './logs.html',
   styleUrl: './logs.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LogsComponent implements OnInit, OnDestroy {
   todayDate: string = new Date().toISOString().split('T')[0];

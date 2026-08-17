@@ -1,5 +1,5 @@
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../services/api';
@@ -11,8 +11,7 @@ import { LocationSelectorComponent } from '../components/location-selector/locat
   selector: 'app-staff',
   imports: [CommonModule, FormsModule, LocationSelectorComponent],
   templateUrl: './staff.html',
-  styleUrl: './staff.css',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrl: './staff.css'
 })
 export class StaffComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];

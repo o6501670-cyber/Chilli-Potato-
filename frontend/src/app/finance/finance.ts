@@ -11,8 +11,7 @@ import { forkJoin } from 'rxjs';
   selector: 'app-finance',
   imports: [CommonModule, FormsModule, LocationSelectorComponent],
   templateUrl: './finance.html',
-  styleUrl: './finance.css',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrl: './finance.css'
 })
 export class FinanceComponent implements OnInit {
   todayDate: string = new Date().toISOString().split('T')[0];
