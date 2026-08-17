@@ -2696,49 +2696,77 @@ class MultiSalonStaffView(views.APIView):
         except Exception:
             service_ct = product_ct = membership_ct = package_ct = valuecard_ct = None
 
-        items = InvoiceItem.objects.filter(invoice__in=invoices).exclude(staff__isnull=True)
+        # Exclude only if BOTH staff and staff_members are missing and invoice staff is also missing
+        # We process in python to accurately split revenue for multiple staff members
+        items = InvoiceItem.objects.filter(invoice__in=invoices).select_related(
+            'staff', 'invoice', 'invoice__center', 'invoice__staff', 'content_type'
+        ).prefetch_related('staff_members')
         
-        # But wait, conditional aggregation is faster:
-        grouped = items.values(
-            'staff__id', 'staff__first_name', 'staff__last_name'
-        ).annotate(
-            revenue=Sum('total_price'),
-            services=Sum('total_price', filter=Q(content_type=service_ct)),
-            products=Sum('total_price', filter=Q(content_type=product_ct)),
-            packages=Sum('total_price', filter=Q(content_type=package_ct)),
-            memberships=Sum('total_price', filter=Q(content_type=membership_ct)),
-            cards=Sum('total_price', filter=Q(content_type=valuecard_ct))
-        )
+        staff_stats = {}
 
-        staff_centers = items.values('staff__id', 'invoice__center__center_name', 'invoice__center__display_name').distinct()
-        sc_map = {}
-        for sc in staff_centers:
-            sid = sc['staff__id']
-            c_name = sc['invoice__center__display_name'] or sc['invoice__center__center_name'] or 'Unknown'
-            if sid not in sc_map:
-                sc_map[sid] = set()
-            sc_map[sid].add(c_name)
+        for item in items:
+            item_staff_list = []
+            if item.staff:
+                item_staff_list.append(item.staff)
+            for sm in item.staff_members.all():
+                if sm not in item_staff_list:
+                    item_staff_list.append(sm)
+            
+            if not item_staff_list and item.invoice.staff:
+                item_staff_list.append(item.invoice.staff)
+            
+            if not item_staff_list:
+                continue
+                
+            split_price = float(item.total_price) / len(item_staff_list) if len(item_staff_list) > 0 else 0
+            
+            # Using center display name if available, else center_name
+            c = item.invoice.center
+            center_name = c.display_name if c and c.display_name else (c.center_name if c else 'Unknown')
+
+            for sm in item_staff_list:
+                sid = sm.id
+                if sid not in staff_stats:
+                    staff_stats[sid] = {
+                        'name': f"{sm.first_name or ''} {sm.last_name or ''}".strip(),
+                        'centers': set(),
+                        'revenue': 0,
+                        'services': 0,
+                        'products': 0,
+                        'packages': 0,
+                        'memberships': 0,
+                        'cards': 0,
+                    }
+                staff_stats[sid]['centers'].add(center_name)
+                staff_stats[sid]['revenue'] += split_price
+                
+                if item.content_type == service_ct:
+                    staff_stats[sid]['services'] += split_price
+                elif item.content_type == product_ct:
+                    staff_stats[sid]['products'] += split_price
+                elif item.content_type == package_ct:
+                    staff_stats[sid]['packages'] += split_price
+                elif item.content_type == membership_ct:
+                    staff_stats[sid]['memberships'] += split_price
+                elif item.content_type == valuecard_ct:
+                    staff_stats[sid]['cards'] += split_price
 
         results = []
-        for g in grouped:
-            sid = g['staff__id']
-            staff_name = f"{g['staff__first_name'] or ''} {g['staff__last_name'] or ''}".strip()
-            
-            centers_list = sorted(list(sc_map.get(sid, set())))
-            salon_names = ", ".join(centers_list) if centers_list else 'Unknown'
-            
+        for sid, data in staff_stats.items():
+            centers_list = sorted(list(data['centers']))
             results.append({
-                'staff_name': staff_name,
-                'salon': salon_names,
-                'revenue': float(g['revenue'] or 0),
-                'services': float(g['services'] or 0),
+                'staff_name': data['name'],
+                'salon': ", ".join(centers_list) if centers_list else 'Unknown',
+                'revenue': round(data['revenue'], 2),
+                'services': round(data['services'], 2),
                 'service_red': 0,
                 'value_card_red': 0,
-                'products': float(g['products'] or 0),
-                'packages': float(g['packages'] or 0),
-                'memberships': float(g['memberships'] or 0),
-                'gift_cards': 0, # Assuming gift cards are not explicitly separated in CT
-                'cards': float(g['cards'] or 0)
+                'products': round(data['products'], 2),
+                'packages': round(data['packages'], 2),
+                'memberships': round(data['memberships'], 2),
+                'gift_cards': 0,
+                'cards': round(data['cards'], 2)
             })
 
         return Response(results)
+
