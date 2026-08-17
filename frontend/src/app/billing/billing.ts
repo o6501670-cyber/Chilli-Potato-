@@ -1192,15 +1192,11 @@ export class BillingComponent implements OnInit {
   applyPromotion() {
     if (!this.selectedPromotion) {
       this.invoiceDiscount = 0;
+      this.calcTaxes();
       return;
     }
 
     let discount = 0;
-
-    // Support for both root properties and config JSON properties
-    const dPercent = this.selectedPromotion.discount_percent || this.selectedPromotion.config?.discount_percent;
-    const dType = this.selectedPromotion.discount_type || this.selectedPromotion.config?.discount_type;
-    const dValue = this.selectedPromotion.discount_value || this.selectedPromotion.config?.discount_value;
 
     let preTaxSubtotal = 0;
     for (const it of this.cart) {
@@ -1209,10 +1205,18 @@ export class BillingComponent implements OnInit {
       preTaxSubtotal += (unitPrice * qty);
     }
 
-    if (this.selectedPromotion.promo_type === 'Trigger' && this.selectedPromotion.config?.trigger_services?.length === 2) {
-      const svc1 = this.selectedPromotion.config.trigger_services[0];
-      const svc2 = this.selectedPromotion.config.trigger_services[1];
-      const triggerDiscountPct = Number(this.selectedPromotion.config.trigger_discount) || 0;
+    const promo = this.selectedPromotion;
+    const config = promo.config || {};
+
+    // Support legacy/root properties for Memberships
+    if (promo.id && promo.id.toString().startsWith('m_')) {
+      const dPercent = Number(promo.discount_percent) || 0;
+      discount = (preTaxSubtotal * dPercent) / 100;
+    } 
+    else if (promo.promo_type === 'Trigger' && config.trigger_services?.length === 2) {
+      const svc1 = config.trigger_services[0];
+      const svc2 = config.trigger_services[1];
+      const triggerDiscountPct = Number(config.trigger_discount) || 0;
 
       const hasSvc1 = this.cart.some(c => c.description === svc1 || c.name === svc1);
       const cartSvc2 = this.cart.find(c => c.description === svc2 || c.name === svc2);
@@ -1220,12 +1224,45 @@ export class BillingComponent implements OnInit {
       if (hasSvc1 && cartSvc2) {
         discount = (cartSvc2.unit_price * triggerDiscountPct) / 100;
       }
-    } else if (dPercent) { // It's a membership
-      discount = (preTaxSubtotal * Number(dPercent)) / 100;
-    } else if (dType === 'Percentage') {
-      discount = (preTaxSubtotal * Number(dValue)) / 100;
-    } else if (dType === 'Flat') {
-      discount = Number(dValue);
+    } 
+    else if (promo.promo_type === 'FlatPrice') {
+      const flatPrice = Number(config.flat_price) || 0;
+      if (config.target === 'Specific Service' && config.specific_service) {
+        const targetSvc = this.cart.find(c => c.description === config.specific_service || c.name === config.specific_service);
+        if (targetSvc && targetSvc.unit_price > flatPrice) {
+           discount = (targetSvc.unit_price - flatPrice) * (Number(targetSvc.quantity) || 1);
+        }
+      } else {
+        // Overall Bill Flat Price
+        if (preTaxSubtotal > flatPrice) {
+          discount = preTaxSubtotal - flatPrice;
+        }
+      }
+    }
+    else if (promo.promo_type === 'Discount') {
+      // The DB uses promo.discount_type and promo.discount_value (if set) 
+      // but they can also be in config.discount_type / config.discount_value
+      const dType = promo.discount_type || config.discount_type;
+      const dValue = Number(promo.discount_value || config.discount_value) || 0;
+      
+      if (config.target === 'Specific Service' && config.specific_service) {
+        const targetSvc = this.cart.find(c => c.description === config.specific_service || c.name === config.specific_service);
+        if (targetSvc) {
+          const itemTotal = targetSvc.unit_price * (Number(targetSvc.quantity) || 1);
+          if (dType === 'Percentage') {
+             discount = (itemTotal * dValue) / 100;
+          } else {
+             discount = dValue;
+          }
+        }
+      } else {
+        // Overall Bill Discount
+        if (dType === 'Percentage') {
+          discount = (preTaxSubtotal * dValue) / 100;
+        } else {
+          discount = dValue;
+        }
+      }
     }
 
     // Cap discount at subtotal to avoid negative totals
