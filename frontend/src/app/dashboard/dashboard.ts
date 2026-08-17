@@ -30,7 +30,7 @@ const dataLabelsPlugin = {
     const { ctx, chartArea } = chart;
     if (!chartArea) return;
     
-    const pointsByX = new Map<number, any[]>();
+    const pointsByIndex = new Map<number, any[]>();
     
     chart.data.datasets.forEach((dataset: any, i: number) => {
       const meta = chart.getDatasetMeta(i);
@@ -42,21 +42,19 @@ const dataLabelsPlugin = {
         if (rawVal == null || rawVal === 0 || labelText === '') return;
         
         let valStr = String(rawVal);
-        // Format large numbers for better readability (e.g. 14894.22 -> 14,894)
         if (typeof rawVal === 'number') {
           valStr = rawVal % 1 !== 0 ? rawVal.toFixed(2) : rawVal.toString();
-          // Optional: add commas
           valStr = valStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
 
-        const x = Math.round(element.x);
-        if (!pointsByX.has(x)) pointsByX.set(x, []);
+        if (!pointsByIndex.has(index)) pointsByIndex.set(index, []);
         
         let color = dataset.borderColor || dataset.backgroundColor || '#64748b';
         if (Array.isArray(color)) color = color[0] || '#64748b';
 
-        pointsByX.get(x)!.push({
+        pointsByIndex.get(index)!.push({
           valStr: valStr,
+          x: element.x, // store individual x in case of slight offset
           y: element.y,
           color: color
         });
@@ -73,7 +71,7 @@ const dataLabelsPlugin = {
     const h = 10 + padY * 2;
     const spacing = 2; 
 
-    pointsByX.forEach((points, x) => {
+    pointsByIndex.forEach((points, index) => {
       // Sort top to bottom
       points.sort((a, b) => a.y - b.y);
       
@@ -95,7 +93,7 @@ const dataLabelsPlugin = {
         }
 
         const w = ctx.measureText(p.valStr).width + padX * 2;
-        let lx = x - w / 2;
+        let lx = p.x - w / 2;
         let ly = desiredY;
         
         // Draw soft background pill
