@@ -419,7 +419,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           labels: ['Services', 'Products', 'Memberships', 'Packages', 'Value Cards'],
           datasets: [{ 
             data: [breakdown.service, breakdown.product, breakdown.membership, breakdown.package, breakdown.card], 
-            backgroundColor: ['#00ffff', '#39ff14', '#ffff00', '#bc13fe', '#ff00ff'] 
+            backgroundColor: ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'] 
           }]
         },
         options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' } }, plugins: [dataLabelsPlugin]
@@ -438,17 +438,17 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           datasets: [{ 
             label: 'Invoice Count', 
             data, 
-            borderColor: '#9d00ff',
+            borderColor: '#6366f1',
             backgroundColor: (context: any) => {
               const canvasCtx = context.chart.ctx;
               const grad = canvasCtx.createLinearGradient(0, 0, 0, 300);
-              grad.addColorStop(0, '#9d00ff66');
-              grad.addColorStop(1, '#9d00ff00');
+              grad.addColorStop(0, '#6366f166');
+              grad.addColorStop(1, '#6366f100');
               return grad;
             },
             fill: true,
             pointBackgroundColor: '#ffffff',
-            pointBorderColor: '#9d00ff'
+            pointBorderColor: '#6366f1'
           }]
         },
         options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: this.chartType === 'bar' || labels.length <= 1 } } }, plugins: [dataLabelsPlugin]
@@ -590,7 +590,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     const rawMonthlyLabels = (this.revenuesData.monthly || []).map((d: any) => d.month);
     const rawMonthlyData = (this.revenuesData.monthly || []).map((d: any) => d.revenue);
     const monthlyLabels = rawMonthlyLabels; // Keep original for drill-down index mapping
-    renderLine('revMonthlyChart', monthlyLabels, rawMonthlyData, '#ffff00', 'Monthly Revenue', (e: any, elements: any, chart: any) => {
+    renderLine('revMonthlyChart', monthlyLabels, rawMonthlyData, '#f59e0b', 'Monthly Revenue', (e: any, elements: any, chart: any) => {
       if (!elements || !elements.length) return;
       const index = elements[0].index;
       const monthStr = monthlyLabels[index]; // e.g. "Mar-2026"
@@ -638,7 +638,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     }
 
     const dailyLabels = dailyData.map((d: any) => d.day);
-    renderLine('revDailyChart', dailyLabels, dailyData.map((d: any) => d.revenue), '#39ff14', dailyTitle, (e: any, elements: any, chart: any) => {
+    renderLine('revDailyChart', dailyLabels, dailyData.map((d: any) => d.revenue), '#10b981', dailyTitle, (e: any, elements: any, chart: any) => {
       if (!elements || !elements.length) return;
       const index = elements[0].index;
       const dayStr = dailyLabels[index]; 
@@ -653,7 +653,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     });
 
     const hourlyData = hourlyDataOverride || this.revenuesData.hourly || [];
-    renderLine('revHourlyChart', hourlyData.map((d: any) => d.hour), hourlyData.map((d: any) => d.revenue), '#08f7fe', 'Hourly Revenue');
+    renderLine('revHourlyChart', hourlyData.map((d: any) => d.hour), hourlyData.map((d: any) => d.revenue), '#3b82f6', 'Hourly Revenue');
   }
 
   // --- CLIENTS CHARTS ---
@@ -685,8 +685,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             { 
               label: 'New Clients', 
               data: newClients, 
-              borderColor: '#00ffff', 
-              backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#00ffff66'); grad.addColorStop(1, '#00ffff00'); return grad; },
+              borderColor: '#0ea5e9', 
+              backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#0ea5e966'); grad.addColorStop(1, '#0ea5e900'); return grad; },
               fill: true,
               pointBackgroundColor: '#ffffff',
               pointRadius: (ctx: any) => bLabels[0] === '' && (ctx.dataIndex === 0 || ctx.dataIndex === bLabels.length - 1) ? 0 : 4
@@ -694,8 +694,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             { 
               label: 'Repeat Clients', 
               data: repeatClients, 
-              borderColor: '#9d00ff', 
-              backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#9d00ff66'); grad.addColorStop(1, '#9d00ff00'); return grad; },
+              borderColor: '#6366f1', 
+              backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#6366f166'); grad.addColorStop(1, '#6366f100'); return grad; },
               fill: true,
               pointBackgroundColor: '#ffffff',
               pointRadius: (ctx: any) => bLabels[0] === '' && (ctx.dataIndex === 0 || ctx.dataIndex === bLabels.length - 1) ? 0 : 4
@@ -703,8 +703,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             { 
               label: 'Members Invoices', 
               data: memberInvoices, 
-              borderColor: '#39ff14', 
-              backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#39ff1466'); grad.addColorStop(1, '#39ff1400'); return grad; },
+              borderColor: '#10b981', 
+              backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#10b98166'); grad.addColorStop(1, '#10b98100'); return grad; },
               fill: true,
               pointBackgroundColor: '#ffffff',
               pointRadius: (ctx: any) => bLabels[0] === '' && (ctx.dataIndex === 0 || ctx.dataIndex === bLabels.length - 1) ? 0 : 4
@@ -712,8 +712,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             { 
               label: 'Non members Invoices', 
               data: nonMemberInvoices, 
-              borderColor: '#ff6600', 
-              backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#ff660066'); grad.addColorStop(1, '#ff660000'); return grad; },
+              borderColor: '#f97316', 
+              backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#f9731666'); grad.addColorStop(1, '#f9731600'); return grad; },
               fill: true,
               pointBackgroundColor: '#ffffff',
               pointRadius: (ctx: any) => bLabels[0] === '' && (ctx.dataIndex === 0 || ctx.dataIndex === bLabels.length - 1) ? 0 : 4
@@ -777,8 +777,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
               type: this.chartType as any, 
               label: 'New Clients', 
               data: newCounts, 
-              borderColor: '#00ffff', 
-              backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#00ffff66'); grad.addColorStop(1, '#00ffff00'); return grad; },
+              borderColor: '#0ea5e9', 
+              backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#0ea5e966'); grad.addColorStop(1, '#0ea5e900'); return grad; },
               fill: true,
               pointBackgroundColor: '#ffffff',
               pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === paddedLabels.length - 1) ? 0 : 4,
@@ -788,8 +788,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
               type: this.chartType as any, 
               label: 'Repeat Clients', 
               data: repeatCounts, 
-              borderColor: '#9d00ff', 
-              backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#9d00ff66'); grad.addColorStop(1, '#9d00ff00'); return grad; },
+              borderColor: '#6366f1', 
+              backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#6366f166'); grad.addColorStop(1, '#6366f100'); return grad; },
               fill: true,
               pointBackgroundColor: '#ffffff',
               pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === paddedLabels.length - 1) ? 0 : 4,
@@ -799,7 +799,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
               type: this.chartType as any, 
               label: 'Avg Spend (Right Axes)', 
               data: avg, 
-              borderColor: '#39ff14', 
+              borderColor: '#10b981', 
               pointBackgroundColor: '#ffffff', 
               pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === paddedLabels.length - 1) ? 0 : 4,
               yAxisID: 'y1' 
@@ -812,17 +812,17 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           layout: { padding: { top: 30 } },
           scales: {
             x: { offset: this.chartType === 'bar' || paddedLabels.length <= 1 },
-            y: { type: 'linear', position: 'left', title: { display: true, text: 'Clients', color: '#00ffff' } },
-            y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Average Spend', color: '#39ff14' } }
+            y: { type: 'linear', position: 'left', title: { display: true, text: 'Clients', color: '#0ea5e9' } },
+            y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Average Spend', color: '#10b981' } }
           }
         },
         plugins: [dataLabelsPlugin]
       });
     };
 
-    renderCombo('femaleTrendChart', 'female', '#ff00ff');
-    renderCombo('maleTrendChart', 'male', '#00ffff');
-    renderCombo('unknownTrendChart', 'unknown', '#bc13fe');
+    renderCombo('femaleTrendChart', 'female', '#ec4899');
+    renderCombo('maleTrendChart', 'male', '#0ea5e9');
+    renderCombo('unknownTrendChart', 'unknown', '#8b5cf6');
 
     const ctxDaily = document.getElementById('clientDailyChart') as HTMLCanvasElement;
     if (ctxDaily && this.clientsData.daily_footfall) {
@@ -866,8 +866,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           datasets: [{ 
             label: dailyTitle, 
             data: dCounts, 
-            borderColor: '#08f7fe',
-            backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#08f7fe66'); grad.addColorStop(1, '#08f7fe00'); return grad; },
+            borderColor: '#3b82f6',
+            backgroundColor: (context: any) => { const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 300); grad.addColorStop(0, '#3b82f666'); grad.addColorStop(1, '#3b82f600'); return grad; },
             fill: true,
             pointBackgroundColor: '#ffffff',
             pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === dLabels.length - 1) ? 0 : 4
@@ -932,8 +932,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
                 type: this.chartType as any,
                 label: 'Counts',
                 data: countData,
-                borderColor: '#08f7fe',
-                backgroundColor: '#08f7fe',
+                borderColor: '#3b82f6',
+                backgroundColor: '#3b82f6',
                 pointBackgroundColor: '#60a5fa',
                 pointBorderColor: '#ffffff',
                 pointBorderWidth: 2,
@@ -951,7 +951,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
               x: {
                 offset: this.chartType === 'bar' || labels.length <= 1,
                 grid: { display: false },
-                ticks: { color: '#ff0055', font: { size: 10 } }
+                ticks: { color: '#6b7280', font: { size: 10 } }
               },
               y: {
                 type: 'linear',
@@ -982,12 +982,12 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       } catch (e) { console.error('Error rendering', id, e); }
     };
 
-    makeFinBarLine('finServicesChart', months, 'services', '#00ffff');
-    makeFinBarLine('finMembershipsChart', months, 'memberships', '#08f7fe');
-    makeFinBarLine('finProductsChart', months, 'products', '#39ff14');
-    makeFinBarLine('finPackagesChart', months, 'packages', '#9d00ff');
-    makeFinBarLine('finValueCardsChart', months, 'value_cards', '#ffff00');
-    makeFinBarLine('finAdvancesChart', months, 'advances', '#ff0055');
+    makeFinBarLine('finServicesChart', months, 'services', '#0d5d73');
+    makeFinBarLine('finMembershipsChart', months, 'memberships', '#a5d6e9');
+    makeFinBarLine('finProductsChart', months, 'products', '#86efac');
+    makeFinBarLine('finPackagesChart', months, 'packages', '#6366f1');
+    makeFinBarLine('finValueCardsChart', months, 'value_cards', '#f59e0b');
+    makeFinBarLine('finAdvancesChart', months, 'advances', '#6b7280');
   }
 
   // --- STAFF CHARTS ---
@@ -1005,17 +1005,17 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         data: { labels, datasets: [{ 
           label: 'Revenue', 
           data, 
-          borderColor: '#bc13fe',
+          borderColor: '#8b5cf6',
           backgroundColor: (context: any) => {
             const canvasCtx = context.chart.ctx;
             const grad = canvasCtx.createLinearGradient(0, 0, 0, 300);
-            grad.addColorStop(0, '#bc13fe66');
-            grad.addColorStop(1, '#bc13fe00');
+            grad.addColorStop(0, '#8b5cf666');
+            grad.addColorStop(1, '#8b5cf600');
             return grad;
           },
           fill: true,
           pointBackgroundColor: '#ffffff',
-          pointBorderColor: '#bc13fe',
+          pointBorderColor: '#8b5cf6',
           pointRadius: (ctx: any) => ghostFirst && (ctx.dataIndex === 0 || ctx.dataIndex === labels.length - 1) ? 0 : 4
         }] },
         options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: this.chartType === 'bar' || labels.length <= 1 } } }, plugins: [dataLabelsPlugin]
@@ -1034,18 +1034,18 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         data: { labels: labels6, datasets: [{ 
           label: 'Total Staff Revenue', 
           data: data6, 
-          borderColor: '#39ff14',
+          borderColor: '#10b981',
           backgroundColor: (context: any) => {
             const canvasCtx = context.chart.ctx;
             const grad = canvasCtx.createLinearGradient(0, 0, 0, 300);
-            grad.addColorStop(0, '#39ff1466');
-            grad.addColorStop(1, '#39ff1400');
+            grad.addColorStop(0, '#10b98166');
+            grad.addColorStop(1, '#10b98100');
             return grad;
           },
           tension: 0.4, 
           fill: true,
           pointBackgroundColor: '#ffffff',
-          pointBorderColor: '#39ff14',
+          pointBorderColor: '#10b981',
           pointRadius: (ctx: any) => ghostFirst6 && (ctx.dataIndex === 0 || ctx.dataIndex === labels6.length - 1) ? 0 : 4
         }] },
         options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800, easing: 'easeOutQuart' }, scales: { x: { offset: this.chartType === 'bar' || labels6.length <= 1 } } }, plugins: [dataLabelsPlugin]
@@ -1071,11 +1071,11 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             backgroundColor: (context: any) => {
               const canvasCtx = context.chart.ctx;
               const grad = canvasCtx.createLinearGradient(300, 0, 0, 0); // horizontal gradient
-              grad.addColorStop(0, '#00ffff');
-              grad.addColorStop(1, '#00ffffaa');
+              grad.addColorStop(0, '#0ea5e9');
+              grad.addColorStop(1, '#38bdf8aa');
               return grad;
             },
-            borderColor: '#00bfff',
+            borderColor: '#0284c7',
             borderWidth: 1,
             borderRadius: 6,
             borderSkipped: false,
@@ -1123,11 +1123,11 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             backgroundColor: (context: any) => {
               const canvasCtx = context.chart.ctx;
               const grad = canvasCtx.createLinearGradient(300, 0, 0, 0); // horizontal gradient
-              grad.addColorStop(0, '#39ff14');
-              grad.addColorStop(1, '#39ff14aa');
+              grad.addColorStop(0, '#10b981');
+              grad.addColorStop(1, '#34d399aa');
               return grad;
             },
-            borderColor: '#2ecc71',
+            borderColor: '#059669',
             borderWidth: 1,
             borderRadius: 6,
             borderSkipped: false,
