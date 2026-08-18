@@ -586,8 +586,11 @@ class ProductViewSet(InventoryBaseViewSet):
         created_transactions = []
         with transaction.atomic():
             for item in items:
-                # Lock row to prevent race conditions during concurrent checkouts
-                product = Product.objects.select_for_update().get(id=item['product_id'])
+                try:
+                    product = Product.objects.select_for_update().get(id=item.get('product_id'))
+                except (Product.DoesNotExist, KeyError, TypeError, ValueError):
+                    return Response({"error": f"Invalid or missing product_id in payload: {item.get('product_id')}"}, status=400)
+
                 
                 if product.center != center:
                     return Response({"error": f"Product {product.name} does not belong to the selected center."}, status=400)
@@ -626,8 +629,11 @@ class ProductViewSet(InventoryBaseViewSet):
         audits = []
         with transaction.atomic():
             for item in items:
-                # Lock row to prevent race conditions during concurrent audits/checkouts
-                product = Product.objects.select_for_update().get(id=item['product_id'])
+                try:
+                    product = Product.objects.select_for_update().get(id=item.get('product_id'))
+                except (Product.DoesNotExist, KeyError, TypeError, ValueError):
+                    return Response({"error": f"Invalid or missing product_id in payload: {item.get('product_id')}"}, status=400)
+
                 
                 if product.center != center:
                     return Response({"error": f"Product {product.name} does not belong to the selected center."}, status=400)

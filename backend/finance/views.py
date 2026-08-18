@@ -2259,6 +2259,9 @@ class MultiSalonSalesExportView(views.APIView):
         from django.db.models import F
 
         item_type = request.query_params.get('item_type')
+        if not item_type:
+            return Response({'error': 'item_type is required'}, status=400)
+
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
@@ -2608,18 +2611,18 @@ class MultiSalonClientsView(views.APIView):
 
             stats = stats_map.get(client.id, {'visits': 0, 'total_spend': 0, 'last_visit': None})
             
-            # Service Balance
+            # Service Balance (just sum remaining quantities as a generic indicator, 
+            # since services_remaining is a dict of {service_id: count})
             serv_balance_amount = sum(
-                (pkg.original_price / pkg.service.price) * pkg.remaining_quantity
+                sum(pkg.services_remaining.values()) if isinstance(pkg.services_remaining, dict) else 0
                 for pkg in client.packages.all()
-                if pkg.service and pkg.service.price and pkg.remaining_quantity > 0
             ) if client.packages.exists() else 0
 
             # Or maybe just the count of remaining services? 
             # In other views, serv. balance is sometimes the remaining price. Let's just use the exact logic from Balances view if we need to.
             # But wait, Balances view aggregates by center, this is by client.
             # Usually Card Balance is the sum of remaining amount:
-            card_balance = sum(vc.remaining_amount for vc in client.value_cards.all())
+            card_balance = sum(vc.balance for vc in client.value_cards.all())
 
             # Advance
             advance = adv_balances.get(client.id, 0)

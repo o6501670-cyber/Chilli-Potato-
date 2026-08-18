@@ -66,10 +66,11 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 
 class MessageReactionSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.full_name', read_only=True)
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = MessageReaction
-        fields = ('id', 'user', 'user_name', 'emoji', 'created_at')
+        fields = ('id', 'message', 'user', 'user_name', 'emoji', 'created_at')
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = serializers.PrimaryKeyRelatedField(read_only=True)

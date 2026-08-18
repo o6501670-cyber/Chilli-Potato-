@@ -2,7 +2,7 @@ from django.contrib.auth.hashers import check_password
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import action
 import openpyxl
-from datetime import datetime
+from datetime import datetime, time, date
 from decimal import Decimal
 from salon_admin.models import Center
 from rest_framework import viewsets, permissions, status
@@ -14,7 +14,6 @@ from .serializers import (
     StaffMemberSerializer, ServiceLogSerializer, StaffConsumptionLogSerializer,
     StaffTransferSerializer, StaffToolTrackerSerializer, PayrollRecordSerializer, DesignationSerializer
 )
-import datetime
 from .utils import sync_staff_transfers_and_tools
 
 class DesignationViewSet(viewsets.ModelViewSet):
@@ -262,12 +261,12 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
                     if hasattr(raw_date, 'date'):
                         joining_date = raw_date.date()
                     else:
+                        from datetime import datetime
                         try:
-                            import datetime
-                            joining_date = datetime.datetime.strptime(str(raw_date).strip(), '%d %b %Y').date()
+                            joining_date = datetime.strptime(str(raw_date).strip(), '%d %b %Y').date()
                         except ValueError:
                             try:
-                                joining_date = datetime.datetime.strptime(str(raw_date).strip(), '%Y-%m-%d').date()
+                                joining_date = datetime.strptime(str(raw_date).strip(), '%Y-%m-%d').date()
                             except ValueError:
                                 pass
                                 
@@ -350,7 +349,6 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def activity_feed(self, request):
         from django.utils import timezone
-        import datetime
         feed = []
         
         center_id = request.query_params.get('center_id')
@@ -371,7 +369,7 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
         # Limit each source to 20 to reduce data load — final sort will pick top 50 overall
         services = services_qs[:20]
         for s in services:
-            dt = datetime.datetime.combine(s.date, s.time if s.time else datetime.time())
+            dt = datetime.combine(s.date, s.time if s.time else time())
             client_display = s.client_name
             if s.invoice and s.invoice.client:
                 client_display = f"{s.invoice.client.first_name} {s.invoice.client.last_name or ''}".strip()
@@ -393,7 +391,7 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
             
         consumptions = consumptions_qs[:20]
         for c in consumptions:
-            dt = datetime.datetime.combine(c.date, c.time if c.time else datetime.time())
+            dt = datetime.combine(c.date, c.time if c.time else time())
             feed.append({
                 'id': f"cons_{c.id}",
                 'type': 'consumption',
