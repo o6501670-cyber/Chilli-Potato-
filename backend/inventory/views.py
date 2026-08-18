@@ -586,10 +586,12 @@ class ProductViewSet(InventoryBaseViewSet):
         created_transactions = []
         with transaction.atomic():
             for item in items:
+                if not isinstance(item, dict):
+                    return Response({"error": "Invalid payload format. Expected a list of objects."}, status=400)
                 try:
                     product = Product.objects.select_for_update().get(id=item.get('product_id'))
-                except (Product.DoesNotExist, KeyError, TypeError, ValueError):
-                    return Response({"error": f"Invalid or missing product_id in payload: {item.get('product_id')}"}, status=400)
+                except (Product.DoesNotExist, KeyError, TypeError, ValueError, AttributeError):
+                    return Response({"error": f"Invalid or missing product_id in payload: {item.get('product_id', 'Unknown')}"}, status=400)
 
                 
                 if product.center != center:
@@ -629,10 +631,12 @@ class ProductViewSet(InventoryBaseViewSet):
         audits = []
         with transaction.atomic():
             for item in items:
+                if not isinstance(item, dict):
+                    return Response({"error": "Invalid payload format. Expected a list of objects."}, status=400)
                 try:
                     product = Product.objects.select_for_update().get(id=item.get('product_id'))
-                except (Product.DoesNotExist, KeyError, TypeError, ValueError):
-                    return Response({"error": f"Invalid or missing product_id in payload: {item.get('product_id')}"}, status=400)
+                except (Product.DoesNotExist, KeyError, TypeError, ValueError, AttributeError):
+                    return Response({"error": f"Invalid or missing product_id in payload: {item.get('product_id', 'Unknown')}"}, status=400)
 
                 
                 if product.center != center:

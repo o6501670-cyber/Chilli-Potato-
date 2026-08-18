@@ -80,6 +80,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '200/hour',       # bumped from 100/day — more realistic for walk-in usage
         'user': '10000/hour',     # 10K/hour per user (handles staff with many API calls)
+        'login': '5/minute',
     },
     # Return proper 401 instead of 403 for unauthenticated requests
     'UNAUTHENTICATED_USER': None,

@@ -2611,12 +2611,9 @@ class MultiSalonClientsView(views.APIView):
 
             stats = stats_map.get(client.id, {'visits': 0, 'total_spend': 0, 'last_visit': None})
             
-            # Service Balance (just sum remaining quantities as a generic indicator, 
-            # since services_remaining is a dict of {service_id: count})
-            serv_balance_amount = sum(
-                sum(pkg.services_remaining.values()) if isinstance(pkg.services_remaining, dict) else 0
-                for pkg in client.packages.all()
-            ) if client.packages.exists() else 0
+            # Service Balance (hardcoded to 0.0 because remaining counts confuse the UI which expects rupees, 
+            # and we cannot easily extract prorated rupee value from packages without invoice joins)
+            serv_balance_amount = 0.0
 
             # Or maybe just the count of remaining services? 
             # In other views, serv. balance is sometimes the remaining price. Let's just use the exact logic from Balances view if we need to.
@@ -2638,16 +2635,17 @@ class MultiSalonClientsView(views.APIView):
             cards_data = []
             for c in client.value_cards.all():
                 cards_data.append({
-                    'name': c.value_card.name if c.value_card else 'Unknown',
-                    'balance': float(c.remaining_amount)
+                    'name': c.value_card.title if c.value_card else 'Unknown',
+                    'balance': float(c.balance)
                 })
 
             packages_data = []
             for p in client.packages.all():
-                if p.remaining_quantity > 0:
+                remaining_count = sum(p.services_remaining.values()) if isinstance(p.services_remaining, dict) else 0
+                if remaining_count > 0:
                     packages_data.append({
-                        'service': p.service.name if p.service else 'Unknown',
-                        'remaining': p.remaining_quantity
+                        'service': p.package.name if p.package else 'Unknown',
+                        'remaining': remaining_count
                     })
 
             results.append({
