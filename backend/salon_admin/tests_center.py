@@ -1,8 +1,9 @@
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
+
 from salon_admin.models import Center
 from salon_admin.views import CenterViewSet
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 

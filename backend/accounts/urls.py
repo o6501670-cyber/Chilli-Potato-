@@ -1,6 +1,14 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views import CustomAuthToken, UserViewSet, MessageViewSet, ChatUserListView, UnreadMessageCountView, MessageReactionViewSet
+
+from .views import (
+    ChatUserListView,
+    CustomAuthToken,
+    MessageReactionViewSet,
+    MessageViewSet,
+    UnreadMessageCountView,
+    UserViewSet,
+)
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='users')

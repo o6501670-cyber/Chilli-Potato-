@@ -35,8 +35,9 @@ class Client(models.Model):
         We do NOT also look at Payment rows because that would double-subtract.
         """
         try:
-            from billing.models import AdvancePayment
             from django.db.models import Sum
+
+            from billing.models import AdvancePayment
             total = (
                 AdvancePayment.objects
                 .filter(client=self)
@@ -56,8 +57,9 @@ class Client(models.Model):
         Negative rows = cashback redeemed.
         """
         try:
-            from billing.models import CashbackTransaction
             from django.db.models import Sum
+
+            from billing.models import CashbackTransaction
             total = (
                 CashbackTransaction.objects
                 .filter(client=self)
@@ -78,6 +80,7 @@ class Client(models.Model):
         if is_new and not self.app_pin:
             # Use secrets module (CSPRNG) instead of random — PINs are used for app login
             import secrets
+
             from django.contrib.auth.hashers import make_password
             raw_pin = f"{secrets.randbelow(9000) + 1000}"
             self.app_pin = make_password(raw_pin)
@@ -86,9 +89,9 @@ class Client(models.Model):
         
         if is_new and self.email and raw_pin:
             try:
-                from django.core.mail import send_mail
+
                 from django.conf import settings
-                import threading
+                from django.core.mail import send_mail
                 
                 subject = "Welcome to Chilli Potato - Your Account PIN"
                 message = (

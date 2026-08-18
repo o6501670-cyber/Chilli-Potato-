@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from .models import Center, Role
+
 
 class CenterSerializer(serializers.ModelSerializer):
     mtd_revenue = serializers.DecimalField(max_digits=15, decimal_places=2, read_only=True, required=False)

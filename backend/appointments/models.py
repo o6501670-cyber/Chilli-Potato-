@@ -1,6 +1,8 @@
 from django.db import models
+
 from salon_admin.models import Center
 from staff.models import StaffMember
+
 
 class Appointment(models.Model):
     STATUS_CHOICES = (

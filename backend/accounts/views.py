@@ -1,18 +1,21 @@
-from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.authtoken.models import Token
-from rest_framework.response import Response
-from rest_framework import viewsets, permissions
-from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.views import APIView
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from django.db.models import Q
-from django.conf import settings
 import logging
-import os
 
-from .models import CustomUser, Message, ChatRoom, MessageReaction
-from .serializers import UserSerializer, MessageSerializer, UserChatSerializer, MessageReactionSerializer
+from django.db.models import Q
+from rest_framework import permissions, viewsets
+from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .models import ChatRoom, CustomUser, Message, MessageReaction
+from .serializers import (
+    MessageReactionSerializer,
+    MessageSerializer,
+    UserSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +72,9 @@ class UserViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
-from pos_backend.throttles import LoginRateThrottle
 from pos_backend.permissions import IsOwner
+from pos_backend.throttles import LoginRateThrottle
+
 
 class CustomAuthToken(ObtainAuthToken):
     throttle_classes = [LoginRateThrottle]
@@ -96,9 +100,9 @@ class ChatUserListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        from .models import ChatRoom
+        from django.db.models import OuterRef, Subquery
+
         from .serializers import ChatRoomSerializer
-        from django.db.models import Subquery, OuterRef
         
         # Now fetch all rooms for the user
         rooms = request.user.chat_rooms.all()
@@ -150,6 +154,7 @@ class UnreadMessageCountView(APIView):
         return Response({'count': count})
 
 from rest_framework.pagination import CursorPagination
+
 
 class MessageCursorPagination(CursorPagination):
     ordering = '-timestamp'
@@ -213,10 +218,10 @@ class MessageReactionViewSet(viewsets.ModelViewSet):
         if existing:
             if existing.emoji == serializer.validated_data.get('emoji'):
                 existing.delete()
-                raise serializers.ValidationError({"status": "removed"})
+                raise ValidationError({"status": "removed"})
             else:
                 existing.emoji = serializer.validated_data.get('emoji')
                 existing.save()
-                raise serializers.ValidationError({"status": "updated", "emoji": existing.emoji})
+                raise ValidationError({"status": "updated", "emoji": existing.emoji})
         else:
             serializer.save(user=self.request.user)

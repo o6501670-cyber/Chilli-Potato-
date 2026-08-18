@@ -1,21 +1,36 @@
-from django.contrib.auth.hashers import check_password
-from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.decorators import action
-import openpyxl
-from datetime import datetime
-from decimal import Decimal
-from salon_admin.models import Center
-from rest_framework import viewsets, permissions, status
-from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes, action
-from django.db.models import Sum, Count, Q
-from .models import StaffMember, ServiceLog, StaffConsumptionLog, StaffTransfer, StaffToolTracker, PayrollRecord, Designation
-from .serializers import (
-    StaffMemberSerializer, ServiceLogSerializer, StaffConsumptionLogSerializer,
-    StaffTransferSerializer, StaffToolTrackerSerializer, PayrollRecordSerializer, DesignationSerializer
-)
 import datetime
+from decimal import Decimal
+
+import openpyxl
+from django.contrib.auth.hashers import check_password
+from django.db.models import Count, Q, Sum
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.response import Response
+
+from salon_admin.models import Center
+
+from .models import (
+    Designation,
+    PayrollRecord,
+    ServiceLog,
+    StaffConsumptionLog,
+    StaffMember,
+    StaffToolTracker,
+    StaffTransfer,
+)
+from .serializers import (
+    DesignationSerializer,
+    PayrollRecordSerializer,
+    ServiceLogSerializer,
+    StaffConsumptionLogSerializer,
+    StaffMemberSerializer,
+    StaffToolTrackerSerializer,
+    StaffTransferSerializer,
+)
 from .utils import sync_staff_transfers_and_tools
+
 
 class DesignationViewSet(viewsets.ModelViewSet):
     queryset = Designation.objects.all().order_by('name')
@@ -28,9 +43,11 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        from django.db.models import Exists, OuterRef
-        from .models import StaffToolTracker
         from datetime import date
+
+        from django.db.models import Exists, OuterRef
+
+        from .models import StaffToolTracker
         
         # Optimize N+1 queries by selecting related center and annotating overdue tools
         overdue_tools = StaffToolTracker.objects.filter(
@@ -77,7 +94,7 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
         import io
         try:
             import openpyxl
-            from openpyxl.styles import Font, PatternFill, Alignment
+            from openpyxl.styles import Alignment, Font, PatternFill
         except ImportError:
             return Response({'error': 'openpyxl not installed.'}, status=400)
         
@@ -146,14 +163,14 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
                 reader = csv.reader(io_string)
                 rows = list(reader)
             except Exception as e:
-                return Response({'detail': f'Error reading CSV file: {str(e)}'}, status=400)
+                return Response({'detail': f'Error reading CSV file: {e!s}'}, status=400)
         else:
             try:
                 wb = openpyxl.load_workbook(excel_file, data_only=True)
                 sheet = wb.active
                 rows = list(sheet.iter_rows(values_only=True))
             except Exception as e:
-                return Response({'detail': f'Error reading Excel file: {str(e)}'}, status=400)
+                return Response({'detail': f'Error reading Excel file: {e!s}'}, status=400)
 
         header_idx = 0
         for idx, row in enumerate(rows):
@@ -212,7 +229,7 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
                 if staff_code in ('nan', 'None', '0'): staff_code = ''
                 
                 phone = str(row_data.get('phone', row_data.get('phone_number', row_data.get('mobile', '')))).strip()
-                if phone.endswith('.0'): phone = phone[:-2]
+                phone = phone.removesuffix('.0')
                 if phone in ('nan', 'None'): phone = ''
                 
                 email = str(row_data.get('email', '')).strip()
@@ -320,7 +337,7 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
                         )
                         created_count += 1
                 except Exception as e:
-                    errors.append(f"Row {i}: Error saving '{first_name}' - {str(e)}")
+                    errors.append(f"Row {i}: Error saving '{first_name}' - {e!s}")
                     skipped_count += 1
                     
         result = {
@@ -339,18 +356,13 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create staff for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create staff for this center.")
         serializer.save()
 
     @action(detail=False, methods=['get'])
     def activity_feed(self, request):
-        from django.utils import timezone
-        import datetime
         feed = []
         
         center_id = request.query_params.get('center_id')
@@ -478,8 +490,8 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
         for row in logs:
             svc_rev = Decimal(str(row['service_revenue'] or 0))
             prod_rev = Decimal(str(row['product_revenue'] or 0))
-            svc_comm = svc_rev * Decimal(str(row['staff__commission_percentage'] or 0)) / Decimal('100')
-            prod_comm = prod_rev * Decimal(str(row['staff__product_commission_percentage'] or 0)) / Decimal('100')
+            svc_comm = svc_rev * Decimal(str(row['staff__commission_percentage'] or 0)) / Decimal(100)
+            prod_comm = prod_rev * Decimal(str(row['staff__product_commission_percentage'] or 0)) / Decimal(100)
             name = row['staff__first_name']
             if row['staff__last_name']:
                 name += f" {row['staff__last_name']}"
@@ -560,9 +572,9 @@ class StaffMemberViewSet(viewsets.ModelViewSet):
             row = sales_by_staff.get(member.id, {})
             total_sales = Decimal(str(row.get('total_sales') or 0))
             salary = Decimal(str(member.salary or 0))
-            multiplier = total_sales / salary if salary > 0 else Decimal('0')
+            multiplier = total_sales / salary if salary > 0 else Decimal(0)
 
-            incentive_percentage = Decimal('0')
+            incentive_percentage = Decimal(0)
             for threshold, pct in tiers:
                 if multiplier >= threshold:
                     incentive_percentage = pct
@@ -649,10 +661,7 @@ class ServiceLogViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create logs for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create logs for this center.")
         serializer.save()
@@ -809,10 +818,7 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create logs for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create logs for this center.")
 
@@ -840,8 +846,9 @@ class StaffConsumptionLogViewSet(viewsets.ModelViewSet):
                 staff.save()
 
         try:
-            from inventory.models import Product
             from django.db.models import F
+
+            from inventory.models import Product
             product = Product.objects.filter(name__iexact=service_name, center=staff.center).first()
             if product and hasattr(product, 'current_stock'):
                 qty = int(serializer.validated_data.get('quantity', 1)) if 'quantity' in serializer.fields else 1
@@ -946,10 +953,7 @@ class StaffTransferViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             from_center = serializer.validated_data.get('from_center')
             if from_center:
-                if user.centers.exists() and from_center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot transfer staff from this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and from_center != user.center:
+                if user.centers.exists() and from_center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and from_center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot transfer staff from this center.")
                     
@@ -967,9 +971,7 @@ class StaffToolTrackerViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = super().get_queryset()
 
-        if hasattr(user, 'role') and user.role and user.role.name.lower() == 'owner':
-            pass
-        elif hasattr(user, 'is_superuser') and user.is_superuser:
+        if hasattr(user, 'role') and user.role and user.role.name.lower() == 'owner' or hasattr(user, 'is_superuser') and user.is_superuser:
             pass
         elif hasattr(user, 'center') and user.center:
             queryset = queryset.filter(staff__center=user.center)
@@ -1032,10 +1034,7 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create payrolls for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create payrolls for this center.")
         serializer.save()
@@ -1059,7 +1058,9 @@ class PayrollRecordViewSet(viewsets.ModelViewSet):
 # ─────────────────────────────────────────────────────────────────────────────
 
 from django.core import signing as _signing
+
 from pos_backend.permissions import IsOwner
+
 
 def _generate_staff_token(staff):
     """Generate a signed token for the staff mobile app. Valid 30 days."""
@@ -1158,9 +1159,10 @@ def staff_app_appointments(request):
         return Response({'error': 'Unauthorized. Please log in again.'}, status=status.HTTP_401_UNAUTHORIZED)
 
     try:
+        from datetime import date, datetime
+
         from appointments.models import Appointment
         from appointments.serializers import AppointmentSerializer
-        from datetime import date, datetime
 
         target_date_str = request.query_params.get('date')
         if target_date_str:

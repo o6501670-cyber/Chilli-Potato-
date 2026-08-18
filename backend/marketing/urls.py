@@ -1,7 +1,13 @@
-from django.db import models
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from django.urls import path, include
-from .views import WhatsAppMessageViewSet, PromotionViewSet, ValueCardViewSet, MembershipViewSet, PackageViewSet
+
+from .views import (
+    MembershipViewSet,
+    PackageViewSet,
+    PromotionViewSet,
+    ValueCardViewSet,
+    WhatsAppMessageViewSet,
+)
 
 router = DefaultRouter()
 router.register(r'whatsapp', WhatsAppMessageViewSet, basename='whatsapp')

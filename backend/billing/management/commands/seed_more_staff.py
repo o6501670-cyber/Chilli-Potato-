@@ -1,7 +1,9 @@
 import random
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from faker import Faker
+
 from salon_admin.models import Center
 from staff.models import Designation, StaffMember
 

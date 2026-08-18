@@ -1,5 +1,7 @@
 from django.db import models
+
 from salon_admin.models import Center
+
 
 class StaffMember(models.Model):
     center = models.ForeignKey(Center, on_delete=models.CASCADE, related_name='staff_members')

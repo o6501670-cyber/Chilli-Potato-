@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Invoice, InvoiceItem, AdvancePayment, Payment, BillChangeLog
+
+from .models import AdvancePayment, BillChangeLog, Invoice, InvoiceItem, Payment
 
 
 @admin.register(Invoice)

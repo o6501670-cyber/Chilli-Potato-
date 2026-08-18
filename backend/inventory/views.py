@@ -1,13 +1,22 @@
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from django.db.models import Sum
-from decimal import Decimal
 import datetime
-from .models import Vendor, Product, PurchaseOrder, ProductLot, StockTransaction
-from .serializers import VendorSerializer, ProductSerializer, PurchaseOrderSerializer, ProductLotSerializer, StockTransactionSerializer
+from decimal import Decimal
+
+from django.db.models import Sum
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from .models import Product, ProductLot, PurchaseOrder, StockTransaction, Vendor
+from .serializers import (
+    ProductLotSerializer,
+    ProductSerializer,
+    PurchaseOrderSerializer,
+    StockTransactionSerializer,
+    VendorSerializer,
+)
+
 
 class InventoryBaseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -84,7 +93,7 @@ class VendorViewSet(InventoryBaseViewSet):
         import io
         try:
             import openpyxl
-            from openpyxl.styles import Font, PatternFill, Alignment
+            from openpyxl.styles import Alignment, Font, PatternFill
         except ImportError:
             return Response({'error': 'openpyxl not installed.'}, status=400)
         
@@ -247,8 +256,8 @@ class VendorViewSet(InventoryBaseViewSet):
             return Response({'error': str(e), 'detail': traceback.format_exc()}, status=400)
 
 from django.utils.decorators import method_decorator
-from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
+
 
 class ProductViewSet(InventoryBaseViewSet):
     queryset = Product.objects.all().select_related('center').prefetch_related('lots')
@@ -269,8 +278,8 @@ class ProductViewSet(InventoryBaseViewSet):
                 serializer.is_valid(raise_exception=True)
                 self.perform_create(serializer)
                 instances.append(serializer.data)
-            from rest_framework.response import Response
             from rest_framework import status
+            from rest_framework.response import Response
             return Response(instances[0], status=status.HTTP_201_CREATED)
         else:
             return super().create(request, *args, **kwargs)
@@ -508,7 +517,7 @@ class ProductViewSet(InventoryBaseViewSet):
         import io
         try:
             import openpyxl
-            from openpyxl.styles import Font, PatternFill, Alignment
+            from openpyxl.styles import Alignment, Font, PatternFill
         except ImportError:
             return Response({'error': 'openpyxl not installed.'}, status=400)
         
@@ -586,14 +595,25 @@ class ProductViewSet(InventoryBaseViewSet):
         created_transactions = []
         with transaction.atomic():
             for item in items:
-                # Lock row to prevent race conditions during concurrent checkouts
-                product = Product.objects.select_for_update().get(id=item['product_id'])
-                
+                # Accept both `product_id` (frontend contract) and `product` (legacy)
+                product_pk = item.get('product_id', item.get('product'))
+                if product_pk is None:
+                    return Response(
+                        {"error": "Each item must include a 'product_id'."}, status=400)
+                try:
+                    # Lock row to prevent race conditions during concurrent checkouts
+                    product = Product.objects.select_for_update().get(id=product_pk)
+                except Product.DoesNotExist:
+                    return Response({"error": f"Product {product_pk} not found."}, status=404)
+
                 if product.center != center:
                     return Response({"error": f"Product {product.name} does not belong to the selected center."}, status=400)
-                    
-                qty = Decimal(str(item['quantity']))
-                
+
+                try:
+                    qty = Decimal(str(item.get('quantity')))
+                except Exception:
+                    return Response({"error": f"Invalid quantity for {product.name}."}, status=400)
+
                 if qty > product.current_stock:
                     return Response({"error": f"Cannot checkout {qty} of {product.name}. Only {product.current_stock} in stock!"}, status=400)
                 
@@ -626,12 +646,19 @@ class ProductViewSet(InventoryBaseViewSet):
         audits = []
         with transaction.atomic():
             for item in items:
-                # Lock row to prevent race conditions during concurrent audits/checkouts
-                product = Product.objects.select_for_update().get(id=item['product_id'])
-                
+                product_pk = item.get('product_id', item.get('product'))
+                if product_pk is None:
+                    return Response(
+                        {"error": "Each item must include a 'product_id'."}, status=400)
+                try:
+                    # Lock row to prevent race conditions during concurrent audits/checkouts
+                    product = Product.objects.select_for_update().get(id=product_pk)
+                except Product.DoesNotExist:
+                    return Response({"error": f"Product {product_pk} not found."}, status=404)
+
                 if product.center != center:
                     return Response({"error": f"Product {product.name} does not belong to the selected center."}, status=400)
-                    
+
                 physical_qty = Decimal(str(item['quantity']))
                 diff = physical_qty - product.current_stock
                 
@@ -672,7 +699,7 @@ class ProductViewSet(InventoryBaseViewSet):
         target_datetime = naive_dt
         
         # Optimize: get future transaction sums for all products in one query
-        from django.db.models import Sum, Q
+        from django.db.models import Q
         
         # Annotate each product with the sum of its future transactions
         products = products.annotate(
@@ -715,9 +742,7 @@ class ProductLotViewSet(InventoryBaseViewSet):
         user = self.request.user
         is_owner = IsOwner.check_is_owner(user)
         if not is_owner:
-            if user.centers.exists() and product.center not in user.centers.all():
-                raise PermissionDenied("You do not have access to the product's center.")
-            elif user.center and product.center != user.center:
+            if user.centers.exists() and product.center not in user.centers.all() or user.center and product.center != user.center:
                 raise PermissionDenied("You do not have access to the product's center.")
                 
         serializer.save(product=product)
@@ -742,9 +767,11 @@ class StockTransactionViewSet(InventoryBaseViewSet):
     queryset = StockTransaction.objects.all().select_related('product', 'product__center', 'center').order_by('-created_at')
     serializer_class = StockTransactionSerializer
 
-from rest_framework.views import APIView
 from django.db.models import F
+from rest_framework.views import APIView
+
 from pos_backend.permissions import IsOwner
+
 
 class LowStockAlertView(APIView):
     permission_classes = [IsAuthenticated]

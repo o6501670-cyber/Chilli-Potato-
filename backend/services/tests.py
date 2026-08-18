@@ -1,8 +1,10 @@
 from decimal import Decimal
-from rest_framework.test import APIRequestFactory
+
 from django.test import TestCase
+from rest_framework.test import APIRequestFactory
 
 from salon_admin.models import Center
+
 from .models import CenterService, ServiceMaster
 from .serializers import ServiceMasterSerializer
 

@@ -1,9 +1,10 @@
-import logging
 import datetime
+import logging
 from datetime import timedelta
 from decimal import Decimal
+
 from django.db import transaction
-from django.db.models import F, Sum
+from django.db.models import Sum
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -141,9 +142,9 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
         skip_payment_deductions: Set True when called from the /pay/ endpoint which
             handles its own advance/value-card deductions to prevent double-deducting.
     """
-    from staff.models import ServiceLog
     from billing.models import AdvancePayment
     from inventory.models import StockTransaction
+    from staff.models import ServiceLog
 
     # Pre-fetch active packages ONCE to avoid N+1 inside the loop
     active_packages_map = {}
@@ -341,7 +342,7 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                                 payment.amount = client_vc.balance
                                 payment.save()
                                 
-                            client_vc.balance = max(Decimal('0'), client_vc.balance - payment.amount)
+                            client_vc.balance = max(Decimal(0), client_vc.balance - payment.amount)
                             if client_vc.balance <= 0:
                                 client_vc.is_active = False
                             client_vc.save()
@@ -364,11 +365,11 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
                     id=membership_id, client=invoice.client, is_active=True
                 ).first()
                 if cm and cm.membership.discount_percent:
-                    pre_tax_total = Decimal('0')
+                    pre_tax_total = Decimal(0)
                     for item in invoice.items.all():
                         pre_tax_total += Decimal(str(item.unit_price)) * Decimal(str(item.quantity))
                     
-                    expected_discount = pre_tax_total * Decimal(str(cm.membership.discount_percent)) / Decimal('100')
+                    expected_discount = pre_tax_total * Decimal(str(cm.membership.discount_percent)) / Decimal(100)
                     if Decimal(str(invoice.discount)) > expected_discount + 1:  # Allow 1 unit rounding difference
                         logger.warning(f"[Security] Invoice #{invoice.id} claimed discount {invoice.discount} exceeds membership allowed {expected_discount}. Reverting.")
                         invoice.discount = Decimal(str(expected_discount))
@@ -380,8 +381,11 @@ def finalize_invoice(invoice, appointment_id=None, request_data=None, skip_payme
 
         if request_data.get('promo_id'):
             try:
+                from rest_framework.exceptions import (
+                    ValidationError as DRFValidationError,
+                )
+
                 from marketing.promotions import apply_promotion
-                from rest_framework.exceptions import ValidationError as DRFValidationError
                 discount, error = apply_promotion(invoice, request_data.get('promo_id'))
                 if error:
                     raise DRFValidationError({'promo_id': error})

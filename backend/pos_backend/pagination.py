@@ -1,5 +1,6 @@
 from rest_framework.pagination import PageNumberPagination
 
+
 class OptionalPagination(PageNumberPagination):
     """
     A custom pagination class that defaults to no pagination unless the frontend 

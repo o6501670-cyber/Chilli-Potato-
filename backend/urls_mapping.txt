@@ -5,7 +5,7 @@
 /admin/password_change/done/ -> password_change_done
 /admin/autocomplete/ -> autocomplete_view
 /admin/jsi18n/ -> i18n_javascript
-/admin/r/<int:content_type_id>/<path:object_id>/ -> shortcut
+/admin/r/<path:content_type_id>/<path:object_id>/ -> shortcut
 /admin/auth/group/ -> None
 /admin/authtoken/tokenproxy/ -> None
 /admin/accounts/customuser/ -> None

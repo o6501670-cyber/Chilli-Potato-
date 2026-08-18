@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .models import ServiceMaster, CenterService
+
+from .models import CenterService, ServiceMaster
+
 
 class CenterServiceSerializer(serializers.ModelSerializer):
     class Meta:

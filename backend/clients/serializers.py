@@ -1,8 +1,13 @@
 from rest_framework import serializers
-from .models import Client, ClientMembership, ClientPackage, ClientValueCard
+
+from marketing.serializers import (
+    MembershipSerializer,
+    PackageSerializer,
+    ValueCardSerializer,
+)
 from salon_admin.models import Center
-from marketing.serializers import MembershipSerializer, PackageSerializer, ValueCardSerializer
-from django.db.models import Sum
+
+from .models import Client, ClientMembership, ClientPackage, ClientValueCard
 
 
 class ClientMembershipSerializer(serializers.ModelSerializer):
@@ -52,6 +57,11 @@ class ClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = '__all__'
+        extra_kwargs = {
+            # Security: app_pin may be SET via the API (front desk sets the client's
+            # PIN) but must never be echoed back in responses (lists/details).
+            'app_pin': {'write_only': True},
+        }
 
     def to_internal_value(self, data):
         # Convert frontend empty strings to Python None to prevent DRF validation crashes

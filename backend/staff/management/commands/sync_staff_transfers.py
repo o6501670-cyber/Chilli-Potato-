@@ -17,7 +17,9 @@ Scheduling (Windows Task Scheduler / Linux cron):
 """
 
 import logging
+
 from django.core.management.base import BaseCommand
+
 from staff.utils import sync_staff_transfers_and_tools
 
 logger = logging.getLogger(__name__)

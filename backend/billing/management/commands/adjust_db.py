@@ -1,10 +1,12 @@
 import random
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from faker import Faker
-from inventory.models import Vendor, Product
-from services.models import ServiceMaster
+
+from inventory.models import Product, Vendor
 from salon_admin.models import Center
+from services.models import ServiceMaster
 
 fake = Faker('en_IN')
 

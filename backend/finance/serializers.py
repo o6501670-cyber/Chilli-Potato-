@@ -1,5 +1,14 @@
 from rest_framework import serializers
-from .models import PettyCashEntry, DailyClosing, IncentiveConfig, IncentiveTier, Shift, IncentiveRule
+
+from .models import (
+    DailyClosing,
+    IncentiveConfig,
+    IncentiveRule,
+    IncentiveTier,
+    PettyCashEntry,
+    Shift,
+)
+
 
 class PettyCashEntrySerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
@@ -76,7 +85,7 @@ class IncentiveRuleSerializer(serializers.ModelSerializer):
         # Normalize rule_type to model choices
         if rule_type in ['slabs', 'slab']:
             data['rule_type'] = 'slab'
-            if 'slabs' in data and data['slabs']:
+            if data.get('slabs'):
                 data['tiers'] = data['slabs']
         elif rule_type in ['multiple', 'multipliers']:
             data['rule_type'] = 'multiple'

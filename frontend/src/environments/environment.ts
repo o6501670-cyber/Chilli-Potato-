@@ -1,4 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://127.0.0.1:8000'
+  // Same-origin relative URL: the dev server proxies /accounts, /billing, etc.
+  // to the backend (see proxy.conf.json). Mirrors the production setup (apiUrl: '').
+  apiUrl: ''
 };

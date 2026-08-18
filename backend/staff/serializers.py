@@ -1,5 +1,15 @@
 from rest_framework import serializers
-from .models import StaffMember, ServiceLog, StaffConsumptionLog, StaffTransfer, StaffToolTracker, PayrollRecord, Designation
+
+from .models import (
+    Designation,
+    PayrollRecord,
+    ServiceLog,
+    StaffConsumptionLog,
+    StaffMember,
+    StaffToolTracker,
+    StaffTransfer,
+)
+
 
 class DesignationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,6 +23,11 @@ class StaffMemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = StaffMember
         fields = '__all__'
+        extra_kwargs = {
+            # Security: app_password may be SET via the API but must never be
+            # echoed back in staff list/detail responses.
+            'app_password': {'write_only': True},
+        }
 
     def get_center_name(self, obj):
         if not obj.center:

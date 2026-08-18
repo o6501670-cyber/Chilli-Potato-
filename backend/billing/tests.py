@@ -1,8 +1,9 @@
 from django.test import TestCase
-from rest_framework.test import APIRequestFactory
-from billing.serializers import InvoiceSerializer
+
 from billing.models import Invoice
+from billing.serializers import InvoiceSerializer
 from clients.models import Client
+
 
 class InvoiceSerializerTest(TestCase):
     def test_partial_update_no_items_preserves_total(self):

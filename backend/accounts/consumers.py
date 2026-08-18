@@ -1,7 +1,8 @@
 import json
 import logging
-from channels.generic.websocket import AsyncWebsocketConsumer
+
 from channels.db import database_sync_to_async
+from channels.generic.websocket import AsyncWebsocketConsumer
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -342,7 +343,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def _mark_delivered_for_online_participants(self, message_id):
         """Mark message as delivered if recipient is connected."""
-        pass  # handled by room-level broadcast; status promoted on receipt
+        # handled by room-level broadcast; status promoted on receipt
 
     @database_sync_to_async
     def _save_reaction(self, message_id, emoji):

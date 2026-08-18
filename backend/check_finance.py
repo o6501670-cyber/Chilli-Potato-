@@ -1,11 +1,16 @@
-import os, django
+import os
+
+import django
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'pos_backend.settings')
 django.setup()
 
-from django.test import RequestFactory
-from django.contrib.auth import get_user_model
-from finance.views import RegisterSummaryView, MonthlySalesView
 import time
+
+from django.contrib.auth import get_user_model
+from django.test import RequestFactory
+
+from finance.views import MonthlySalesView, RegisterSummaryView
 
 User = get_user_model()
 user = User.objects.filter(is_superuser=True).first()
@@ -33,7 +38,7 @@ try:
         print(f"Total Collections: {data['revenues']['including_tax']}")
     else:
         print("Response:", response.data)
-except Exception as e:
+except Exception:
     import traceback
     print("Exception occurred!")
     traceback.print_exc()
@@ -55,7 +60,7 @@ try:
         print(f"Months returned: {len(response.data)}")
     else:
         print("Response:", response.data)
-except Exception as e:
+except Exception:
     import traceback
     print("Exception occurred!")
     traceback.print_exc()

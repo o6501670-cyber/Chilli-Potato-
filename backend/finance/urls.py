@@ -1,19 +1,31 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from .views import (
+    DailyClosingViewSet,
+    DetailedRevenuesView,
+    ExportFinanceView,
+    IncentiveConfigViewSet,
+    IncentiveRuleViewSet,
+    ManagerDiscountsAuditView,
+    MonthlySalesView,
     MultiSalonBalancesView,
-    MultiSalonSalesExportView,
     MultiSalonCategoriesView,
-    MultiSalonServiceDrilldownView,
-    MultiSalonProductDrilldownView,
     MultiSalonClientsView,
+    MultiSalonExportView,
+    MultiSalonProductDrilldownView,
+    MultiSalonSalesExportView,
+    MultiSalonServiceDrilldownView,
     MultiSalonStaffView,
-    PettyCashEntryViewSet, DailyClosingViewSet, IncentiveConfigViewSet, ShiftViewSet,
-    IncentiveRuleViewSet, ExportFinanceView,
-    RegisterSummaryView, MonthlySalesView, DetailedRevenuesView,
-    RefundsView, ProcurementReportView,
-    TaxReportView, ServiceDrilldownView, StaffPerformanceReportView, ManagerDiscountsAuditView,
-    StaffIncentiveCalculationView, MultiSalonExportView,
+    PettyCashEntryViewSet,
+    ProcurementReportView,
+    RefundsView,
+    RegisterSummaryView,
+    ServiceDrilldownView,
+    ShiftViewSet,
+    StaffIncentiveCalculationView,
+    StaffPerformanceReportView,
+    TaxReportView,
 )
 
 router = DefaultRouter()

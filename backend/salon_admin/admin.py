@@ -1,5 +1,7 @@
 from django.contrib import admin
+
 from .models import Center, Role
+
 
 @admin.register(Center)
 class CenterAdmin(admin.ModelAdmin):

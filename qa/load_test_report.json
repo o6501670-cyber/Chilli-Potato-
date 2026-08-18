@@ -1,0 +1,24 @@
+{
+  "total_requests": 15000,
+  "errors": 0,
+  "error_rate_pct": 0.0,
+  "duration_s": 151.09,
+  "rps": 99.3,
+  "concurrent_workers": 150,
+  "latency_ms": {
+    "min": 27.5,
+    "p50": 1481.8,
+    "p75": 1595.5,
+    "p90": 1696.3,
+    "p95": 1768.0,
+    "p99": 1883.9,
+    "max": 2071.4
+  },
+  "status_counts": {
+    "200": 13227,
+    "201": 1593,
+    "400": 172,
+    "409": 8
+  },
+  "errors_by_url": {}
+}

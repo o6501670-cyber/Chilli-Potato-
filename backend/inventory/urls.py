@@ -1,6 +1,14 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views import VendorViewSet, ProductViewSet, PurchaseOrderViewSet, ProductLotViewSet, StockTransactionViewSet, LowStockAlertView
+
+from .views import (
+    LowStockAlertView,
+    ProductLotViewSet,
+    ProductViewSet,
+    PurchaseOrderViewSet,
+    StockTransactionViewSet,
+    VendorViewSet,
+)
 
 router = DefaultRouter()
 router.register(r'vendors', VendorViewSet, basename='vendor')

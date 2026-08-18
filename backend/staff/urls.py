@@ -1,11 +1,23 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from .views import (
-    StaffMemberViewSet, ServiceLogViewSet, StaffConsumptionLogViewSet,
-    StaffTransferViewSet, StaffToolTrackerViewSet, PayrollRecordViewSet, DesignationViewSet,
-    revenue_report, usage_report, consumption_report,
-    staff_app_login, staff_app_logs, staff_app_appointments,
-    staff_app_tools, staff_app_transfers, staff_app_update_profile
+    DesignationViewSet,
+    PayrollRecordViewSet,
+    ServiceLogViewSet,
+    StaffConsumptionLogViewSet,
+    StaffMemberViewSet,
+    StaffToolTrackerViewSet,
+    StaffTransferViewSet,
+    consumption_report,
+    revenue_report,
+    staff_app_appointments,
+    staff_app_login,
+    staff_app_logs,
+    staff_app_tools,
+    staff_app_transfers,
+    staff_app_update_profile,
+    usage_report,
 )
 
 router = DefaultRouter()

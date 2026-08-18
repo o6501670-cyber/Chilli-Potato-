@@ -1,8 +1,8 @@
-from django.core.exceptions import ValidationError
-from django.db import models
+from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
-from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import models
 
 
 class Invoice(models.Model):
@@ -115,8 +115,7 @@ class InvoiceItem(models.Model):
             calculated = ((self.unit_price or 0) * (self.quantity or 1)) - (self.discount or 0)
             if self.total_price == 0 and calculated != 0:
                 self.total_price = calculated
-        if self.total_price < 0:
-            self.total_price = 0
+        self.total_price = max(self.total_price, 0)
         super().save(*args, **kwargs)
 
     def __str__(self):

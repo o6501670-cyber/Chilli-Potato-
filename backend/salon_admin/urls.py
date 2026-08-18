@@ -1,9 +1,20 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views import CenterViewSet, RoleViewSet, dashboard_view, bulk_import_centers, bulk_import_template
+
 from .dashboard_endpoints import (
-    dashboard_summary, dashboard_revenues, dashboard_clients,
-    dashboard_finance, dashboard_staff, dashboard_services_products
+    dashboard_clients,
+    dashboard_finance,
+    dashboard_revenues,
+    dashboard_services_products,
+    dashboard_staff,
+    dashboard_summary,
+)
+from .views import (
+    CenterViewSet,
+    RoleViewSet,
+    bulk_import_centers,
+    bulk_import_template,
+    dashboard_view,
 )
 
 router = DefaultRouter()

@@ -1,5 +1,6 @@
 from rest_framework import permissions
 
+
 class IsOwner(permissions.BasePermission):
     """
     Custom permission to only allow owners and superusers to access the endpoint.

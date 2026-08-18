@@ -1,161 +1,208 @@
+"""
+Load test for the Chilli Potato POS backend.
+
+Simulates many concurrent users hitting the ENTIRE API surface at once:
+dashboards, lists, reports, billing writes, appointment writes, etc.
+
+Usage (15,000-request soak — every user runs 100 tasks):
+    locust -f locustfile.py --headless \
+        -u 150 -r 50 --iterations 100 \
+        -H http://127.0.0.1:8000 \
+        --csv=loadtest_results --csv-full-history
+
+Login credentials are read from env (defaults match the QA seed data):
+    LOCUST_USERNAME / LOCUST_PASSWORD
+"""
+import os
 import random
-import string
-from locust import HttpUser, task, between
+import threading
 
-def random_string(length=10):
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+from locust import HttpUser, between, task
 
-def random_phone():
-    return ''.join(random.choices(string.digits, k=10))
+USERNAME = os.environ.get('LOCUST_USERNAME', 'admin@chilli.potato')
+PASSWORD = os.environ.get('LOCUST_PASSWORD', 'admin1234')
 
-class POSUserBehavior(HttpUser):
-    # Wait between 1 and 3 seconds between tasks to simulate real user behavior
-    wait_time = between(1, 3)
+# Read-only resource IDs are discovered once at startup so GETs hit real rows.
+STATE = {'center_ids': [], 'client_ids': [], 'invoice_ids': []}
+_DISCOVERY_LOCK = threading.Lock()
+_DISCOVERY_DONE = threading.Event()
+
+
+class POSUser(HttpUser):
+    wait_time = between(0.05, 0.4)   # aggressive: most users act almost immediately
+    token = None
 
     def on_start(self):
-        """
-        Executed when a virtual user starts. 
-        We would ideally log in here and get a JWT token.
-        For this test, assuming basic auth or token-based auth isn't strictly required 
-        or we bypass it, but usually you'd do a login request here.
-        """
-        # If your API requires auth, you would do it here:
-        # response = self.client.post("/api/token/", {"username": "admin", "password": "password"})
-        # self.token = response.json()["access"]
-        # self.client.headers.update({"Authorization": f"Bearer {self.token}"})
-        self.center_id = None
-        self.client_id = None
-        
-    @task(1)
-    def full_flow(self):
-        """Simulate the entire flow from center creation to billing"""
-        
-        # 1. Admin Flow - Create Center
-        center_name = f"Center_{random_string()}"
-        res = self.client.post("/salon_admin/api/centers/", json={
-            "center_name": center_name,
-            "phone": random_phone(),
-            "address": "123 Load Test St"
-        })
-        if res.status_code in [200, 201]:
-            # Try to get the center ID to use in subsequent requests
-            data = res.json()
-            if "id" in data:
-                self.center_id = data["id"]
-            elif "data" in data and "id" in data["data"]:
-                self.center_id = data["data"]["id"]
-        
-        # If we couldn't create a center, we use a fallback ID (e.g. 1) to keep the flow moving
-        center = self.center_id or 1
-        
-        # 2. Staff Flow - Create Designation & Staff
-        self.client.post("/staff/api/designations/", json={
-            "name": f"Stylist_{random_string(5)}",
-            "category": "Hair"
-        })
-        self.client.post("/staff/api/members/", json={
-            "first_name": "Test",
-            "last_name": random_string(5),
-            "phone": random_phone(),
-            "designation": f"Stylist_{random_string(5)}",
-            "center": center,
-            "gender": "Male",
-            "salary": 50000,
-            "is_active": True
-        })
+        with self.client.post('/accounts/api/login/',
+                              json={'username': USERNAME, 'password': PASSWORD},
+                              name='POST /accounts/api/login/', catch_response=True) as r:
+            if r.status_code != 200:
+                r.failure(f'login failed: {r.status_code} {r.text[:200]}')
+                return
+            data = r.json()
+            self.token = data.get('token')
+            self.client.headers['Authorization'] = f'Token {self.token}'
 
-        # 3. Services Flow - Create Service Master
-        self.client.post("/services/api/master/", json={
-            "name": f"Haircut_{random_string(5)}",
-            "category": "Hair",
-            "sub_category": "Men",
-            "duration_mins": 30,
-            "default_price": 500,
-            "is_active": True
-        })
+        # Discover IDs once per user (cheap; also warms the caches).
+        # Note: page/page_size params return a paginated dict {results: [...]};
+        # without them the API returns a raw array. Handle both shapes.
+        def _ids(resp, name):
+            data = resp.json() or []
+            if isinstance(data, dict):
+                data = data.get('results', [])
+            ids = [x['id'] for x in data if isinstance(x, dict) and 'id' in x]
+            resp.success() if ids else resp.failure(f'{name} returned no ids')
+            return ids
 
-        # 4. Clients Flow - Create Client
-        res = self.client.post("/clients/api/clients/", json={
-            "first_name": "Load",
-            "last_name": f"User_{random_string(5)}",
-            "phone": random_phone(),
-            "gender": "Female",
-            "center": center
-        })
-        if res.status_code in [200, 201]:
-            data = res.json()
-            if "id" in data:
-                self.client_id = data["id"]
-            elif "data" in data and "id" in data["data"]:
-                self.client_id = data["data"]["id"]
-                
-        client = self.client_id or 1
+        # First user populates the shared state; everyone else waits for it.
+        _DISCOVERY_DONE.wait(timeout=10)
+        if not STATE['center_ids'] and _DISCOVERY_LOCK.acquire(blocking=False):
+            try:
+                with self.client.get('/salon_admin/api/centers/', name='discover centers', catch_response=True) as c:
+                    STATE['center_ids'] = _ids(c, 'centers')
+                with self.client.get('/clients/api/clients/?page=1&page_size=50', name='discover clients', catch_response=True) as cl:
+                    STATE['client_ids'] = _ids(cl, 'clients')
+                with self.client.get('/billing/invoices/?page=1&page_size=50', name='discover invoices', catch_response=True) as inv:
+                    STATE['invoice_ids'] = _ids(inv, 'invoices')
+            except Exception:
+                pass
+            finally:
+                # Always signal: a failed discovery must not hang other users
+                _DISCOVERY_DONE.set()
+                _DISCOVERY_LOCK.release()
 
-        # 5. Inventory Flow - Create Vendor & Product
-        self.client.post("/inventory/api/vendors/", json={
-            "name": f"Vendor_{random_string(5)}",
-            "contact_person": "Bob",
-            "phone": random_phone(),
-            "center": center
-        })
-        
-        self.client.post("/inventory/api/products/", json={
-            "name": f"Product_{random_string(5)}",
-            "brand": "Loreal",
-            "category": "Hair Care",
-            "price": 200,
-            "current_stock": 50,
-            "center": center
-        })
+    def _center(self):
+        return random.choice(STATE['center_ids'] or [1])
 
-        # 6. Finance Flow - Add Petty Cash
-        self.client.post("/finance/api/petty_cash/", json={
-            "center": center,
-            "amount": 1000,
-            "type": "in",
-            "category": "topup",
-            "description": "Initial Topup"
-        })
+    # ─── read-heavy: dashboards & lists (the bulk of real usage) ──────────────
+    @task(7)
+    def dashboard_summary(self):
+        self.client.get(f"/salon_admin/api/dashboard/summary/?center_id={self._center()}",
+                        name='GET dashboard/summary')
 
-        # 7. Marketing Flow - Create Promotion
-        self.client.post("/marketing/api/promotions/", json={
-            "title": f"Promo_{random_string(5)}",
-            "description": "Test",
-            "promo_type": "discount",
-            "level": "Global",
-            "is_active": True,
-            "config": {"discount_type": "percent", "discount_value": 10},
-            "center": center
-        })
+    @task(7)
+    def invoices_list(self):
+        self.client.get(f'/billing/invoices/?center={self._center()}&page=1&page_size=20',
+                        name='GET invoices list')
 
-        # 8. Appointments Flow
-        self.client.post("/appointments/api/appointments/", json={
-            "center": center,
-            "client_name": "Appt Client",
-            "client_phone": random_phone(),
-            "date": "2026-08-10",
-            "start_time": "10:00",
-            "status": "scheduled"
-        })
+    @task(6)
+    def appointments_list(self):
+        self.client.get(f'/appointments/api/appointments/?center={self._center()}&page=1&page_size=20',
+                        name='GET appointments list')
 
-        # 9. Billing Flow - Create Invoice
-        self.client.post("/billing/api/invoices/", json={
-            "center": center,
-            "client": client,
-            "status": "unpaid",
-            "subtotal": 100,
-            "total_amount": 100,
-            "payment_status": "unpaid"
-        })
-        
+    @task(5)
+    def clients_list(self):
+        self.client.get('/clients/api/clients/?page=1&page_size=20', name='GET clients list')
+
+    @task(5)
+    def staff_list(self):
+        self.client.get(f'/staff/api/members/?center={self._center()}&page=1&page_size=20',
+                        name='GET staff members')
+
+    @task(4)
+    def products_list(self):
+        self.client.get(f'/inventory/api/products/?center={self._center()}&page=1&page_size=20',
+                        name='GET products')
+
+    @task(4)
+    def register_summary(self):
+        self.client.get(f'/finance/api/register_summary/?center_id={self._center()}',
+                        name='GET register_summary')
+
+    @task(4)
+    def services_list(self):
+        self.client.get('/services/api/master/', name='GET services master')
+
     @task(3)
-    def read_heavy_flow(self):
-        """Simulate a user just browsing the dashboard and reports (more frequent than full flow)"""
-        center = self.center_id or 1
-        
-        # Hit dashboard endpoints
-        self.client.get(f"/salon_admin/api/centers/{center}/")
-        self.client.get(f"/staff/api/members/?center={center}")
-        self.client.get(f"/inventory/api/products/?center={center}")
-        self.client.get(f"/billing/api/invoices/?center={center}")
-        self.client.get(f"/appointments/api/appointments/?center={center}")
+    def dashboard_revenues(self):
+        self.client.get(f"/salon_admin/api/dashboard/revenues/?center_id={self._center()}",
+                        name='GET dashboard/revenues')
+
+    @task(3)
+    def finance_tax_report(self):
+        self.client.get(f'/finance/api/reports/tax/?center_id={self._center()}',
+                        name='GET finance tax report')
+
+    @task(2)
+    def low_stock(self):
+        self.client.get(f'/inventory/api/low_stock/?center={self._center()}', name='GET low stock')
+
+    @task(2)
+    def chat_users(self):
+        self.client.get('/accounts/api/chat/users/', name='GET chat users')
+
+    @task(2)
+    def audit_logs(self):
+        self.client.get('/audit_logs/logs/?page=1&page_size=20', name='GET audit logs')
+
+    @task(2)
+    def invoice_detail(self):
+        iid = random.choice(STATE['invoice_ids'] or [1])
+        self.client.get(f'/billing/invoices/{iid}/', name='GET invoice detail')
+
+    @task(2)
+    def client_detail(self):
+        cid = random.choice(STATE['client_ids'] or [1])
+        self.client.get(f'/clients/api/clients/{cid}/', name='GET client detail')
+
+    # ─── write flows (everything at once, including checkout & billing) ───────
+    @task(3)
+    def create_invoice(self):
+        cid = random.choice(STATE['client_ids'] or [1])
+        price = random.randint(200, 4000)
+        payload = {
+            'client': cid,
+            'center': self._center(),
+            'subtotal': price,
+            'total_amount': price,
+            'status': 'draft',
+            'items': [{'description': 'Load Test Service', 'unit_price': price,
+                       'quantity': 1, 'tax_percentage': 18, 'total_price': price}],
+        }
+        self.client.post('/billing/invoices/', json=payload, name='POST create invoice')
+
+    @task(2)
+    def create_appointment(self):
+        payload = {
+            'center': self._center(),
+            'client_phone': f'99{random.randint(10000000, 99999999)}',
+            'client_name': f'Load {random.randint(1000, 9999)}',
+            'date': '2026-08-25',
+            'start_time': f'{random.randint(9, 19)}:00',
+            'status': 'Scheduled',
+        }
+        self.client.post('/appointments/api/appointments/', json=payload,
+                         name='POST create appointment')
+
+    @task(2)
+    def create_client(self):
+        payload = {
+            'first_name': 'Load',
+            'last_name': f'{random.randint(1000, 999999)}',
+            'phone': f'97{random.randint(10000000, 99999999)}',
+            'gender': random.choice(['female', 'male']),
+            'center': self._center(),
+        }
+        self.client.post('/clients/api/clients/', json=payload, name='POST create client')
+
+    @task(1)
+    def create_petty_cash(self):
+        payload = {
+            'center': self._center(),
+            'description': f'Load expense {random.randint(1000, 999999)}',
+            'amount': random.randint(10, 500),
+        }
+        self.client.post('/finance/api/petty-cash/', json=payload, name='POST petty cash')
+
+    @task(1)
+    def pay_invoice(self):
+        """Pay an existing draft invoice — exercises the heaviest write path."""
+        try:
+            drafts = self.client.get('/billing/invoices/?status=draft&page=1&page_size=5',
+                                     name='GET draft invoices').json() or []
+            iid = drafts[0]['id']
+        except Exception:
+            return
+        payload = {'payments': [{'amount': 100, 'payment_method': 'Cash'}]}
+        self.client.post(f'/billing/invoices/{iid}/pay/', json=payload,
+                         name='POST pay invoice')

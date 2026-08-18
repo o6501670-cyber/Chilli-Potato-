@@ -1,4 +1,5 @@
-from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.hashers import check_password
+
 """
 Client App Views — Token-Secured API endpoints for the client mobile PWA.
 
@@ -6,12 +7,12 @@ Authentication flow:
   1. POST /clients/api/app/login/  → returns client data + auth_token
   2. All subsequent requests send: Header: X-Client-Token: <token>
 """
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework import permissions, status
-from rest_framework.response import Response
 from django.core import signing as _signing
-from .models import Client
+from rest_framework import permissions, status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
 
+from .models import Client
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Token Helpers
@@ -46,8 +47,10 @@ def _get_authenticated_client(request):
 # ─────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ─────────────────────────────────────────────────────────────────────────────
-from pos_backend.throttles import LoginRateThrottle
 from rest_framework.decorators import throttle_classes
+
+from pos_backend.throttles import LoginRateThrottle
+
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])

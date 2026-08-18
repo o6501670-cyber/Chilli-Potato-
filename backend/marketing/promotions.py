@@ -1,4 +1,6 @@
 from decimal import Decimal
+
+
 def apply_promotion(invoice, promotion_id):
     """Apply a promotion to an invoice. Returns (discount_amount, error_message)."""
     try:

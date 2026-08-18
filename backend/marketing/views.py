@@ -1,20 +1,32 @@
-from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
-from django.shortcuts import get_object_or_404
-from django.db.models import Q
-from salon_admin.models import Center
-from .models import WhatsAppMessage, Promotion, ValueCard, Membership, Package, PromotionUsage
-from .serializers import (
-    WhatsAppMessageSerializer, PromotionSerializer,
-    ValueCardSerializer, MembershipSerializer, PackageSerializer
-)
-from django.db.models import Count, Sum
-from rest_framework.decorators import action
-from rest_framework.response import Response
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import Count, Q, Sum
+from django.shortcuts import get_object_or_404
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
 from billing.models import InvoiceItem
 from pos_backend.permissions import IsOwner
+from salon_admin.models import Center
+
+from .models import (
+    Membership,
+    Package,
+    Promotion,
+    PromotionUsage,
+    ValueCard,
+    WhatsAppMessage,
+)
+from .serializers import (
+    MembershipSerializer,
+    PackageSerializer,
+    PromotionSerializer,
+    ValueCardSerializer,
+    WhatsAppMessageSerializer,
+)
+
 
 class MarketingBaseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -154,9 +166,10 @@ class WhatsAppMessageViewSet(MarketingBaseViewSet):
         if not message:
             return Response({'error': 'Message is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        from clients.models import Client
-        import datetime
+
         from django.utils import timezone
+
+        from clients.models import Client
 
         # Use .only() to avoid loading ALL client fields into RAM
         # Exclude DND clients
@@ -216,7 +229,7 @@ class PromotionViewSet(MarketingBaseViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         import datetime
-        from django.utils import timezone
+
         today = datetime.date.today()
         show_expired = self.request.query_params.get('show_expired', 'false').lower() == 'true'
         

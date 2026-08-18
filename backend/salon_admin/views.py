@@ -1,8 +1,10 @@
+from django.db.models import Count
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Count
+
 from .models import Center, Role
 from .serializers import CenterSerializer, RoleSerializer
+
 
 class CenterViewSet(viewsets.ModelViewSet):
     serializer_class = CenterSerializer
@@ -27,8 +29,9 @@ class CenterViewSet(viewsets.ModelViewSet):
             return Center.objects.none()
 
         if self.request.GET.get('with_revenue') == 'true':
-            from django.db.models import Sum, Q
             from datetime import date
+
+            from django.db.models import Q, Sum
             today = date.today()
             first_day = today.replace(day=1)
             qs = qs.annotate(
@@ -100,15 +103,18 @@ class RoleViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Only owners can delete roles.")
         instance.delete()
 
-from rest_framework.decorators import api_view, permission_classes
-from decimal import Decimal as _Decimal
-from rest_framework.response import Response
-from django.db.models import Sum, Count
-from billing.models import Invoice
-from appointments.models import Appointment
-from clients.models import Client
 from datetime import datetime, timedelta
+from decimal import Decimal as _Decimal
+
+from django.db.models import Count, Sum
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+
+from appointments.models import Appointment
+from billing.models import Invoice
+from clients.models import Client
 from pos_backend.permissions import IsOwner
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -196,7 +202,7 @@ def dashboard_view(request):
         else:
             # If no date range is given, count all visitors as repeat
             repeat_client_count = total_visiting
-    except Exception as e:
+    except Exception:
         new_client_count = 0
         repeat_client_count = 0
 
@@ -216,7 +222,7 @@ def dashboard_view(request):
 
         service_revenue_breakdown = [{'name': s['description'] or 'Unknown', 'revenue': _Decimal(str(s['revenue'] or 0))} for s in service_revenue]
         top_5_services = service_revenue_breakdown[:5]
-    except Exception as e:
+    except Exception:
         service_revenue_breakdown = []
         top_5_services = []
 
@@ -292,7 +298,7 @@ def bulk_import_centers(request):
         wb = openpyxl.load_workbook(io.BytesIO(uploaded_file.read()), data_only=True)
         ws = wb.active
     except Exception as e:
-        return Response({'error': f'Could not read Excel file: {str(e)}'}, status=400)
+        return Response({'error': f'Could not read Excel file: {e!s}'}, status=400)
 
     # Fix mapping based on user's screenshot
     COLUMN_MAP['location'] = 'center_name' # In their sheet, Location is the Center Name
@@ -401,7 +407,7 @@ def bulk_import_template(request):
     import io
     try:
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.styles import Alignment, Font, PatternFill
     except ImportError:
         return Response({'error': 'openpyxl not installed.'}, status=400)
     

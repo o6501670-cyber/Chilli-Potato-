@@ -1,6 +1,8 @@
 from django.core.management.base import BaseCommand
-from finance.views import _get_filtered_invoices, _compute_revenue_breakdown
+
 from billing.models import Invoice
+from finance.views import _compute_revenue_breakdown
+
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
@@ -11,6 +13,6 @@ class Command(BaseCommand):
             res = _compute_revenue_breakdown(invoices)
             print(res)
             print("SUCCESS")
-        except Exception as e:
+        except Exception:
             import traceback
             traceback.print_exc()

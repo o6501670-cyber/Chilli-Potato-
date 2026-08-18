@@ -1,20 +1,24 @@
-from rest_framework import viewsets
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+import datetime
+import logging
+from decimal import Decimal
+
 from django.db import transaction
 from django.db.models import F
-from django.utils import timezone
-from decimal import Decimal
-from .models import Invoice, InvoiceItem, AdvancePayment, BillChangeLog, Payment
-from .serializers import InvoiceSerializer, InvoiceItemSerializer, AdvancePaymentSerializer, BillChangeLogSerializer
-from rest_framework import status
-from staff.models import ServiceLog
-import datetime
-from datetime import timedelta
-import logging
-from .services import finalize_invoice
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
 from pos_backend.permissions import IsOwner
+
+from .models import AdvancePayment, BillChangeLog, Invoice, Payment
+from .serializers import (
+    AdvancePaymentSerializer,
+    BillChangeLogSerializer,
+    InvoiceSerializer,
+)
+from .services import finalize_invoice
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +104,6 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
         manager_discount = self.request.query_params.get('manager_discount')
         if manager_discount and manager_discount.lower() == 'true':
-            from django.db.models import Q
             qs = qs.filter(items__manager_discount__gt=0).distinct()
 
         # Default: if no date range or client filter provided, limit to last 30 days
@@ -136,7 +139,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             # Lock the row to prevent race condition
             invoice = Invoice.objects.select_for_update().get(pk=pk)
 
-            remaining_balance = max(Decimal('0'), invoice.total_amount - invoice.paid_amount)
+            remaining_balance = max(Decimal(0), invoice.total_amount - invoice.paid_amount)
             if remaining_balance <= 0:
                 return Response({'detail': 'Invoice is already fully paid.'}, status=status.HTTP_400_BAD_REQUEST)
             if amt > remaining_balance:
@@ -196,7 +199,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                     raise ValueError("This value card does not belong to the invoice client.")
                 if client_vc.balance < amt:
                     raise ValueError(f"Insufficient value card balance. Available: {client_vc.balance}")
-                client_vc.balance = max(Decimal('0'), client_vc.balance - amt)
+                client_vc.balance = max(Decimal(0), client_vc.balance - amt)
                 if client_vc.balance <= 0:
                     client_vc.is_active = False
                 client_vc.save()
@@ -224,7 +227,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 status__in=['Locked', 'Paid']
             ).exists()
             if locked:
-                raise serializers.ValidationError("Cannot alter invoice. Staff payroll for this period is already Locked or Paid.")
+                raise ValidationError("Cannot alter invoice. Staff payroll for this period is already Locked or Paid.")
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None, new_status='cancelled'):
@@ -296,7 +299,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
             # Restore Package Redemptions and De-Provision Purchased Perks
             if invoice.client:
-                from clients.models import ClientPackage, ClientMembership, ClientValueCard
+                from clients.models import (
+                    ClientMembership,
+                    ClientPackage,
+                    ClientValueCard,
+                )
                 for item in invoice.items.all():
                     # 1. Restore Redeemed Package Services
                     if Decimal(str(item.unit_price)) == 0 and item.description and '🎁 [Redeem]' in item.description:
@@ -393,7 +400,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             return Response({'error': error}, status=400)
         invoice.discount = (invoice.discount or 0) + Decimal(str(discount))
         invoice.total_amount = max(
-            Decimal('0'),
+            Decimal(0),
             invoice.subtotal - invoice.discount + invoice.cgst + invoice.sgst
         )
         invoice.save()
@@ -402,12 +409,13 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         # Prevent Double-POST (Idempotency check)
-        from django.core.cache import cache
         import hashlib
         import json
+
+        from django.core.cache import cache
         
         # Create a hash of the request data and user to act as an idempotency key
-        req_hash = hashlib.md5(f"{request.user.pk}:{json.dumps(request.data, sort_keys=True)}".encode('utf-8')).hexdigest()
+        req_hash = hashlib.md5(f"{request.user.pk}:{json.dumps(request.data, sort_keys=True)}".encode()).hexdigest()
         cache_key = f"billing_create_lock_{req_hash}"
         if cache.get(cache_key):
             return Response({'error': 'Duplicate checkout request detected.'}, status=status.HTTP_409_CONFLICT)
@@ -482,9 +490,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    return Response({"detail": "You cannot create invoices for this center."}, status=403)
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     return Response({"detail": "You cannot create invoices for this center."}, status=403)
 
         invoice = serializer.save()
@@ -596,10 +602,7 @@ class AdvancePaymentViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             client = serializer.validated_data.get('client')
             if client and client.center:
-                if user.centers.exists() and client.center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create advance payments for clients of this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and client.center != user.center:
+                if user.centers.exists() and client.center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and client.center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create advance payments for clients of this center.")
         serializer.save()

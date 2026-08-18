@@ -1,13 +1,15 @@
 import random
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from faker import Faker
+
+from billing.models import Invoice
+from clients.models import Client
+from inventory.models import Product, Vendor
 from salon_admin.models import Center
-from inventory.models import Vendor, Product
 from services.models import ServiceMaster
 from staff.models import Designation, StaffMember
-from clients.models import Client
-from billing.models import Invoice, InvoiceItem
 
 fake = Faker('en_IN')
 

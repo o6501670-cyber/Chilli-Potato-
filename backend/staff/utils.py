@@ -1,6 +1,9 @@
 from datetime import date
+
 from django.db import transaction
-from .models import StaffTransfer, StaffToolTracker
+
+from .models import StaffToolTracker, StaffTransfer
+
 
 def sync_staff_transfers_and_tools():
     """

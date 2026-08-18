@@ -3,9 +3,9 @@ Django settings for pos_backend project.
 Split into dev/prod via DJANGO_ENV environment variable.
 """
 
-from pathlib import Path
 import os
-import logging.handlers
+from pathlib import Path
+
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
@@ -80,6 +80,9 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '200/hour',       # bumped from 100/day — more realistic for walk-in usage
         'user': '10000/hour',     # 10K/hour per user (handles staff with many API calls)
+        # Login attempts per IP. Salons sit behind NAT, so several staff members
+        # can share one public IP — keep this generous (configurable via env).
+        'login': os.environ.get('LOGIN_THROTTLE_RATE', '5/minute'),
     },
     # Return proper 401 instead of 403 for unauthenticated requests
     'UNAUTHENTICATED_USER': None,

@@ -1,5 +1,14 @@
 from rest_framework import serializers
-from .models import Vendor, Product, PurchaseOrder, PurchaseOrderItem, ProductLot, StockTransaction
+
+from .models import (
+    Product,
+    ProductLot,
+    PurchaseOrder,
+    PurchaseOrderItem,
+    StockTransaction,
+    Vendor,
+)
+
 
 class VendorSerializer(serializers.ModelSerializer):
     class Meta:
@@ -128,6 +137,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
         if old_status != 'Delivered' and new_status == 'Delivered':
             # Add stock atomicaly
             from django.db import transaction
+
             from inventory.models import Product
             with transaction.atomic():
                 for item in instance.items.all():
@@ -145,6 +155,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
         elif old_status == 'Delivered' and new_status != 'Delivered':
             # Reverse stock if status changed back from Delivered
             from django.db import transaction
+
             from inventory.models import Product
             with transaction.atomic():
                 for item in instance.items.all():

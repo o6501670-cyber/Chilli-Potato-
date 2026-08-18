@@ -1,22 +1,29 @@
-from django.utils.decorators import method_decorator
 # Removed cache_page due to cross-tenant leak
-from decimal import Decimal
-from rest_framework import viewsets, status, views
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import action
-from .models import PettyCashEntry, DailyClosing, IncentiveConfig, Shift, IncentiveRule
-from .serializers import PettyCashEntrySerializer, DailyClosingSerializer, IncentiveConfigSerializer, ShiftSerializer, IncentiveRuleSerializer
-from billing.models import Invoice, Payment, InvoiceItem, AdvancePayment
-from inventory.models import PurchaseOrder, PurchaseOrderItem
-from django.db.models import Sum, Count, Q
-from django.contrib.contenttypes.models import ContentType
-from salon_admin.models import Center
-from datetime import datetime
-import datetime as dt_module
-from collections import defaultdict
 import calendar
+import datetime as dt_module
 import logging
+from collections import defaultdict
+from decimal import Decimal
+
+from django.contrib.contenttypes.models import ContentType
+from django.db.models import Count, Q, Sum
+from rest_framework import status, views, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from billing.models import AdvancePayment, Invoice, InvoiceItem, Payment
+from inventory.models import PurchaseOrder
+from salon_admin.models import Center
+
+from .models import DailyClosing, IncentiveConfig, IncentiveRule, PettyCashEntry, Shift
+from .serializers import (
+    DailyClosingSerializer,
+    IncentiveConfigSerializer,
+    IncentiveRuleSerializer,
+    PettyCashEntrySerializer,
+    ShiftSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +53,8 @@ def _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('
             qs = qs.filter(created_at__date__gte=start_date)
     if end_date:
         try:
-            from datetime import datetime as _dt, timedelta as _td
+            from datetime import datetime as _dt
+            from datetime import timedelta as _td
             end_dt = _dt.strptime(str(end_date), '%Y-%m-%d') + _td(days=1)
             qs = qs.filter(created_at__lt=end_dt)
         except (ValueError, TypeError):
@@ -56,9 +64,9 @@ def _get_filtered_invoices(request, center_id, start_date, end_date, statuses=('
 
 def _compute_revenue_breakdown(invoices):
     """Compute revenue breakdown by item type from invoices."""
-    from services.models import ServiceMaster
     from inventory.models import Product
     from marketing.models import Membership, Package, ValueCard
+    from services.models import ServiceMaster
 
     try:
         ct_map = ContentType.objects.get_for_models(ServiceMaster, Product, Membership, Package, ValueCard)
@@ -71,7 +79,7 @@ def _compute_revenue_breakdown(invoices):
         logger.warning(f'[Finance] ContentType lookup failed during revenue breakdown: {e}')
         return {'services': 0, 'products': 0, 'memberships': 0, 'packages': 0, 'value_cards': 0, 'other': 0}
 
-    from django.db.models import Sum, Q
+    from django.db.models import Q, Sum
 
     items_qs = InvoiceItem.objects.filter(invoice__in=invoices)
 
@@ -180,10 +188,7 @@ class PettyCashEntryViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create petty cash entries for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create petty cash entries for this center.")
         serializer.save(user=self.request.user)
@@ -247,7 +252,7 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
         if 'date' in defaults:
             del defaults['date']
         
-        from django.db import transaction, IntegrityError
+        from django.db import IntegrityError, transaction
         try:
             with transaction.atomic():
                 instance, created = DailyClosing.objects.update_or_create(
@@ -276,10 +281,7 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create petty cash entries for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create petty cash entries for this center.")
         serializer.save(user=self.request.user)
@@ -292,10 +294,7 @@ class DailyClosingViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center', serializer.instance.center)
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot update petty cash entries for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot update petty cash entries for this center.")
         serializer.save(user=self.request.user)
@@ -355,10 +354,7 @@ class ShiftViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create shifts for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create shifts for this center.")
         serializer.save(opened_by=self.request.user, status='Open')
@@ -431,10 +427,7 @@ class IncentiveRuleViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create incentive rules for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create incentive rules for this center.")
         serializer.save()
@@ -493,10 +486,7 @@ class IncentiveConfigViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create incentive configs for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create incentive configs for this center.")
         serializer.save()
@@ -592,8 +582,8 @@ def compute_register_summary(user, center_id, start_date, end_date) -> dict:
             
             is_past_range = False
             if start_date and end_date:
-                from datetime import datetime
                 import calendar
+                from datetime import datetime
                 try:
                     sd = datetime.strptime(start_date, '%Y-%m-%d')
                     ed = datetime.strptime(end_date, '%Y-%m-%d')
@@ -732,8 +722,8 @@ class MonthlySalesView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from django.db.models.functions import ExtractYear, ExtractMonth
-        from django.db.models import Sum, Count, Q
+        from django.db.models import Count, Q, Sum
+        from django.db.models.functions import ExtractMonth, ExtractYear
 
         center_id = request.query_params.get('center_id')
         start_date = request.query_params.get('start_date')
@@ -744,9 +734,9 @@ class MonthlySalesView(views.APIView):
         if not invoices.exists():
             return Response([])
 
-        from services.models import ServiceMaster
         from inventory.models import Product
         from marketing.models import Membership, Package, ValueCard
+        from services.models import ServiceMaster
 
         try:
             ct_map = ContentType.objects.get_for_models(ServiceMaster, Product, Membership, Package, ValueCard)
@@ -999,9 +989,9 @@ class DetailedRevenuesView(views.APIView):
         total_count = invoices.count()
         invoices_page = invoices[offset: offset + page_size]
 
-        from services.models import ServiceMaster
         from inventory.models import Product
         from marketing.models import Membership, Package, ValueCard
+        from services.models import ServiceMaster
 
         try:
             ct_map = ContentType.objects.get_for_models(ServiceMaster, Product, Membership, Package, ValueCard)
@@ -1018,8 +1008,9 @@ class DetailedRevenuesView(views.APIView):
         # Use the sliced IDs (safe — max 500 per page) for efficient batch lookups
         invoice_ids = [inv.id for inv in invoices_page]
 
-        from billing.models import Payment, AdvancePayment
-        from django.db.models import Sum, Count, Q
+        from django.db.models import Q, Sum
+
+        from billing.models import AdvancePayment, Payment
 
         if invoice_ids:
             vc_used_invs = set(Payment.objects.filter(invoice_id__in=invoice_ids, value_card_id__isnull=False).values_list('invoice_id', flat=True))
@@ -1137,7 +1128,9 @@ class DetailedRevenuesView(views.APIView):
 
 import openpyxl
 from django.http import HttpResponse
+
 from pos_backend.permissions import IsOwner
+
 
 class ExportFinanceView(views.APIView):
     permission_classes = [IsAuthenticated]
@@ -1353,7 +1346,7 @@ class TaxReportView(views.APIView):
         invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
         
         # Calculate tax summary
-        from django.db.models import Sum, F
+        from django.db.models import Sum
         tax_summary = invoices.aggregate(
             total_cgst=Sum('cgst'),
             total_sgst=Sum('sgst')
@@ -1394,8 +1387,9 @@ class ServiceDrilldownView(views.APIView):
 
         invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
         
-        from billing.models import InvoiceItem
         from django.db.models import F
+
+        from billing.models import InvoiceItem
         
         items = InvoiceItem.objects.filter(invoice__in=invoices).values('description').annotate(
             count=Sum('quantity'),
@@ -1424,8 +1418,8 @@ class StaffPerformanceReportView(views.APIView):
         end_date = request.GET.get('end_date')
 
         invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
+
         from billing.models import InvoiceItem
-        from django.db.models import F
         
         items = InvoiceItem.objects.filter(invoice__in=invoices, staff__isnull=False).values(
             'staff__first_name', 'staff__last_name'
@@ -1491,9 +1485,10 @@ class StaffIncentiveCalculationView(views.APIView):
 
     def get(self, request):
         from django.db.models import Q
-        import openpyxl
-        from staff.models import StaffMember, ServiceLog
-        from billing.models import InvoiceItem, Invoice
+
+        from billing.models import Invoice, InvoiceItem
+        from staff.models import StaffMember
+
         from .models import IncentiveRule
 
         center_id = request.query_params.get('center_id')
@@ -1530,7 +1525,8 @@ class StaffIncentiveCalculationView(views.APIView):
                 invoices_qs = invoices_qs.filter(created_at__date__gte=start_date)
         if end_date:
             try:
-                from datetime import datetime as _dt2, timedelta as _td2
+                from datetime import datetime as _dt2
+                from datetime import timedelta as _td2
                 invoices_qs = invoices_qs.filter(created_at__lt=_dt2.strptime(str(end_date), '%Y-%m-%d') + _td2(days=1))
             except (ValueError, TypeError):
                 invoices_qs = invoices_qs.filter(created_at__date__lte=end_date)
@@ -1555,19 +1551,7 @@ class StaffIncentiveCalculationView(views.APIView):
                 if r.category != category:
                     continue
                 app_r = (r.applicable_role or 'all').lower().strip()
-                if app_r in ['all', '']:
-                    matched.append(r)
-                elif app_r == 'lhds_uhds' and is_lhds:
-                    matched.append(r)
-                elif app_r == 'mhds_beauty' and is_mhds:
-                    matched.append(r)
-                elif app_r == 'pedicurist_k_ambassador' and (is_mhds or 'pedi' in role_lower or 'ambassador' in role_lower or is_lhds):
-                    matched.append(r)
-                elif app_r == 'manager' and is_mgr:
-                    matched.append(r)
-                elif app_r == 'staff' and not is_mgr:
-                    matched.append(r)
-                elif app_r == role_lower:
+                if app_r in ['all', ''] or app_r == 'lhds_uhds' and is_lhds or app_r == 'mhds_beauty' and is_mhds or app_r == 'pedicurist_k_ambassador' and (is_mhds or 'pedi' in role_lower or 'ambassador' in role_lower or is_lhds) or app_r == 'manager' and is_mgr or app_r == 'staff' and not is_mgr or app_r == role_lower:
                     matched.append(r)
                 # NOTE: no fallback else — unmatched roles get no rule (correct behaviour)
 
@@ -1690,7 +1674,7 @@ class StaffIncentiveCalculationView(views.APIView):
 
                 st = staff_data[sm.id]
 
-                master_incentive = Decimal('0')
+                master_incentive = Decimal(0)
                 if item.content_object and hasattr(item.content_object, 'incentive'):
                     try:
                         master_incentive = Decimal(str(item.content_object.incentive or 0))
@@ -1720,7 +1704,7 @@ class StaffIncentiveCalculationView(views.APIView):
                     
                     # Match Card Rule
                     card_rule = get_matching_rule('value_cards', sm.center_id, sm.designation or 'staff')
-                    card_reward = Decimal('0')
+                    card_reward = Decimal(0)
                     slab_label = 'Value Card'
                     if card_rule:
                         r_type = card_rule.rule_type
@@ -1772,7 +1756,7 @@ class StaffIncentiveCalculationView(views.APIView):
                     st['memberships_revenue'] += split_price
                     item_detail['type'] = 'Membership'
                     item_detail['category'] = 'memberships'
-                    mbr_reward = Decimal('0')
+                    mbr_reward = Decimal(0)
                     mbr_rule = get_matching_rule('memberships', sm.center_id, sm.designation or 'staff')
                     if mbr_rule:
                         if mbr_rule.rule_type in ['percentage', 'flat_percentage']:
@@ -1792,7 +1776,7 @@ class StaffIncentiveCalculationView(views.APIView):
                     st['packages_revenue'] += split_price
                     item_detail['type'] = 'Package'
                     item_detail['category'] = 'packages'
-                    pkg_reward = Decimal('0')
+                    pkg_reward = Decimal(0)
                     pkg_rule = get_matching_rule('packages', sm.center_id, sm.designation or 'staff')
                     if pkg_rule:
                         if pkg_rule.rule_type in ['percentage', 'flat_percentage']:
@@ -1888,7 +1872,7 @@ class StaffIncentiveCalculationView(views.APIView):
 
                 # B. Specific Service Volume Targets
                 target_rules = [r for r in all_rules if r.category == 'service_target' and r.is_active]
-                target_incentive = Decimal('0')
+                target_incentive = Decimal(0)
                 achievements = []
                 for tr in target_rules:
                     if tr.tiers:
@@ -1931,7 +1915,7 @@ class StaffIncentiveCalculationView(views.APIView):
             else:
                 # --- MONTHLY CALCULATION ENGINE ---
                 prod_rule = get_matching_rule('products', st['center_id'], st['role'])
-                prod_pct = Decimal('0')
+                prod_pct = Decimal(0)
                 if prod_rule:
                     if prod_rule.rule_type in ['multiple', 'multipliers'] and prod_rule.tiers:
                         sorted_tiers = sorted(prod_rule.tiers, key=lambda t: Decimal(str(t.get('min_multiple') or 0)), reverse=True)
@@ -1948,7 +1932,7 @@ class StaffIncentiveCalculationView(views.APIView):
 
                 # If no rule applies, use master-level item percentages
                 if prod_pct == 0:
-                    prod_inc = Decimal('0')
+                    prod_inc = Decimal(0)
                     for dt in st['details']:
                         if dt['type'] == 'Product':
                             pct = dt.get('master_incentive_percent') or 0.0
@@ -1973,7 +1957,7 @@ class StaffIncentiveCalculationView(views.APIView):
 
                 # Service Incentive Calculation
                 serv_rule = get_matching_rule('services', st['center_id'], st['role'])
-                serv_pct = Decimal('0')
+                serv_pct = Decimal(0)
                 if serv_rule:
                     if serv_rule.rule_type in ['multiple', 'multipliers'] and serv_rule.tiers:
                         sorted_tiers = sorted(serv_rule.tiers, key=lambda t: Decimal(str(t.get('min_multiple') or 0)), reverse=True)
@@ -2048,9 +2032,9 @@ class StaffIncentiveCalculationView(views.APIView):
         return Response(results)
 
     def _export_excel(self, results, start_date, end_date):
-        from django.http import HttpResponse
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment
+        from django.http import HttpResponse
+        from openpyxl.styles import Alignment, Font, PatternFill
 
         wb = openpyxl.Workbook(write_only=True)
         ws = wb.create_sheet(title="Staff Incentives")
@@ -2163,11 +2147,13 @@ class MultiSalonBalancesView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from django.db.models import Sum
-        from clients.models import ClientPackage, ClientValueCard
-        from billing.models import AdvancePayment
-        from salon_admin.models import Center
         from datetime import date
+
+        from django.db.models import Sum
+
+        from billing.models import AdvancePayment
+        from clients.models import ClientPackage, ClientValueCard
+        from salon_admin.models import Center
 
         user = request.user
         perms = getattr(user.role, 'permissions', {}) or {}
@@ -2255,10 +2241,10 @@ class MultiSalonSalesExportView(views.APIView):
     def get(self, request):
         import openpyxl
         from django.http import HttpResponse
-        from billing.models import InvoiceItem, AdvancePayment
-        from django.db.models import F
 
-        item_type = request.query_params.get('item_type')
+        from billing.models import AdvancePayment, InvoiceItem
+
+        item_type = request.query_params.get('item_type') or 'service'
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
@@ -2328,9 +2314,10 @@ class MultiSalonCategoriesView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from django.db.models import Sum, Count, F, Q
-        from billing.models import InvoiceItem, AdvancePayment
         from django.contrib.contenttypes.models import ContentType
+        from django.db.models import Count, Sum
+
+        from billing.models import AdvancePayment, InvoiceItem
 
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
@@ -2338,9 +2325,9 @@ class MultiSalonCategoriesView(views.APIView):
         center_id = request.query_params.get('center_id')
         invoices = _get_filtered_invoices(request, center_id, start_date, end_date)
 
-        from services.models import ServiceMaster
         from inventory.models import Product
         from marketing.models import Membership, Package, ValueCard
+        from services.models import ServiceMaster
 
         try:
             ct_map = ContentType.objects.get_for_models(ServiceMaster, Product, Membership, Package, ValueCard)
@@ -2471,9 +2458,10 @@ class MultiSalonServiceDrilldownView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from django.db.models import Sum, Count, F, Q
-        from billing.models import InvoiceItem
         from django.contrib.contenttypes.models import ContentType
+        from django.db.models import Q, Sum
+
+        from billing.models import InvoiceItem
         from services.models import ServiceMaster
 
         search_term = request.query_params.get('search', '')
@@ -2516,9 +2504,10 @@ class MultiSalonProductDrilldownView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from django.db.models import Sum, Count, F, Q
-        from billing.models import InvoiceItem
         from django.contrib.contenttypes.models import ContentType
+        from django.db.models import Q, Sum
+
+        from billing.models import InvoiceItem
         from inventory.models import Product
 
         search_term = request.query_params.get('search', '')
@@ -2560,9 +2549,14 @@ class MultiSalonClientsView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from django.db.models import Sum, Max, Count, Prefetch
-        from clients.models import Client, ClientPackage, ClientValueCard, ClientMembership
-        from billing.models import Invoice
+        from django.db.models import Count, Max, Prefetch, Sum
+
+        from clients.models import (
+            Client,
+            ClientMembership,
+            ClientPackage,
+            ClientValueCard,
+        )
 
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
@@ -2584,6 +2578,10 @@ class MultiSalonClientsView(views.APIView):
         from billing.models import AdvancePayment
         adv_balances_qs = AdvancePayment.objects.filter(client_id__in=client_ids_with_invoices).values('client_id').annotate(total=Sum('amount'))
         adv_balances = {row['client_id']: row['total'] for row in adv_balances_qs}
+
+        # Precompute service prices (ClientPackage.services_remaining maps service_id -> qty)
+        from services.models import ServiceMaster
+        service_prices = dict(ServiceMaster.objects.values_list('id', 'default_price'))
 
         results = []
         
@@ -2608,18 +2606,21 @@ class MultiSalonClientsView(views.APIView):
 
             stats = stats_map.get(client.id, {'visits': 0, 'total_spend': 0, 'last_visit': None})
             
-            # Service Balance
-            serv_balance_amount = sum(
-                (pkg.original_price / pkg.service.price) * pkg.remaining_quantity
-                for pkg in client.packages.all()
-                if pkg.service and pkg.service.price and pkg.remaining_quantity > 0
-            ) if client.packages.exists() else 0
+            # Service Balance (packages store remaining services as {service_id: qty})
+            serv_balance_amount = 0
+            for pkg in client.packages.all():
+                remaining = pkg.services_remaining or {}
+                if isinstance(remaining, dict):
+                    for svc_id, qty in remaining.items():
+                        try:
+                            qty = int(qty or 0)
+                        except (TypeError, ValueError):
+                            qty = 0
+                        if qty > 0:
+                            serv_balance_amount += Decimal(str(service_prices.get(int(svc_id)) or 0)) * qty
 
-            # Or maybe just the count of remaining services? 
-            # In other views, serv. balance is sometimes the remaining price. Let's just use the exact logic from Balances view if we need to.
-            # But wait, Balances view aggregates by center, this is by client.
-            # Usually Card Balance is the sum of remaining amount:
-            card_balance = sum(vc.remaining_amount for vc in client.value_cards.all())
+            # Card balance: ClientValueCard stores the live balance on `balance`
+            card_balance = sum(vc.balance for vc in client.value_cards.all())
 
             # Advance
             advance = adv_balances.get(client.id, 0)
@@ -2635,16 +2636,18 @@ class MultiSalonClientsView(views.APIView):
             cards_data = []
             for c in client.value_cards.all():
                 cards_data.append({
-                    'name': c.value_card.name if c.value_card else 'Unknown',
-                    'balance': float(c.remaining_amount)
+                    'name': c.value_card.title if c.value_card else 'Unknown',
+                    'balance': float(c.balance or 0)
                 })
 
             packages_data = []
             for p in client.packages.all():
-                if p.remaining_quantity > 0:
+                remaining = p.services_remaining or {}
+                total_count = sum(int(v or 0) for v in remaining.values()) if isinstance(remaining, dict) else 0
+                if total_count > 0:
                     packages_data.append({
-                        'service': p.service.name if p.service else 'Unknown',
-                        'remaining': p.remaining_quantity
+                        'service': p.package.name if p.package else 'Custom Package',
+                        'remaining': total_count
                     })
 
             results.append({
@@ -2673,12 +2676,12 @@ class MultiSalonStaffView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from django.db.models import Sum, Count, Q
-        from billing.models import InvoiceItem
         from django.contrib.contenttypes.models import ContentType
-        from services.models import ServiceMaster
+
+        from billing.models import InvoiceItem
         from inventory.models import Product
         from marketing.models import Membership, Package, ValueCard
+        from services.models import ServiceMaster
 
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')

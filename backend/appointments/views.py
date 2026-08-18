@@ -1,9 +1,12 @@
-from rest_framework import viewsets, permissions
+
 from django.db import transaction
+from rest_framework import permissions, viewsets
+
+from pos_backend.permissions import IsOwner
+
 from .models import Appointment, AppointmentService
 from .serializers import AppointmentSerializer
-import datetime
-from pos_backend.permissions import IsOwner
+
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
@@ -119,10 +122,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create appointments for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create appointments for this center.")
 

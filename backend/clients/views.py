@@ -1,14 +1,16 @@
+from django.db import models
+from django.db.models import Sum
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db import models
-from django.db.models import Sum, DecimalField
-from django.db.models.functions import Coalesce
+from rest_framework.response import Response
+
+from pos_backend.permissions import IsOwner
+from staff.models import ServiceLog
+
 from .models import Client, ClientMembership, ClientPackage, ClientValueCard
 from .serializers import ClientSerializer
-from staff.models import ServiceLog
-from pos_backend.permissions import IsOwner
+
 
 class ClientViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -58,10 +60,7 @@ class ClientViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot create clients for this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot create clients for this center.")
         
@@ -86,10 +85,7 @@ class ClientViewSet(viewsets.ModelViewSet):
         if not is_owner and not perms.get('all_centers', False):
             center = serializer.validated_data.get('center')
             if center:
-                if user.centers.exists() and center not in user.centers.all():
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You cannot move clients to this center.")
-                elif not user.centers.exists() and hasattr(user, 'center') and center != user.center:
+                if user.centers.exists() and center not in user.centers.all() or not user.centers.exists() and hasattr(user, 'center') and center != user.center:
                     from rest_framework.exceptions import PermissionDenied
                     raise PermissionDenied("You cannot move clients to this center.")
         
@@ -187,7 +183,8 @@ class ClientViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def profile(self, request, pk=None):
         client = self.get_object()
-        from django.db.models import Sum, Max
+        from django.db.models import Max
+
         from billing.models import Invoice
         
         invoices = Invoice.objects.filter(client=client, status__in=['paid', 'partial'])
@@ -233,7 +230,7 @@ class ClientViewSet(viewsets.ModelViewSet):
             to_create = []
             for row in records:
                 phone = str(row.get('phone', '')).strip()
-                if phone.endswith('.0'): phone = phone[:-2]
+                phone = phone.removesuffix('.0')
                 if not phone or phone in existing_phones:
                     continue
                 first_name = str(row.get('first_name', row.get('name', ''))).strip()

@@ -3,14 +3,16 @@ ASGI config for pos_backend project — upgraded with Django Channels for WebSoc
 """
 
 import os
+
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'pos_backend.settings')
 django.setup()
 
-from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
+from django.core.asgi import get_asgi_application
+
 from accounts.routing import websocket_urlpatterns
 
 application = ProtocolTypeRouter({

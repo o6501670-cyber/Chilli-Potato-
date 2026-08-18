@@ -1,10 +1,12 @@
-from rest_framework import viewsets, filters
+from rest_framework import filters, viewsets
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
+
+from pos_backend.permissions import IsOwner
+
 from .models import SystemLog
 from .serializers import SystemLogSerializer
 
-from rest_framework.pagination import PageNumberPagination
-from pos_backend.permissions import IsOwner
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 50

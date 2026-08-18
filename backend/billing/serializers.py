@@ -1,8 +1,11 @@
-from rest_framework import serializers
-from .models import Invoice, InvoiceItem, AdvancePayment, Payment, BillChangeLog
-from django.contrib.contenttypes.models import ContentType
-from staff.models import StaffMember
 from decimal import Decimal
+
+from django.contrib.contenttypes.models import ContentType
+from rest_framework import serializers
+
+from staff.models import StaffMember
+
+from .models import AdvancePayment, BillChangeLog, Invoice, InvoiceItem, Payment
 
 
 class InvoiceItemSerializer(serializers.ModelSerializer):
@@ -149,7 +152,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
                 if p.get('payment_method') and ('advance' in p.get('payment_method').lower() or ('wallet' in p.get('payment_method').lower() and 'cashback wallet' not in p.get('payment_method').lower()))
             )
             if advance_requested > 0:
-                advance_bal = getattr(client, 'advance_balance', Decimal('0'))
+                advance_bal = getattr(client, 'advance_balance', Decimal(0))
                 if advance_bal < advance_requested:
                     raise serializers.ValidationError(
                         f"Insufficient advance balance. Requested: ₹{advance_requested}, Available: ₹{advance_bal}"
@@ -161,7 +164,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
                 if p.get('payment_method') and 'cashback wallet' in p.get('payment_method').lower()
             )
             if cashback_requested > 0:
-                cashback_bal = getattr(client, 'cashback_balance', Decimal('0'))
+                cashback_bal = getattr(client, 'cashback_balance', Decimal(0))
                 if cashback_bal < cashback_requested:
                     raise serializers.ValidationError(
                         f"Insufficient cashback balance. Requested: ₹{cashback_requested}, Available: ₹{cashback_bal}"
@@ -197,6 +200,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             
             if redeemed_counts:
                 import datetime
+
                 from clients.models import ClientPackage
                 active_packages = ClientPackage.objects.filter(
                     client=client, 
@@ -218,7 +222,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         # Mathematical Validation to prevent invoice forgery
         from decimal import Decimal
         if 'items' in data:
-            expected_subtotal = Decimal('0')
+            expected_subtotal = Decimal(0)
             for item in data.get('items', []):
                 qty = Decimal(str(item.get('quantity', 1)))
                 unit_price = Decimal(str(item.get('unit_price', 0)))
@@ -235,9 +239,9 @@ class InvoiceSerializer(serializers.ModelSerializer):
                 
                 is_redemption = bool(item.get('description') and '🎁 [Redeem]' in item.get('description'))
                 if not is_redemption:
-                    expected_item_total = max(Decimal('0'), (unit_price * qty) - item_discount)
+                    expected_item_total = max(Decimal(0), (unit_price * qty) - item_discount)
                 else:
-                    expected_item_total = Decimal('0')
+                    expected_item_total = Decimal(0)
                     
                 expected_subtotal += expected_item_total
                 
@@ -256,7 +260,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             if cgst < 0 or sgst < 0:
                 raise serializers.ValidationError("Taxes cannot be negative.")
 
-            expected_total_raw = max(Decimal('0'), expected_subtotal - discount + cgst + sgst)
+            expected_total_raw = max(Decimal(0), expected_subtotal - discount + cgst + sgst)
             expected_total_rounded = Decimal(str(round(float(expected_total_raw))))
             
             # Override frontend values with server authoritative math
@@ -336,8 +340,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
                     ModelClass = ct.model_class()
                     obj = ModelClass.objects.get(pk=obj_id)
                     
-                    db_price = Decimal('0')
-                    db_tax = Decimal('0')
+                    db_price = Decimal(0)
+                    db_tax = Decimal(0)
                     
                     # 1. Resolve base price
                     if hasattr(obj, 'default_price') and ct.model == 'service':
@@ -372,8 +376,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
                     disc = Decimal(str(item_data.get('discount', 0)))
                     mgr_disc = Decimal(str(item_data.get('manager_discount', 0)))
                     
-                    base_total = max(Decimal('0'), (db_price * qty) - disc - mgr_disc)
-                    tax_amt = base_total * (db_tax / Decimal('100'))
+                    base_total = max(Decimal(0), (db_price * qty) - disc - mgr_disc)
+                    tax_amt = base_total * (db_tax / Decimal(100))
                     
                     item_data['tax_amount'] = tax_amt.quantize(Decimal('0.01'))
                     item_data['total_price'] = (base_total + tax_amt).quantize(Decimal('0.01'))
@@ -397,7 +401,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         for idx, staff_members in m2m_map:
             created_items[idx].staff_members.set(staff_members)
 
-        paid = Decimal('0')
+        paid = Decimal(0)
         for pay_data in payments_data:
             pay_data['invoice'] = invoice
             Payment.objects.create(**pay_data)
@@ -470,7 +474,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
                 if p_id not in incoming_pay_ids:
                     p.delete()
                     
-            paid = Decimal('0')
+            paid = Decimal(0)
             for pay_data in payments_data:
                 p_id = pay_data.get('id')
                 if p_id and p_id in existing_payments:

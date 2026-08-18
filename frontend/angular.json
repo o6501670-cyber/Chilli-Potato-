@@ -44,7 +44,11 @@
                 }
               ],
               "outputHashing": "all",
-              "optimization": true,
+              "optimization": {
+                "scripts": true,
+                "styles": true,
+                "fonts": false
+              },
               "sourceMap": false,
               "extractLicenses": true,
               "fileReplacements": [

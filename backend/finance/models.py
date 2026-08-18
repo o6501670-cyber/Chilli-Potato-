@@ -1,5 +1,6 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
+
 
 class PettyCashEntry(models.Model):
     center = models.ForeignKey('salon_admin.Center', on_delete=models.CASCADE, related_name='petty_cash_entries')

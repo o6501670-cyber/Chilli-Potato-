@@ -1,22 +1,29 @@
+import calendar
+from datetime import date as date_type
+from datetime import datetime, timedelta
 from decimal import Decimal
+
+from django.db.models import Count, DateField, F, Max, Q, Sum
+from django.db.models.functions import (
+    Cast,
+    ExtractHour,
+    ExtractMonth,
+    ExtractWeekDay,
+    ExtractYear,
+    TruncDate,
+)
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.db.models import Sum, Count, Q, DateField, Max, F
-from django.db.models.functions import TruncDate, ExtractHour, ExtractYear, ExtractMonth, Cast, ExtractWeekDay
-from datetime import datetime, timedelta
-from django.utils import timezone
-from datetime import date as date_type
-import calendar
 
-from billing.models import Invoice, InvoiceItem, Payment, AdvancePayment
-from appointments.models import Appointment
+from billing.models import AdvancePayment, Invoice, InvoiceItem
 from clients.models import Client
-from staff.models import StaffMember, ServiceLog
-from services.models import ServiceMaster
-from marketing.models import Membership, Package
 from inventory.models import Product
 from pos_backend.permissions import IsOwner
+from services.models import ServiceMaster
+from staff.models import ServiceLog
+
 
 def _apply_security(request, queryset, model_type='invoice'):
     user = request.user
@@ -138,7 +145,7 @@ def dashboard_summary(request):
                 days_in_month = calendar.monthrange(sd.year, sd.month)[1]
                 if (ed - sd).days >= 28:
                     days_in_month = (ed - sd).days + 1
-                projected = (Decimal(str(total_revenue)) / Decimal(str(days_elapsed))) * Decimal(str(days_in_month)) if days_elapsed > 0 else Decimal("0")
+                projected = (Decimal(str(total_revenue)) / Decimal(str(days_elapsed))) * Decimal(str(days_in_month)) if days_elapsed > 0 else Decimal(0)
         except Exception:
             import logging; logging.getLogger(__name__).error('Handled exception', exc_info=True)
     
@@ -199,8 +206,8 @@ def dashboard_summary(request):
     revenue_breakdown['advance'] += Decimal(str(total_advances_period))
         
     # Balances and Memberships
-    from clients.models import ClientValueCard, ClientPackage, ClientMembership
     from billing.models import AdvancePayment
+    from clients.models import ClientMembership, ClientPackage, ClientValueCard
     
     centers_ids = centers_qs.values_list('id', flat=True)
     
@@ -568,7 +575,6 @@ def dashboard_clients(request):
             trends[m][g]['repeat'] += stat['total_clients'] - stat['new_clients']
 
     # Daily footfall
-    from django.db.models.functions import TruncDate
     daily_footfall_qs = (
         invoices_period
         .annotate(date=TruncDate('created_at'))
@@ -825,7 +831,6 @@ def dashboard_services_products(request):
         .order_by('-revenue')
     )
     # Re-aggregate by service category using content_type model name
-    from billing.models import InvoiceItem as II
     from django.contrib.contenttypes.models import ContentType
     try:
         svc_ct = ContentType.objects.get(app_label='services', model='servicemaster')
@@ -840,7 +845,6 @@ def dashboard_services_products(request):
         .annotate(count=Sum('quantity'), revenue=Sum('total_price'))
         .order_by('-revenue')
     )
-    from services.models import ServiceMaster
     svc_map = ServiceMaster.objects.in_bulk([s['object_id'] for s in svc_agg if s['object_id']])
     services_list = []
     for s in svc_agg:

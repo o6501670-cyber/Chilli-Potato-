@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from .models import CustomUser, Message
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -44,7 +46,8 @@ class UserChatSerializer(serializers.ModelSerializer):
             return c.display_name or c.center_name
         return "No Center"
 
-from .models import CustomUser, Message, ChatRoom, MessageReaction
+from .models import ChatRoom, CustomUser, MessageReaction
+
 
 class ChatRoomSerializer(serializers.ModelSerializer):
     participants = UserChatSerializer(many=True, read_only=True)
@@ -66,10 +69,17 @@ class ChatRoomSerializer(serializers.ModelSerializer):
 
 class MessageReactionSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.full_name', read_only=True)
+    # The reacting user is always the authenticated request user (set in
+    # MessageReactionViewSet.perform_create); requiring it in the payload made
+    # every POST fail validation with "This field is required".
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    # The message FK was missing from `fields` entirely, so the view crashed
+    # with AttributeError: 'NoneType' object has no attribute 'room_id'.
+    message = serializers.PrimaryKeyRelatedField(queryset=Message.objects.all())
 
     class Meta:
         model = MessageReaction
-        fields = ('id', 'user', 'user_name', 'emoji', 'created_at')
+        fields = ('id', 'user', 'user_name', 'message', 'emoji', 'created_at')
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = serializers.PrimaryKeyRelatedField(read_only=True)

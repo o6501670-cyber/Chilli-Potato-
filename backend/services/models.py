@@ -1,5 +1,7 @@
 from django.db import models
+
 from salon_admin.models import Center
+
 
 class ServiceMaster(models.Model):
     service_code = models.CharField(max_length=50, blank=True, null=True)

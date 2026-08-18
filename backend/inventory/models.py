@@ -1,5 +1,7 @@
 from django.db import models
+
 from salon_admin.models import Center
+
 
 class Vendor(models.Model):
     name = models.CharField(max_length=255, verbose_name="Vendor Name")

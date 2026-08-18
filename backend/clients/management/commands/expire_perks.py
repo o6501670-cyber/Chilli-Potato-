@@ -1,6 +1,9 @@
-from django.core.management.base import BaseCommand
-from clients.models import ClientMembership, ClientPackage, ClientValueCard
 import datetime
+
+from django.core.management.base import BaseCommand
+
+from clients.models import ClientMembership, ClientPackage, ClientValueCard
+
 
 class Command(BaseCommand):
     help = 'Mark expired memberships, packages and value cards as inactive'

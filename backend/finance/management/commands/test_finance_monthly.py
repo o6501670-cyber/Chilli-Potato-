@@ -1,12 +1,13 @@
-from django.core.management.base import BaseCommand
-from finance.views import _get_filtered_invoices
-from billing.models import Invoice, InvoiceItem
-from django.db.models.functions import ExtractYear, ExtractMonth
-from django.db.models import Sum, Count, Q
 from django.contrib.contenttypes.models import ContentType
-from services.models import ServiceMaster
+from django.core.management.base import BaseCommand
+from django.db.models import Count, Q, Sum
+from django.db.models.functions import ExtractMonth, ExtractYear
+
+from billing.models import Invoice, InvoiceItem
 from inventory.models import Product
 from marketing.models import Membership, Package, ValueCard
+from services.models import ServiceMaster
+
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
@@ -55,6 +56,6 @@ class Command(BaseCommand):
             print(f"Item Monthly output size: {len(item_monthly)}")
 
             print("SUCCESS")
-        except Exception as e:
+        except Exception:
             import traceback
             traceback.print_exc()

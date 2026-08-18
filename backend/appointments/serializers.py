@@ -1,6 +1,8 @@
-from rest_framework import serializers
 from django.db import transaction
+from rest_framework import serializers
+
 from .models import Appointment, AppointmentService
+
 
 class AppointmentServiceSerializer(serializers.ModelSerializer):
     staff_name = serializers.SerializerMethodField()
